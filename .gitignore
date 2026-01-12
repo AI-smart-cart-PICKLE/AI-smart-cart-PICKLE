@@ -1,0 +1,99 @@
+# ------------------------------------------------
+# 1. Python & AI (PyTorch, YOLO, VirtualEnv)
+# ------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# YOLO & PyTorch specific
+*.pt
+*.pth
+*.onnx
+runs/
+wandb/
+mlruns/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+
+# ------------------------------------------------
+# 2. C/C++ & Embedded (Control Part)
+# ------------------------------------------------
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Compiled Object files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+*.bin
+*.hex
+
+# Build directories
+build/
+bin/
+obj/
+
+# ------------------------------------------------
+# 3. Environment & Secrets (SECURITY FIRST!)
+# ------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets.json
+
+# ------------------------------------------------
+# 4. OS & IDE Settings
+# ------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains (PyCharm, CLion)
+.idea/
+
+# ------------------------------------------------
+# 5. Project Specific Data
+# ------------------------------------------------
+# 데이터셋은 보통 용량이 크므로 Git에 올리지 않고 별도 관리
+data/
+datasets/
+logs/
+*.log

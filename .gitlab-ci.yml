@@ -1,0 +1,57 @@
+# 1. 파이프라인 전체 스테이지 정의
+stages:
+  - test          # 코드 문법 검사 및 단위 테스트
+  - build-package # 도커 이미지 빌드 및 푸시
+
+# 전역 변수 설정
+variables:
+  # 도커 속도 향상을 위한 드라이버 설정
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # 이미지 태그: master 브랜치는 'latest', 나머지는 '브랜치명'으로 태깅
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
+
+# 빌드용 DinD 활성화
+services:
+  - name: docker:24.0.5-dind
+    command: ["--tls=false"]
+
+# =========================================================
+# Stage 1: TEST (품질 관리)
+# =========================================================
+test_python:
+  image: python:3.11-slim
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - pip install flake8
+    # 1. 문법 검사 (너무 엄격하면 팀원들 우니까 E501(줄길이) 정도는 무시)
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+# =========================================================
+# Stage 2: BUILD & PUSH
+# =========================================================
+build_arm64:
+  image: docker:24.0.5
+  stage: build-package
+  before_script:
+    # 깃랩 레지스트리 로그인
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    # ARM64 에뮬레이터 설치 (QEMU)
+    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    # Buildx 인스턴스 생성
+    - docker buildx create --use
+  script:
+      - echo "🏗️ Building Docker Image for ARM64..."
+      # 기본 이미지 태그는 항상 붙이고, master(또는 main)일 때만 latest 태그를 동적으로 추가
+      - docker buildx build --platform linux/arm64 \
+          -t $IMAGE_TAG \
+          $( [ "$CI_COMMIT_BRANCH" = "master" ] || [ "$CI_COMMIT_BRANCH" = "main" ] && echo "-t $LATEST_TAG" ) \
+          --push .
+      - echo "✅ Build & Push Complete!"
+    
+  # master 브랜치에 푸시될 때만 실행
+  only:
+    - master
