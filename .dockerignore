@@ -1,0 +1,41 @@
+# Git 관련 메타데이터 (가장 중요, 용량 큼)
+.git
+.gitignore
+.gitlab-ci.yml
+.dockerignore
+
+# 로컬 개발 설정 및 가상환경 (도커 안에서 새로 설치해야 함)
+venv/
+.venv/
+env/
+__pycache__
+.env
+
+# IDE 설정 파일
+.vscode
+.idea
+*.code-workspace
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# 문서 및 회의록 (이미지에 들어갈 필요 없음)
+*.md
+docs/
+Note/
+회의록/
+
+# AI 학습 결과 및 데이터셋 (실행용 이미지가 아닌 경우 제외)
+# * 배포용 이미지에 특정 모델(.pt)을 포함해야 한다면 주석 처리하세요.
+runs/
+wandb/
+mlruns/
+data/
+datasets/
+
+# C/C++ 로컬 빌드 파일 (도커 안에서 새로 빌드해야 함)
+build/
+bin/
+*.o
+*.out
