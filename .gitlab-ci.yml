@@ -53,7 +53,6 @@ build_arm64:
     # Buildx 인스턴스 생성
     - docker buildx create --use
   script:
-    # ▼▼▼ 여기 들여쓰기를 수정했습니다 (2칸 들여쓰기로 통일) ▼▼▼
     - echo "Building Docker Image for ARM64..."
     # 기본 이미지 태그는 항상 붙이고, master일 때만 latest 태그를 동적으로 추가
     # --cache-from/to: 이전 빌드 레이어를 재사용하여 속도 최적화
