@@ -35,7 +35,7 @@ test_python:
   script:
     - pip install -r requirements.txt
     - pip install flake8
-    # 1. 문법 검사
+    # 1. 문법 검사: 코드 안 돌아가는 오류 정도만 체크
     - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
