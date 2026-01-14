@@ -53,16 +53,17 @@ build_arm64:
     # Buildx 인스턴스 생성
     - docker buildx create --use
   script:
-      - echo "Building Docker Image for ARM64..."
-      # 기본 이미지 태그는 항상 붙이고, master일 때만 latest 태그를 동적으로 추가
-      # --cache-from/to: 이전 빌드 레이어를 재사용하여 속도 최적화
-      - docker buildx build --platform linux/arm64 \
-          --cache-from type=registry,ref=$CI_REGISTRY_IMAGE:cache \
-          --cache-to type=registry,ref=$CI_REGISTRY_IMAGE:cache,mode=max \
-          -t $IMAGE_TAG \
-          $( [ "$CI_COMMIT_BRANCH" = "master" ] && echo "-t $LATEST_TAG" ) \
-          --push .
-      - echo "Build & Push Complete!"
+    # ▼▼▼ 여기 들여쓰기를 수정했습니다 (2칸 들여쓰기로 통일) ▼▼▼
+    - echo "Building Docker Image for ARM64..."
+    # 기본 이미지 태그는 항상 붙이고, master일 때만 latest 태그를 동적으로 추가
+    # --cache-from/to: 이전 빌드 레이어를 재사용하여 속도 최적화
+    - docker buildx build --platform linux/arm64 \
+        --cache-from type=registry,ref=$CI_REGISTRY_IMAGE:cache \
+        --cache-to type=registry,ref=$CI_REGISTRY_IMAGE:cache,mode=max \
+        -t $IMAGE_TAG \
+        $( [ "$CI_COMMIT_BRANCH" = "master" ] && echo "-t $LATEST_TAG" ) \
+        --push .
+    - echo "Build & Push Complete!"
     
   # master 브랜치에 푸시될 때만 실행
   only:
