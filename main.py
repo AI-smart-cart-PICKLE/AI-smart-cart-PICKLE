@@ -78,3 +78,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# CICD 테스트 trigger용 주석
