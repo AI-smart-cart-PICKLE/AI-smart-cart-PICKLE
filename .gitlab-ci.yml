@@ -1,68 +1,124 @@
-# 1. 파이프라인 전체 스테이지 정의
 stages:
-  - test          # 코드 문법 검사 및 단위 테스트
-  - build-package # 도커 이미지 빌드 및 푸시
+  - build
+  - deploy
 
-# 전역 변수 설정
 variables:
-  # 도커 속도 향상을 위한 드라이버 설정
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: "/certs"
-  # 이미지 태그: master 브랜치는 'latest', 나머지는 '브랜치명'으로 태깅
-  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
-  # pip 캐시 디렉토리 설정
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_BACKEND: "$DOCKER_USERNAME/smart-cart-backend:latest"
+  IMAGE_AI: "$DOCKER_USERNAME/smart-cart-ai:latest"
+  IMAGE_AIRFLOW: "$DOCKER_USERNAME/smart-cart-airflow:latest"
+  DOCKER_BUILDKIT: 1
 
-# 빌드용 DinD 활성화
 services:
   - name: docker:24.0.5-dind
+    alias: docker
     command: ["--tls=false"]
 
 # =========================================================
-# Stage 1: TEST (품질 관리)
+# 1. Backend Build Job
 # =========================================================
-test_python:
-  image: python:3.12-slim
-  stage: test
-  # pip 캐시 설정: requirements.txt가 변경될 때만 캐시 갱신
-  cache:
-    key:
-      files:
-        - backend/requirements.txt
-    paths:
-      - .cache/pip
+build-backend:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - pip install -r backend/requirements.txt
-    - pip install flake8
-    # 1. 문법 검사
-    - flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
+    - echo "Building Backend with Cache..."
+    - docker pull $IMAGE_BACKEND || true
+    - >
+      docker build 
+      --cache-from $IMAGE_BACKEND 
+      --build-arg BUILDKIT_INLINE_CACHE=1 
+      -t $IMAGE_BACKEND ./backend
+    - docker push $IMAGE_BACKEND
+  rules:
+    - changes:
+        - backend/**/*
+        - docker-compose.yml
+      when: always
 
 # =========================================================
-# Stage 2: BUILD & PUSH
+# 2. AI (Inference) Build Job
 # =========================================================
-build_arm64:
+build-ai:
+  stage: build
   image: docker:24.0.5
-  stage: build-package
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
   before_script:
-    # 깃랩 레지스트리 로그인
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    # ARM64 에뮬레이터 설치 (QEMU)
-    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    # Buildx 인스턴스 생성
-    - docker buildx create --use
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building Docker Image for ARM64..."
-    # 기본 이미지 태그는 항상 붙이고, master일 때만 latest 태그를 동적으로 추가
-    - docker buildx build --platform linux/arm64 \
-        --cache-from type=registry,ref=$CI_REGISTRY_IMAGE:cache \
-        --cache-to type=registry,ref=$CI_REGISTRY_IMAGE:cache,mode=max \
-        -t $IMAGE_TAG \
-        $( [ "$CI_COMMIT_BRANCH" = "master" ] && echo "-t $LATEST_TAG" ) \
-        -f backend/Dockerfile \
-        --push backend
-    - echo "Build & Push Complete!"
-    
-  # master 브랜치에 푸시될 때만 실행
-  only:
-    - master
+    - echo "Building AI with Cache..."
+    - docker pull $IMAGE_AI || true
+    - >
+      docker build 
+      --cache-from $IMAGE_AI 
+      --build-arg BUILDKIT_INLINE_CACHE=1 
+      -t $IMAGE_AI ./ai
+    - docker push $IMAGE_AI
+  rules:
+    - changes:
+        - ai/**/*
+        - docker-compose.yml
+      when: always
+
+# =========================================================
+# 3. MLOps (Airflow) Build Job
+# =========================================================
+build-airflow:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  script:
+    - echo "Building Airflow with Cache..."
+    - docker pull $IMAGE_AIRFLOW || true
+    - >
+      docker build 
+      --cache-from $IMAGE_AIRFLOW 
+      --build-arg BUILDKIT_INLINE_CACHE=1 
+      -f mlops/airflow/Dockerfile 
+      -t $IMAGE_AIRFLOW ./mlops
+    - docker push $IMAGE_AIRFLOW
+  rules:
+    - changes:
+        - mlops/**/*
+        - docker-compose.yml
+      when: always
+
+# =========================================================
+# 4. Deploy (EC2)
+# =========================================================
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    - echo "Deploying to EC2..."
+    - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+    - ssh $EC2_USER@$EC2_HOST "cd ~/workspaces/S14P11A202 && docker compose pull && docker compose up -d"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
