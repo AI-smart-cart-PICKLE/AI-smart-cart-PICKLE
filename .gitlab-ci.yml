@@ -4,30 +4,28 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: "/certs"
-  # [교정] 쌍따옴표로 감싸서 변수 참조를 확실히 합니다.
+  # TLS 비활성화 설정
+  DOCKER_TLS_CERTDIR: ""
   IMAGE_BACKEND: "$DOCKER_USERNAME/smart-cart-backend:latest"
   IMAGE_AI: "$DOCKER_USERNAME/smart-cart-ai:latest"
   IMAGE_AIRFLOW: "$DOCKER_USERNAME/smart-cart-airflow:latest"
 
+# 모든 빌드 잡에 공통으로 적용될 서비스 설정
 services:
   - name: docker:24.0.5-dind
+    alias: docker
     command: ["--tls=false"]
-
-# 공통 로그인 로직 템플릿
-.docker_login_template: &docker_login
-  before_script:
-    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
 # =========================================================
 # 1. Backend Build Job
 # =========================================================
 build-backend:
-  <<: *docker_login
   stage: build
   image: docker:24.0.5
   variables:
     DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Backend..."
     - docker build -t $IMAGE_BACKEND ./backend
@@ -42,11 +40,12 @@ build-backend:
 # 2. AI (Inference) Build Job
 # =========================================================
 build-ai:
-  <<: *docker_login
   stage: build
   image: docker:24.0.5
   variables:
     DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building AI Inference Server..."
     - docker build -t $IMAGE_AI ./ai
@@ -61,11 +60,12 @@ build-ai:
 # 3. MLOps (Airflow) Build Job
 # =========================================================
 build-airflow:
-  <<: *docker_login
   stage: build
   image: docker:24.0.5
   variables:
     DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Airflow..."
     - docker build -t $IMAGE_AIRFLOW -f mlops/airflow/Dockerfile ./mlops
@@ -88,12 +88,10 @@ deploy:
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    # [교정] 한 줄로 깔끔하게 config 작성 (줄바꿈 이슈 원천 차단)
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
     - echo "Deploying to EC2..."
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
-    # [팁] Public Repo라면 로그인 불필요, Private라면 아래 login 추가 필요
     - ssh $EC2_USER@$EC2_HOST "cd ~/workspaces/S14P11A202 && docker compose pull && docker compose up -d"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
