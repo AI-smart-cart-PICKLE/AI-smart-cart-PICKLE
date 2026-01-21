@@ -1,4 +1,4 @@
-name: smart-cart-ai
+name: pickle_ai
 channels:
   - pytorch
   - conda-forge

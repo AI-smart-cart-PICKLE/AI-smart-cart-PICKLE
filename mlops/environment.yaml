@@ -1,4 +1,4 @@
-name: smart-cart-mlops
+name: pickle_mlops
 channels:
   - conda-forge
   - defaults

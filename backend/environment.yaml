@@ -1,4 +1,4 @@
-name: smart-cart-backend
+name: pickle_backend
 channels:
   - conda-forge
   - defaults
