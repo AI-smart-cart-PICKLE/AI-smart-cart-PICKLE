@@ -4,13 +4,14 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  # TLS 비활성화 설정
   DOCKER_TLS_CERTDIR: ""
-  IMAGE_BACKEND: "$DOCKER_USERNAME/smart-cart-backend:latest"
-  IMAGE_AI: "$DOCKER_USERNAME/smart-cart-ai:latest"
-  IMAGE_AIRFLOW: "$DOCKER_USERNAME/smart-cart-airflow:latest"
+  # Docker Hub 이미지 이름
+  IMAGE_BACKEND: $DOCKER_USERNAME/smart-cart-backend:latest
+  IMAGE_AI: $DOCKER_USERNAME/smart-cart-ai:latest
+  IMAGE_AIRFLOW: $DOCKER_USERNAME/smart-cart-airflow:latest
+  # BuildKit 활성화 (캐시 효율 최적화)
+  DOCKER_BUILDKIT: 1
 
-# 모든 빌드 잡에 공통으로 적용될 서비스 설정
 services:
   - name: docker:24.0.5-dind
     alias: docker
@@ -22,13 +23,22 @@ services:
 build-backend:
   stage: build
   image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
   variables:
     DOCKER_HOST: tcp://docker:2375
   before_script:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building Backend..."
-    - docker build -t $IMAGE_BACKEND ./backend
+    - echo "Building Backend with Cache..."
+    # --cache-from을 통해 기존 이미지를 캐시로 활용
+    - docker pull $IMAGE_BACKEND || true
+    - docker build 
+        --cache-from $IMAGE_BACKEND 
+        --build-arg BUILDKIT_INLINE_CACHE=1 
+        -t $IMAGE_BACKEND ./backend
     - docker push $IMAGE_BACKEND
   rules:
     - changes:
@@ -42,13 +52,21 @@ build-backend:
 build-ai:
   stage: build
   image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
   variables:
     DOCKER_HOST: tcp://docker:2375
   before_script:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building AI Inference Server..."
-    - docker build -t $IMAGE_AI ./ai
+    - echo "Building AI with Cache..."
+    - docker pull $IMAGE_AI || true
+    - docker build 
+        --cache-from $IMAGE_AI 
+        --build-arg BUILDKIT_INLINE_CACHE=1 
+        -t $IMAGE_AI ./ai
     - docker push $IMAGE_AI
   rules:
     - changes:
@@ -62,13 +80,22 @@ build-ai:
 build-airflow:
   stage: build
   image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
   variables:
     DOCKER_HOST: tcp://docker:2375
   before_script:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building Airflow..."
-    - docker build -t $IMAGE_AIRFLOW -f mlops/airflow/Dockerfile ./mlops
+    - echo "Building Airflow with Cache..."
+    - docker pull $IMAGE_AIRFLOW || true
+    - docker build 
+        --cache-from $IMAGE_AIRFLOW 
+        --build-arg BUILDKIT_INLINE_CACHE=1 
+        -f mlops/airflow/Dockerfile 
+        -t $IMAGE_AIRFLOW ./mlops
     - docker push $IMAGE_AIRFLOW
   rules:
     - changes:
@@ -83,12 +110,15 @@ deploy:
   stage: deploy
   image: alpine:latest
   before_script:
-    - apk add --no-cache openssh-client
+    - 'which ssh-agent || ( apk add --no-cache openssh-client )'
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - echo -e "Host *
+  StrictHostKeyChecking no
+
+" > ~/.ssh/config
   script:
     - echo "Deploying to EC2..."
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
