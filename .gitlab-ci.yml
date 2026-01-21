@@ -1,68 +1,114 @@
-# 1. 파이프라인 전체 스테이지 정의
 stages:
-  - test          # 코드 문법 검사 및 단위 테스트
-  - build-package # 도커 이미지 빌드 및 푸시
+  - build
+  - deploy
 
-# 전역 변수 설정
 variables:
-  # 도커 속도 향상을 위한 드라이버 설정
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  # 이미지 태그: master 브랜치는 'latest', 나머지는 '브랜치명'으로 태깅
-  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
-  # pip 캐시 디렉토리 설정
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # 각 모듈별 이미지 태그 정의
+  IMAGE_BACKEND: $CI_REGISTRY_IMAGE/backend:latest
+  IMAGE_AI: $CI_REGISTRY_IMAGE/ai:latest
+  IMAGE_AIRFLOW: $CI_REGISTRY_IMAGE/airflow:latest
 
-# 빌드용 DinD 활성화
 services:
   - name: docker:24.0.5-dind
     command: ["--tls=false"]
 
 # =========================================================
-# Stage 1: TEST (품질 관리)
+# 1. Backend Build Job
 # =========================================================
-test_python:
-  image: python:3.12-slim
-  stage: test
-  # pip 캐시 설정: requirements.txt가 변경될 때만 캐시 갱신
-  cache:
-    key:
-      files:
-        - backend/requirements.txt
-    paths:
-      - .cache/pip
+build-backend:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
   script:
-    - pip install -r backend/requirements.txt
-    - pip install flake8
-    # 1. 문법 검사
-    - flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
+    - echo "Building Backend..."
+    - docker build -t $IMAGE_BACKEND ./backend
+    - docker push $IMAGE_BACKEND
+  rules:
+    # backend 폴더나 Dockerfile, Compose 파일이 바뀌면 실행
+    - changes:
+        - backend/**/*
+        - docker-compose.yml
+      when: always
 
 # =========================================================
-# Stage 2: BUILD & PUSH
+# 2. AI (Inference) Build Job
 # =========================================================
-build_arm64:
+build-ai:
+  stage: build
   image: docker:24.0.5
-  stage: build-package
+  services:
+    - name: docker:24.0.5-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
   before_script:
-    # 깃랩 레지스트리 로그인
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    # ARM64 에뮬레이터 설치 (QEMU)
-    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    # Buildx 인스턴스 생성
-    - docker buildx create --use
   script:
-    - echo "Building Docker Image for ARM64..."
-    # 기본 이미지 태그는 항상 붙이고, master일 때만 latest 태그를 동적으로 추가
-    - docker buildx build --platform linux/arm64 \
-        --cache-from type=registry,ref=$CI_REGISTRY_IMAGE:cache \
-        --cache-to type=registry,ref=$CI_REGISTRY_IMAGE:cache,mode=max \
-        -t $IMAGE_TAG \
-        $( [ "$CI_COMMIT_BRANCH" = "master" ] && echo "-t $LATEST_TAG" ) \
-        -f backend/Dockerfile \
-        --push backend
-    - echo "Build & Push Complete!"
-    
-  # master 브랜치에 푸시될 때만 실행
-  only:
-    - master
+    - echo "Building AI Inference Server..."
+    - docker build -t $IMAGE_AI ./ai
+    - docker push $IMAGE_AI
+  rules:
+    - changes:
+        - ai/**/*
+        - docker-compose.yml
+      when: always
+
+# =========================================================
+# 3. MLOps (Airflow) Build Job
+# =========================================================
+build-airflow:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - echo "Building Airflow..."
+    # 빌드 컨텍스트는 mlops 디렉토리
+    - docker build -t $IMAGE_AIRFLOW -f mlops/airflow/Dockerfile ./mlops
+    - docker push $IMAGE_AIRFLOW
+  rules:
+    - changes:
+        - mlops/**/*
+        - docker-compose.yml
+      when: always
+
+# =========================================================
+# 4. Deploy (EC2)
+# =========================================================
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - 'which ssh-agent || ( apk add --no-cache openssh-client )'
+    - eval $(ssh-agent -s)
+    # SSH_PRIVATE_KEY 변수에 EC2 키 파일 내용이 등록되어 있어야 함
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    # 호스트 키 검증 비활성화 (보안상 known_hosts 권장하나 편의상 적용)
+    - echo -e "Host *
+	StrictHostKeyChecking no
+
+" > ~/.ssh/config
+  script:
+    - echo "Deploying to EC2..."
+    # 1. 최신 docker-compose.yml 서버로 전송
+    - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+    # 2. 서버에서 Pull 및 Up (변경된 컨테이너만 재시작됨)
+    - ssh $EC2_USER@$EC2_HOST "cd ~/workspaces/S14P11A202 && docker compose pull && docker compose up -d"
+  rules:
+    # 빌드 작업 중 하나라도 성공하거나, 마스터 브랜치 푸시 시 실행
+    - if: $CI_COMMIT_BRANCH == "master"
