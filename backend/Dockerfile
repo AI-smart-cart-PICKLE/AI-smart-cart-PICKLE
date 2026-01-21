@@ -11,8 +11,6 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
-    libgl1 \
-    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # 의존성 캐싱을 위해 requirements.txt만 먼저 복사
@@ -29,8 +27,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libpq5 \
     curl \
-    libgl1 \
-    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # 빌드 단계에서 설치된 패키지만 복사 (이미지 경량화 핵심)
