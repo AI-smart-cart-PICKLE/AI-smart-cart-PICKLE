@@ -5,27 +5,29 @@ stages:
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  IMAGE_BACKEND: $CI_REGISTRY_IMAGE/backend:latest
-  IMAGE_AI: $CI_REGISTRY_IMAGE/ai:latest
-  IMAGE_AIRFLOW: $CI_REGISTRY_IMAGE/airflow:latest
+  # [교정] 쌍따옴표로 감싸서 변수 참조를 확실히 합니다.
+  IMAGE_BACKEND: "$DOCKER_USERNAME/smart-cart-backend:latest"
+  IMAGE_AI: "$DOCKER_USERNAME/smart-cart-ai:latest"
+  IMAGE_AIRFLOW: "$DOCKER_USERNAME/smart-cart-airflow:latest"
 
-# 공통 도커 빌드 템플릿 (코드 중복 제거)
-.docker_build_template: &docker_build
-  image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      command: ["--tls=false"]
-  variables:
-    DOCKER_HOST: tcp://docker:2375
+services:
+  - name: docker:24.0.5-dind
+    command: ["--tls=false"]
+
+# 공통 로그인 로직 템플릿
+.docker_login_template: &docker_login
   before_script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
 # =========================================================
 # 1. Backend Build Job
 # =========================================================
 build-backend:
-  <<: *docker_build
+  <<: *docker_login
   stage: build
+  image: docker:24.0.5
+  variables:
+    DOCKER_HOST: tcp://docker:2375
   script:
     - echo "Building Backend..."
     - docker build -t $IMAGE_BACKEND ./backend
@@ -40,8 +42,11 @@ build-backend:
 # 2. AI (Inference) Build Job
 # =========================================================
 build-ai:
-  <<: *docker_build
+  <<: *docker_login
   stage: build
+  image: docker:24.0.5
+  variables:
+    DOCKER_HOST: tcp://docker:2375
   script:
     - echo "Building AI Inference Server..."
     - docker build -t $IMAGE_AI ./ai
@@ -56,8 +61,11 @@ build-ai:
 # 3. MLOps (Airflow) Build Job
 # =========================================================
 build-airflow:
-  <<: *docker_build
+  <<: *docker_login
   stage: build
+  image: docker:24.0.5
+  variables:
+    DOCKER_HOST: tcp://docker:2375
   script:
     - echo "Building Airflow..."
     - docker build -t $IMAGE_AIRFLOW -f mlops/airflow/Dockerfile ./mlops
@@ -77,19 +85,15 @@ deploy:
   before_script:
     - apk add --no-cache openssh-client
     - eval $(ssh-agent -s)
-    # 줄바꿈 문자(\r) 제거 및 SSH 키 파일 끝에 개행 추가
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | base64 -d > /tmp/id_rsa || echo "$SSH_PRIVATE_KEY" | tr -d '\r' > /tmp/id_rsa
-    - chmod 600 /tmp/id_rsa
-    - ssh-add /tmp/id_rsa
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    # SSH 접속 시 엄격한 키 검사 비활성화
+    # [교정] 한 줄로 깔끔하게 config 작성 (줄바꿈 이슈 원천 차단)
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
     - echo "Deploying to EC2..."
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
-    # SSH 세션 유지 및 복수 명령 실행을 위해 쿼테이션 사용
+    # [팁] Public Repo라면 로그인 불필요, Private라면 아래 login 추가 필요
     - ssh $EC2_USER@$EC2_HOST "cd ~/workspaces/S14P11A202 && docker compose pull && docker compose up -d"
   rules:
-    # master 또는 develop 브랜치 푸시 시 실행
     - if: $CI_COMMIT_BRANCH == "master"
