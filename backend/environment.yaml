@@ -1,0 +1,20 @@
+name: smart-cart-backend
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - fastapi
+    - uvicorn[standard]
+    - sqlalchemy
+    - psycopg2-binary
+    - python-multipart
+    - boto3
+    - mlflow
+    - opencv-python-headless
+    - ultralytics
+    - pytest
+    - black
+    - isort

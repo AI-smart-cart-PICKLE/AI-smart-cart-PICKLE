@@ -11,6 +11,8 @@ variables:
   # 이미지 태그: master 브랜치는 'latest', 나머지는 '브랜치명'으로 태깅
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   LATEST_TAG: $CI_REGISTRY_IMAGE:latest
+  # pip 캐시 디렉토리 설정
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 # 빌드용 DinD 활성화
 services:
@@ -21,14 +23,20 @@ services:
 # Stage 1: TEST (품질 관리)
 # =========================================================
 test_python:
-  image: python:3.11-slim
+  image: python:3.12-slim
   stage: test
+  # pip 캐시 설정: requirements.txt가 변경될 때만 캐시 갱신
+  cache:
+    key:
+      files:
+        - backend/requirements.txt
+    paths:
+      - .cache/pip
   script:
-    - pip install -r requirements.txt
+    - pip install -r backend/requirements.txt
     - pip install flake8
-    # 1. 문법 검사 (너무 엄격하면 팀원들 우니까 E501(줄길이) 정도는 무시)
-    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    # 1. 문법 검사
+    - flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
 
 # =========================================================
 # Stage 2: BUILD & PUSH
@@ -44,13 +52,16 @@ build_arm64:
     # Buildx 인스턴스 생성
     - docker buildx create --use
   script:
-      - echo "🏗️ Building Docker Image for ARM64..."
-      # 기본 이미지 태그는 항상 붙이고, master(또는 main)일 때만 latest 태그를 동적으로 추가
-      - docker buildx build --platform linux/arm64 \
-          -t $IMAGE_TAG \
-          $( [ "$CI_COMMIT_BRANCH" = "master" ] || [ "$CI_COMMIT_BRANCH" = "main" ] && echo "-t $LATEST_TAG" ) \
-          --push .
-      - echo "✅ Build & Push Complete!"
+    - echo "Building Docker Image for ARM64..."
+    # 기본 이미지 태그는 항상 붙이고, master일 때만 latest 태그를 동적으로 추가
+    - docker buildx build --platform linux/arm64 \
+        --cache-from type=registry,ref=$CI_REGISTRY_IMAGE:cache \
+        --cache-to type=registry,ref=$CI_REGISTRY_IMAGE:cache,mode=max \
+        -t $IMAGE_TAG \
+        $( [ "$CI_COMMIT_BRANCH" = "master" ] && echo "-t $LATEST_TAG" ) \
+        -f backend/Dockerfile \
+        --push backend
+    - echo "Build & Push Complete!"
     
   # master 브랜치에 푸시될 때만 실행
   only:

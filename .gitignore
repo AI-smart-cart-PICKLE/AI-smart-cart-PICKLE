@@ -97,3 +97,21 @@ data/
 datasets/
 logs/
 *.log
+
+# ------------------------------------------------
+# 6. Docker & Service Runtime
+# ------------------------------------------------
+# Airflow
+airflow/logs/
+airflow/*.pid
+airflow/*.err
+airflow/*.log
+airflow/airflow-webserver.pid
+
+# MLflow
+mlruns/
+.trash/
+
+# Database mounts (if outside data/)
+postgres-data/
+minio-data/

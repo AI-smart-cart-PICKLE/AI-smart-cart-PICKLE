@@ -1,0 +1,31 @@
+# Python & Virtual Env
+.venv
+venv/
+env/
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Git
+.git
+.gitignore
+
+# Environment & Config (Secrets)
+.env
+.env.*
+environment.yaml
+
+# IDE Settings
+.vscode/
+.idea/
+
+# Logs & Data
+logs/
+data/
+*.log
+
+# YOLO / ML Artifacts (Local tests)
+runs/
+wandb/
+mlruns/
