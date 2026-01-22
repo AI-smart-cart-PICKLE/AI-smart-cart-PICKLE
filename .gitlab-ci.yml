@@ -117,12 +117,14 @@ deploy:
     - chmod 700 ~/.ssh
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
-    - echo "Preparing Target Directory on EC2..."
-    # 1. 원격 서버에 폴더가 없으면 생성
-    - ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202"
+    - echo "Creating full directory structure on EC2..."
+    # 필요한 모든 하위 디렉토리 생성
+    - >
+      ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202/backend 
+      ~/workspaces/S14P11A202/ai 
+      ~/workspaces/S14P11A202/mlops/airflow"
     
     - echo "Uploading docker-compose.yml..."
-    # 2. 파일 업로드
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
     
     - echo "Executing Remote Deployment Commands..."
