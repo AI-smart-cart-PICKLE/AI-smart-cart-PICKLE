@@ -117,8 +117,22 @@ deploy:
     - chmod 700 ~/.ssh
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
-    - echo "Deploying to EC2..."
+    - echo "Preparing Target Directory on EC2..."
+    # 1. 원격 서버에 폴더가 없으면 생성
+    - ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202"
+    
+    - echo "Uploading docker-compose.yml..."
+    # 2. 파일 업로드
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
-    - ssh $EC2_USER@$EC2_HOST "cd ~/workspaces/S14P11A202 && docker compose pull && docker compose up -d"
+    
+    - echo "Executing Remote Deployment Commands..."
+    - >
+      ssh $EC2_USER@$EC2_HOST "
+        cd ~/workspaces/S14P11A202 && 
+        echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin &&
+        docker compose pull && 
+        docker compose up -d --remove-orphans &&
+        docker image prune -f
+      "
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
