@@ -1,22 +1,21 @@
-import os
+# DB 연결 설정 (PostgreSQL)
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 환경 변수에서 DATABASE_URL 가져오기
-# docker-compose에서 설정된 기본값: postgresql://admin:password123@db:5432/app_db
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:password123@localhost:5432/app_db")
+# 1. DB 주소 (사용자명:비번@주소:포트/DB이름)
+# 로컬 PostgreSQL 기준 예시입니다. 본인 환경에 맞게 수정하세요!
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@localhost:5432/pickle_db"
 
-# SQLAlchemy 엔진 생성
-engine = create_engine(DATABASE_URL)
+# 2. 엔진 생성 (DB와 연결되는 통로)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
-# 세션 로컬 클래스 생성
+# 3. 세션 생성 (데이터를 읽고 쓰는 작업 단위)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base 클래스 생성 (모델들이 상속받을 클래스)
+# 4. 모델들의 조상님 (이걸 상속받아야 테이블로 인식됨)
 Base = declarative_base()
 
-# 의존성 주입을 위한 DB 세션 생성 함수
+# 5. DB 세션 가져오기 (API에서 사용)
 def get_db():
     db = SessionLocal()
     try:
