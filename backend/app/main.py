@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from .database import engine, Base
 from . import models  # 우리가 만든 models.py를 가져와야 테이블을 인식합니다!
-from .routers import cart, payment, user # 라우터 파일들 임포트
+from .routers import cart, payment, user, product # 라우터 파일들 임포트
 
 # ★ 핵심: 서버 시작할 때 DB에 없는 테이블을 자동으로 생성함
 # models.py에 정의된 클래스들을 보고 매핑합니다.
@@ -15,10 +15,10 @@ app = FastAPI(
 )
 
 # 라우터 등록 (만들어둔 API 연결)
-# 아직 파일이 없거나 비어있으면 주석(#) 처리 해두세요!
-# app.include_router(user.router)
-# app.include_router(cart.router)
-# app.include_router(payment.router)
+app.include_router(user.router)
+app.include_router(product.router)
+app.include_router(cart.router)
+app.include_router(payment.router)
 
 @app.get("/")
 def read_root():
