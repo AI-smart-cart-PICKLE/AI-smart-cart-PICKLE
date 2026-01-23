@@ -79,7 +79,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 120s
     command: standalone
 
   # --- [Application Layer] ---
@@ -100,7 +100,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 12gb
+          memory: 6gb
           cpus: '2.0'
 
   # [Local Dev Only] AI Inference Server
