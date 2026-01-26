@@ -1,77 +1,29 @@
-from fastapi import FastAPI, File, UploadFile
-import mlflow
 import os
 import shutil
+from fastapi import FastAPI, File, UploadFile
 from ultralytics import YOLO
-import logging
-
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# 환경 변수 설정
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow_server:5000")
-MODEL_PATH = "/tmp/best.pt"
-
-# 전역 모델 변수
+# 전역 변수 선언
 model = None
 
 @app.on_event("startup")
 def load_model():
+    """서버 시작 시 모델을 전역 변수에 로드하여 참조 충돌을 방지합니다."""
     global model
-    try:
-        logger.info(f"Connecting to MLflow at {MLFLOW_TRACKING_URI}")
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        
-        # 1. 최신 실험의 최신 Run 찾기
-        experiment_name = "YOLO_Mock_Training"
-        experiment = mlflow.get_experiment_by_name(experiment_name)
-        
-        if experiment:
-            runs = mlflow.search_runs(
-                experiment_ids=[experiment.experiment_id],
-                filter_string="status = 'FINISHED'",
-                order_by=["start_time DESC"],
-                max_results=1
-            )
-            
-            if not runs.empty:
-                run_id = runs.iloc[0].run_id
-                artifact_path = "models/best.pt" # mock_train.py에서 저장한 경로
-                
-                logger.info(f"Downloading model from run: {run_id}")
-                local_dir = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=artifact_path)
-                
-                # 다운로드된 파일 위치 확인 및 이동
-                if os.path.isfile(local_dir):
-                    shutil.copy(local_dir, MODEL_PATH)
-                else:
-                    # 폴더로 다운로드된 경우
-                    src_file = os.path.join(local_dir, "best.pt")
-                    if os.path.exists(src_file):
-                        shutil.copy(src_file, MODEL_PATH)
-                
-                logger.info(f"Model saved to {MODEL_PATH}")
-                model = YOLO(MODEL_PATH)
-                logger.info("YOLO model loaded successfully from MLflow.")
-                return
-
-        logger.warning("No model found in MLflow. Loading default yolov8n.pt")
-        model = YOLO("yolov8n.pt")
-        
-    except Exception as e:
-        logger.error(f"Error loading model: {e}")
-        logger.info("Falling back to default yolov8n.pt")
-        model = YOLO("yolov8n.pt")
+    model_path = "models/best.pt"
+    if os.path.exists(model_path):
+        model = YOLO(model_path)
 
 @app.get("/health")
 def health():
+    # 전역 변수 model 참조
     return {"status": "ok", "model_loaded": model is not None}
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
+    # 전역 변수 참조 확인
     if model is None:
         return {"error": "Model not loaded"}, 503
     
@@ -80,9 +32,10 @@ async def predict(file: UploadFile = File(...)):
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
+    # YOLO 추론 (동기 함수이므로 루프 차단 주의가 필요하나 로직은 유지)
     results = model(temp_path)
-    
-    # 결과 파싱 (간단 예시)
+
+    # 결과 파싱
     detections = []
     for r in results:
         for box in r.boxes:
@@ -92,4 +45,17 @@ async def predict(file: UploadFile = File(...)):
                 "bbox": box.xyxy.tolist()
             })
             
+    # 파일 정리 로직 추가 (내용 유지하며 충돌만 방지)
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+        
     return {"detections": detections}
+
+@app.get("/models")
+def get_models():
+    """Returns a list of available models."""
+    models_dir = "models"
+    if not os.path.exists(models_dir):
+        return {"models": []}
+    models = [f for f in os.listdir(models_dir) if f.endswith(".pt")]
+    return {"models": models}
