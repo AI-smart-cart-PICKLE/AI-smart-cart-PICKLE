@@ -115,3 +115,6 @@ mlruns/
 # Database mounts (if outside data/)
 postgres-data/
 minio-data/
+
+GEMINI.md
+CLAUDE.md
