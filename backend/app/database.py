@@ -1,21 +1,28 @@
-# DB 연결 설정 (PostgreSQL)
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 1. DB 주소 (사용자명:비번@주소:포트/DB이름)
-# 로컬 PostgreSQL 기준 예시입니다. 본인 환경에 맞게 수정하세요!
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@localhost:5432/pickle_db"
+# 환경 변수에서 DB 주소를 가져옵니다. (Docker Compose에서 설정됨)
+# 없으면 로컬 기본값 사용 (User: admin, PW: password123, DB: postgres)
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://admin:password123@localhost:5432/postgres"
+)
 
-# 2. 엔진 생성 (DB와 연결되는 통로)
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# SQLite 등 다른 DB를 쓸 때를 대비한 예외처리 (Postgres는 connect_args 불필요)
+connect_args = {}
+if "sqlite" in SQLALCHEMY_DATABASE_URL:
+    connect_args = {"check_same_thread": False}
 
-# 3. 세션 생성 (데이터를 읽고 쓰는 작업 단위)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args=connect_args
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 4. 모델들의 조상님 (이걸 상속받아야 테이블로 인식됨)
 Base = declarative_base()
 
-# 5. DB 세션 가져오기 (API에서 사용)
 def get_db():
     db = SessionLocal()
     try:
