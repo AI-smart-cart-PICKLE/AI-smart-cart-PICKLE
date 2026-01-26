@@ -124,8 +124,8 @@ deploy:
       ~/workspaces/S14P11A202/ai 
       ~/workspaces/S14P11A202/mlops/airflow"
     
-    - echo "Uploading docker-compose.yml..."
-    - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+    - echo "Uploading deployment files..."
+    - scp docker-compose.yml init-db.sh $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
     
     - echo "Executing Remote Deployment Commands..."
     - >
