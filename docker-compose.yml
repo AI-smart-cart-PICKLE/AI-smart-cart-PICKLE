@@ -60,6 +60,7 @@ services:
       --host 0.0.0.0"
 
   airflow:
+    image: ${DOCKER_USERNAME:-local}/smart-cart-airflow:latest
     build:
       context: ./mlops
       dockerfile: airflow/Dockerfile
@@ -84,6 +85,7 @@ services:
 
   # --- [Application Layer] ---
   backend:
+    image: ${DOCKER_USERNAME:-local}/smart-cart-backend:latest
     build: 
       context: ./backend
       dockerfile: Dockerfile
@@ -106,6 +108,7 @@ services:
   # [Local Dev Only] AI Inference Server
   ai-inference:
     profiles: ["dev"]  # 개발 환경(Local)에서만 실행됨
+    image: ${DOCKER_USERNAME:-local}/smart-cart-ai:latest
     build:
       context: ./ai
       dockerfile: Dockerfile
