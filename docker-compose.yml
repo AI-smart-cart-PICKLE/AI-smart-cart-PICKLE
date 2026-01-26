@@ -40,6 +40,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO Bucket Initialization (Idempotent)
+  minio-init:
+    image: minio/mc
+    container_name: minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-password123}
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set minio http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-password123}); do echo '...waiting for minio...' && sleep 1; done;
+      mc mb --ignore-existing minio/mlflow;
+      mc mb --ignore-existing minio/data;
+      exit 0;
+      "
+
   # --- [MLOps Layer] ---
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
@@ -125,8 +143,10 @@ services:
     container_name: ai_inference
     restart: always
     environment:
-      - MINIO_ENDPOINT=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_PASSWORD:-password123}
     ports:
       - "8001:8000" # Localhost 8001 -> Container 8000
     deploy:
