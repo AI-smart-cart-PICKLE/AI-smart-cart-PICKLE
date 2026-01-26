@@ -70,3 +70,11 @@ class LedgerEntryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# 결제 취소 요청
+class PaymentCancelRequest(BaseModel):
+    reason: str = "사용자 요청에 의한 취소"
+
+# 결제 상세 조회 응답 (기존 PaymentResponse 활용 가능하지만, 명확히 하려면 분리)
+class PaymentDetailResponse(PaymentResponse):
+    pass
