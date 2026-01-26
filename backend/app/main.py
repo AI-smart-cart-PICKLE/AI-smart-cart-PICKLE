@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv() # .env 파일을 찾아서 환경변수로 로드함
 # 앱 실행 진입점
 from fastapi import FastAPI
 from .database import engine, Base
