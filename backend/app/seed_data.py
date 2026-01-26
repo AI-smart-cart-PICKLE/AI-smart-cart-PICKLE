@@ -1,4 +1,14 @@
 import datetime
+import sys
+import os
+from dotenv import load_dotenv
+
+# Add parent directory to path to allow importing 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Load environment variables
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
+
 from sqlalchemy import text  # ★ 이 줄 꼭 추가하세요!
 from app.database import SessionLocal, engine
 from app import models
