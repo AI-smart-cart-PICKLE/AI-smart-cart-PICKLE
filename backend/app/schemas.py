@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
+from typing import Optional
 from datetime import datetime, date
-from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType
+from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType, UserProvider
+import re
 
 # --- Payment Method Schemas ---
 
@@ -70,3 +71,82 @@ class LedgerEntryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- user schemas ---
+
+NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣]{2,20}$")
+
+class UserBase(BaseModel):
+    email: EmailStr
+    nickname: str = Field(min_length=2, max_length=8)
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    nickname: str
+
+    # 비밀번호 검증
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        """
+        비밀번호 정책:
+        - 최소 8자
+        - 영문 + 숫자 조합
+        """
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+            raise ValueError("Password must contain both letters and numbers")
+
+        return value
+
+    # 닉네임 검증
+    @field_validator("nickname")
+    @classmethod
+    def validate_nickname(cls, value: str) -> str:
+        """
+        닉네임 정책:
+        - 한글 또는 영어만 허용
+        - 최소 2자, 최대 20자
+        - 중복 허용 (DB에서 UNIQUE 제약 없음)
+        """
+        if not NICKNAME_REGEX.fullmatch(value):
+            raise ValueError(
+                "Nickname must be 2–20 characters long and contain only Korean or English letters"
+            )
+        return value
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: int
+    email: EmailStr
+    provider: UserProvider
+    nickname: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+
+
+class UserUpdate(BaseModel):
+    nickname: str = Field(min_length=2, max_length=8)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+
+
+class EmailCheckResponse(BaseModel):
+    is_available: bool

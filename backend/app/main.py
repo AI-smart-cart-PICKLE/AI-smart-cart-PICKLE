@@ -2,6 +2,8 @@ from dotenv import load_dotenv
 load_dotenv() # .env 파일을 찾아서 환경변수로 로드함
 # 앱 실행 진입점
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from .database import engine, Base
 from . import models  # 우리가 만든 models.py를 가져와야 테이블을 인식합니다!
 from .routers import cart, payment, user, product, ledger # 라우터 파일들 임포트
@@ -14,6 +16,15 @@ app = FastAPI(
     title="Pickle Project API",
     description="스마트 카트 및 추천/결제 서비스 API",
     version="1.0.0"
+)
+
+# CORS 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 출처 허용
+    allow_credentials=True, # 쿠키, Authorization 헤더
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # 라우터 등록 (만들어둔 API 연결)
