@@ -115,3 +115,17 @@ mlruns/
 # Database mounts (if outside data/)
 postgres-data/
 minio-data/
+
+
+# inference test data
+ai/inference/tests/*.jpg
+
+# model weights
+ai/inference/models/*.pt
+
+# experiment outputs
+ai/inference/runs/
+
+GEMINI.md
+CLAUDE.md
+
