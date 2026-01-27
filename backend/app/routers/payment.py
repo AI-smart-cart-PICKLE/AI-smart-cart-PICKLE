@@ -9,6 +9,7 @@ from .ledger import create_ledger_from_payment
 from ..database import get_db
 from .. import models, schemas
 
+# 환경 변수 설정
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 KAKAO_ADMIN_KEY = os.getenv("KAKAO_ADMIN_KEY")
 
@@ -18,12 +19,37 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+# =========================================================
+# 🛠️ [Refactoring] 공통 의존성 및 헬퍼 함수
+# =========================================================
+
+# 1. 현재 로그인한 사용자 ID 가져오기 (Dependency)
+# 나중에 JWT 토큰 인증 로직은 이 함수 내부만 수정하면 모든 API에 적용 가능
+def get_current_user_id():
+    # TODO: 추후 헤더의 토큰(Authorization)을 파싱하여 user_id를 반환하도록 수정
+    return 1
+
+# 2. 결제 내역 조회 헬퍼 (중복 제거)
+def get_payment_or_404(payment_id: int, user_id: int, db: Session):
+    payment = db.query(models.Payment).filter(
+        models.Payment.payment_id == payment_id,
+        models.Payment.user_id == user_id
+    ).first()
+    
+    if not payment:
+        raise HTTPException(status_code=404, detail="결제 내역을 찾을 수 없습니다.")
+    return payment
+
+# =========================================================
+# 🚀 API 엔드포인트
+# =========================================================
+
 # --- 1. 결제 준비 (Ready) ---
 @router.post("/ready", response_model=schemas.PaymentReadyResponse)
 async def payment_ready(
     request: schemas.PaymentReadyRequest,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)  # 👈 하드코딩 제거!
 ):
     cart_session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == request.cart_session_id
@@ -32,6 +58,7 @@ async def payment_ready(
     if not cart_session:
         raise HTTPException(status_code=404, detail="해당 카트 세션을 찾을 수 없습니다.")
 
+    # 기존 결제 시도 정리
     existing_payment = db.query(models.Payment).filter(
         models.Payment.cart_session_id == request.cart_session_id
     ).first()
@@ -40,12 +67,12 @@ async def payment_ready(
         db.delete(existing_payment)
         db.commit()
 
+    # 카카오페이 API 호출
     url = "https://kapi.kakao.com/v1/payment/ready"
     headers = {
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
-    
     data = {
         "cid": "TC0ONETIME", 
         "partner_order_id": str(cart_session.cart_session_id),
@@ -66,6 +93,7 @@ async def payment_ready(
     if "tid" not in res_data:
         raise HTTPException(status_code=400, detail=f"KakaoPay Error: {res_data}")
 
+    # DB 저장
     new_payment = models.Payment(
         cart_session_id=cart_session.cart_session_id,
         user_id=user_id,
@@ -91,7 +119,7 @@ async def payment_ready(
 async def payment_approve(
     request: schemas.PaymentApproveRequest,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)
 ):
     payment = db.query(models.Payment).filter(
         models.Payment.pg_tid == request.tid,
@@ -124,6 +152,7 @@ async def payment_approve(
         db.commit()
         raise HTTPException(status_code=400, detail=f"Approval failed: {res_data}")
 
+    # 상태 업데이트
     payment.status = models.PaymentStatus.APPROVED
     payment.approved_at = datetime.now()
     
@@ -138,6 +167,7 @@ async def payment_approve(
     db.commit()
     db.refresh(payment)
 
+    # 가계부 연동
     try:
         create_ledger_from_payment(payment_id=payment.payment_id, db=db)
         print(f"✅ 가계부 자동 등록 완료: Payment ID {payment.payment_id}")
@@ -169,20 +199,15 @@ async def payment_fail_callback():
     return JSONResponse(content={"message": "결제 실패", "status": "FAILED"}, status_code=400)
 
 
-# ========================================================
-# 🚨 [순서 중요] /methods가 /{payment_id}보다 무조건 위에 있어야 함!
-# ========================================================
-
-# --- 6. 결제 수단(카드) 목록 조회 ---
+# --- 6. 결제 수단 목록 조회 ---
 @router.get("/methods", response_model=list[schemas.PaymentMethodResponse])
 async def get_payment_methods(
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)
 ):
-    methods = db.query(models.PaymentMethod).filter(
+    return db.query(models.PaymentMethod).filter(
         models.PaymentMethod.user_id == user_id
     ).all()
-    return methods
 
 
 # --- 7. 결제 수단 등록 ---
@@ -190,7 +215,7 @@ async def get_payment_methods(
 async def register_payment_method(
     request: schemas.PaymentMethodCreate,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)
 ):
     existing_count = db.query(models.PaymentMethod).filter(
         models.PaymentMethod.user_id == user_id
@@ -219,7 +244,7 @@ async def register_payment_method(
 async def delete_payment_method(
     method_id: int,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)
 ):
     method = db.query(models.PaymentMethod).filter(
         models.PaymentMethod.method_id == method_id,
@@ -231,7 +256,6 @@ async def delete_payment_method(
 
     db.delete(method)
     db.commit()
-
     return {"message": "결제 수단이 삭제되었습니다."}
 
 
@@ -240,17 +264,10 @@ async def delete_payment_method(
 async def get_payment_detail(
     payment_id: int,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)
 ):
-    payment = db.query(models.Payment).filter(
-        models.Payment.payment_id == payment_id,
-        models.Payment.user_id == user_id
-    ).first()
-
-    if not payment:
-        raise HTTPException(status_code=404, detail="결제 내역을 찾을 수 없습니다.")
-
-    return payment
+    
+    return get_payment_or_404(payment_id, user_id, db)
 
 
 # --- 5. 결제 취소(환불) ---
@@ -259,15 +276,9 @@ async def cancel_payment(
     payment_id: int,
     request: schemas.PaymentCancelRequest,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    user_id: int = Depends(get_current_user_id)
 ):
-    payment = db.query(models.Payment).filter(
-        models.Payment.payment_id == payment_id,
-        models.Payment.user_id == user_id
-    ).first()
-
-    if not payment:
-        raise HTTPException(status_code=404, detail="결제 내역을 찾을 수 없습니다.")
+    payment = get_payment_or_404(payment_id, user_id, db)
 
     if payment.status != models.PaymentStatus.APPROVED:
         raise HTTPException(status_code=400, detail="승인 완료된 결제만 취소할 수 있습니다.")
@@ -291,8 +302,7 @@ async def cancel_payment(
     if "tid" not in res_data:
         raise HTTPException(status_code=400, detail=f"Cancel failed: {res_data}")
 
-    payment.status = models.PaymentStatus.CANCELLED 
-    
+    payment.status = models.PaymentStatus.CANCELLED
     db.commit()
     db.refresh(payment)
 
