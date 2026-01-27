@@ -118,3 +118,6 @@ minio-data/
 
 GEMINI.md
 CLAUDE.md
+
+# AI inference test files
+ai/inference/tests/
