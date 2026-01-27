@@ -257,6 +257,7 @@ class LedgerEntry(Base):
     spend_date = Column(Date, nullable=False)
     category = Column(SAEnum(LedgerCategory), nullable=False, default=LedgerCategory.ETC)
     amount = Column(Integer, nullable=False)
+    memo = Column(Text)
 
     # Relationships
     user = relationship("AppUser", back_populates="ledger_entries")

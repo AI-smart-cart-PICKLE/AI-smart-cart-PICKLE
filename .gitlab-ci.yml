@@ -31,7 +31,6 @@ build-backend:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Backend with Cache..."
-    - docker pull $IMAGE_BACKEND || true
     - >
       docker build 
       --cache-from $IMAGE_BACKEND 
@@ -60,7 +59,6 @@ build-ai:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building AI with Cache..."
-    - docker pull $IMAGE_AI || true
     - >
       docker build 
       --cache-from $IMAGE_AI 
@@ -89,7 +87,6 @@ build-airflow:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Airflow with Cache..."
-    - docker pull $IMAGE_AIRFLOW || true
     - >
       docker build 
       --cache-from $IMAGE_AIRFLOW 
@@ -126,6 +123,16 @@ deploy:
     
     - echo "Uploading docker-compose.yml..."
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+
+    - echo "Generating .env file on EC2..."
+    - |
+      ssh $EC2_USER@$EC2_HOST "cat <<EOF > ~/workspaces/S14P11A202/.env
+      DOCKER_USERNAME=$DOCKER_USERNAME
+      DB_USER=$DB_USER
+      DB_PASSWORD=$DB_PASSWORD
+      MINIO_USER=$MINIO_USER
+      MINIO_PASSWORD=$MINIO_PASSWORD
+      EOF"
     
     - echo "Executing Remote Deployment Commands..."
     - >
