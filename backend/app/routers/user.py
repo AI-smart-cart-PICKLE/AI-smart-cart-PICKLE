@@ -9,14 +9,14 @@ from app.models import AppUser, UserProvider
 from app.utils.security import hash_password, verify_password
 from app.utils.jwt import create_access_token, create_refresh_token
 from app.dependencies import get_current_user
+from app.schemas import UserNicknameUpdate, UserPasswordUpdate
 
-import json
 
 router = APIRouter(prefix="/api", tags=["User"])
 
 
 # 회원가입
-@router.post("/auth/signup", response_model=schemas.UserResponse)
+@router.post("/auth/signup", response_model=schemas.UserMeResponse)
 def signup(
     request: schemas.UserCreate,
     db: Session = Depends(get_db)
@@ -94,8 +94,47 @@ def login(
     }
 
 # 내 정보 조회
-@router.get("/users/me", response_model=schemas.UserResponse)
+@router.get("/users/me", response_model=schemas.UserMeResponse)
 def read_me(
     current_user: AppUser = Depends(get_current_user)
 ):
     return current_user
+
+# 닉네임 변경
+@router.patch("/users/me/nickname", response_model=schemas.UserMeResponse)
+def update_nickname(
+    req: schemas.UserNicknameUpdate,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    current_user.nickname = req.nickname
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+# 비밀번호 변경
+@router.patch("/users/me/password")
+def update_password(
+    req: schemas.UserPasswordUpdate,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    # OAuth 유저 차단
+    if current_user.provider != UserProvider.LOCAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth users cannot change password"
+        )
+
+    # 현재 비밀번호 검증 (필수)
+    if not verify_password(req.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    current_user.password_hash = hash_password(req.new_password)
+    db.commit()
+
+    return {"message": "Password updated successfully"}
