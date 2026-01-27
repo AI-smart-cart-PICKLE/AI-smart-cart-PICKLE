@@ -26,3 +26,7 @@ app.include_router(ledger.router)
 @app.get("/")
 def read_root():
     return {"message": "Hello, Pickle! 서버가 정상 작동 중입니다."}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

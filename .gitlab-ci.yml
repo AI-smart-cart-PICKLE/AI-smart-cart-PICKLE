@@ -126,6 +126,16 @@ deploy:
     
     - echo "Uploading docker-compose.yml..."
     - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+
+    - echo "Generating .env file on EC2..."
+    - |
+      ssh $EC2_USER@$EC2_HOST "cat <<EOF > ~/workspaces/S14P11A202/.env
+      DOCKER_USERNAME=$DOCKER_USERNAME
+      DB_USER=$DB_USER
+      DB_PASSWORD=$DB_PASSWORD
+      MINIO_USER=$MINIO_USER
+      MINIO_PASSWORD=$MINIO_PASSWORD
+      EOF"
     
     - echo "Executing Remote Deployment Commands..."
     - >
