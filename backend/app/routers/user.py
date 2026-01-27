@@ -1,5 +1,5 @@
 # app/routers/user.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -9,6 +9,8 @@ from app.models import AppUser, UserProvider
 from app.utils.security import hash_password, verify_password
 from app.utils.jwt import create_access_token, create_refresh_token
 from app.dependencies import get_current_user
+
+import json
 
 router = APIRouter(prefix="/api", tags=["User"])
 
@@ -48,9 +50,10 @@ def signup(
         )
 
 # 로그인
-@router.post("/auth/login", response_model=schemas.TokenResponse)
+@router.post("/auth/login")
 def login(
     request: schemas.UserLogin,
+    response: Response,             
     db: Session = Depends(get_db)
 ):
     user = (
@@ -74,12 +77,21 @@ def login(
     access_token = create_access_token(str(user.user_id))
     refresh_token = create_refresh_token(str(user.user_id))
 
+    # Refresh Token을 HttpOnly Cookie로 설정
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        samesite="lax",
+        secure=False,   # HTTPS면 True
+        path="/"
+    )
+
+    # dict로 반환 (FastAPI가 JSON Response 자동 생성)
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token,
         "token_type": "bearer"
     }
-
 
 # 내 정보 조회
 @router.get("/users/me", response_model=schemas.UserResponse)
