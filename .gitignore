@@ -129,3 +129,6 @@ ai/inference/runs/
 GEMINI.md
 CLAUDE.md
 
+
+# Local SSL Certs
+certs/

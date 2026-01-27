@@ -12,6 +12,8 @@ __pycache__
 .gitignore
 
 # Environment & Config (Secrets)
+**/.env
+**/.env.*
 .env
 .env.*
 environment.yaml
@@ -29,3 +31,7 @@ data/
 runs/
 wandb/
 mlruns/
+
+
+certs/
+.env
