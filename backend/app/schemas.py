@@ -67,6 +67,7 @@ class LedgerEntryResponse(BaseModel):
     spend_date: date
     category: LedgerCategory
     amount: int
+    memo: Optional[str]
 
     class Config:
         from_attributes = True
