@@ -11,3 +11,4 @@ python-dotenv==1.2.1
 numpy==2.4.1
 passlib[argon2]
 python-jose[cryptography]
+email-validator
