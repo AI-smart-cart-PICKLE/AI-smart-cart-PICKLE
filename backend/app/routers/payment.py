@@ -55,7 +55,6 @@ async def payment_ready(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
-    
     # [Refactor 1 적용] BASE_URL을 사용하여 주소 생성
     data = {
         "cid": "TC0ONETIME", 
@@ -192,7 +191,7 @@ async def payment_success_callback(pg_token: str):
     description="사용자가 결제 화면에서 취소했을 때 이동하는 페이지입니다."
 )
 async def payment_cancel_callback():
-    return JSONResponse(content={"message": "사용자가 결제를 취소했습니다.", "status": "CANCELED"})
+    return JSONResponse(content={"message": "사용자가 결제를 취소했습니다.", "status": "CANCELLED"})
 
 @router.get(
     "/fail",
@@ -270,7 +269,7 @@ async def cancel_payment(
     if "tid" not in res_data:
         raise HTTPException(status_code=400, detail=f"Cancel failed: {res_data}")
 
-    payment.status = models.PaymentStatus.CANCELED 
+    payment.status = models.PaymentStatus.CANCELLED 
     
     db.commit()
     db.refresh(payment)

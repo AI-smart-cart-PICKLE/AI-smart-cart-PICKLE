@@ -18,7 +18,7 @@ class CartSessionStatus(enum.Enum):
     ACTIVE = "ACTIVE"
     CHECKOUT_REQUESTED = "CHECKOUT_REQUESTED"
     PAID = "PAID"
-    CANCELED = "CANCELED"
+    CANCELLED = "CANCELLED"
 
 class DetectionActionType(enum.Enum):
     ADD = "ADD"
@@ -36,7 +36,7 @@ class PaymentStatus(enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     FAILED = "FAILED"
-    CANCELED = "CANCELED"
+    CANCELLED = "CANCELLED"
 
 class LedgerCategory(enum.Enum):
     GROCERY = "GROCERY"
