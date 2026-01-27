@@ -31,7 +31,6 @@ build-backend:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Backend with Cache..."
-    - docker pull $IMAGE_BACKEND || true
     - >
       docker build 
       --cache-from $IMAGE_BACKEND 
@@ -60,7 +59,6 @@ build-ai:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building AI with Cache..."
-    - docker pull $IMAGE_AI || true
     - >
       docker build 
       --cache-from $IMAGE_AI 
@@ -89,7 +87,6 @@ build-airflow:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Airflow with Cache..."
-    - docker pull $IMAGE_AIRFLOW || true
     - >
       docker build 
       --cache-from $IMAGE_AIRFLOW 
