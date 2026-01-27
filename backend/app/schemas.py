@@ -161,3 +161,6 @@ class TokenResponse(BaseModel):
 
 class EmailCheckResponse(BaseModel):
     is_available: bool
+
+class UserWithdraw(BaseModel):
+    password: Optional[str] = None

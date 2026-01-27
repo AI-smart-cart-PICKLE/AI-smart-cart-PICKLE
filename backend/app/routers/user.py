@@ -10,6 +10,7 @@ from app.utils.security import hash_password, verify_password
 from app.utils.jwt import create_access_token, create_refresh_token
 from app.dependencies import get_current_user
 from app.schemas import UserNicknameUpdate, UserPasswordUpdate
+from datetime import datetime
 
 
 router = APIRouter(prefix="/api", tags=["User"])
@@ -148,3 +149,45 @@ def update_password(
     db.commit()
 
     return {"message": "Password updated successfully"}
+
+
+# 회원탈퇴
+@router.delete("/users/me")
+def withdraw_user(
+    req: schemas.UserWithdraw,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    # 이미 탈퇴한 유저 방어
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already withdrawn"
+        )
+
+    # LOCAL 유저 → 비밀번호 검증
+    if current_user.provider == UserProvider.LOCAL:
+        if not req.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required"
+            )
+        if not verify_password(req.password, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is incorrect"
+            )
+
+    # Soft delete 처리
+    current_user.is_active = False
+    current_user.deleted_at = datetime.utcnow()
+    db.commit()
+
+    # 로그아웃 처리 (refresh token 제거)
+    response.delete_cookie(
+        key="refresh_token",
+        path="/"
+    )
+
+    return {"message": "Account withdrawn successfully"}
