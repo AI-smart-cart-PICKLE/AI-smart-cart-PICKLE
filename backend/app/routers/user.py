@@ -93,6 +93,16 @@ def login(
         "token_type": "bearer"
     }
 
+# 로그아웃
+@router.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+    )
+    return {"message": "Logged out successfully"}
+
+
 # 내 정보 조회
 @router.get("/users/me", response_model=schemas.UserMeResponse)
 def read_me(
@@ -127,7 +137,7 @@ def update_password(
             detail="OAuth users cannot change password"
         )
 
-    # 현재 비밀번호 검증 (필수)
+    # 현재 비밀번호 검증 
     if not verify_password(req.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
