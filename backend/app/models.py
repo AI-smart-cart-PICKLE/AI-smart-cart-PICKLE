@@ -59,6 +59,8 @@ class AppUser(Base):
     password_hash = Column(String(255))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, nullable=False, default=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
