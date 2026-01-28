@@ -153,6 +153,12 @@ class UserPasswordUpdate(BaseModel):
     current_password: str
     new_password: str
 
+class UserPasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class UserPasswordReset(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
 
 class TokenResponse(BaseModel):
     access_token: str
