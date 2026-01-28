@@ -81,6 +81,10 @@ class LedgerEntryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LedgerUpdateRequest(BaseModel):
+    category: Optional[LedgerCategory] = None
+    memo: Optional[str] = None
+
 
 # --- user schemas ---
 

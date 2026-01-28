@@ -6,6 +6,8 @@ from typing import Optional
 from app.database import get_db
 from app import models
 from app.dependencies import get_current_user
+from app.schemas import LedgerUpdateRequest
+
 
 
 router = APIRouter(
@@ -127,6 +129,47 @@ def get_ledger_detail(
     # 본인 가계부만 조회 가능
     if ledger.user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+
+    return {
+        "ledger_entry_id": ledger.ledger_entry_id,
+        "payment_id": ledger.payment_id,
+        "spend_date": ledger.spend_date,
+        "category": ledger.category,
+        "amount": ledger.amount,
+        "memo": ledger.memo,
+    }
+
+# ======================================================
+# 4️⃣ 가계부 수정 (카테고리 / 메모만)
+# ======================================================
+@router.put("/{ledger_entry_id}")
+def update_ledger(
+    ledger_entry_id: int,
+    data: LedgerUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    ledger = (
+        db.query(models.LedgerEntry)
+        .filter(models.LedgerEntry.ledger_entry_id == ledger_entry_id)
+        .first()
+    )
+
+    if not ledger:
+        raise HTTPException(status_code=404, detail="가계부 내역을 찾을 수 없습니다.")
+
+    # 🔐 본인 데이터만 수정 가능
+    if ledger.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+
+    if data.category is not None:
+        ledger.category = data.category
+
+    if data.memo is not None:
+        ledger.memo = data.memo
+
+    db.commit()
+    db.refresh(ledger)
 
     return {
         "ledger_entry_id": ledger.ledger_entry_id,
