@@ -5,6 +5,8 @@ from typing import Optional
 
 from app.database import get_db
 from app import models
+from app.dependencies import get_current_user
+
 
 router = APIRouter(
     prefix="/api/ledger",
@@ -104,3 +106,33 @@ def get_ledger_list(
         }
         for l in ledgers
     ]
+
+# ======================================================
+# 3️⃣ 가계부 단건 조회 (JWT 인증 + 본인 데이터만)
+# ======================================================
+@router.get("/{ledger_entry_id}")
+def get_ledger_detail(
+    ledger_entry_id: int,
+    db: Session = Depends(get_db),
+    # 프로젝트에 이미 쓰고 있는 인증 의존성 사용
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    ledger = db.query(models.LedgerEntry).filter(
+        models.LedgerEntry.ledger_entry_id == ledger_entry_id
+    ).first()
+
+    if not ledger:
+        raise HTTPException(status_code=404, detail="가계부 항목을 찾을 수 없습니다.")
+
+    # 본인 가계부만 조회 가능
+    if ledger.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+
+    return {
+        "ledger_entry_id": ledger.ledger_entry_id,
+        "payment_id": ledger.payment_id,
+        "spend_date": ledger.spend_date,
+        "category": ledger.category,
+        "amount": ledger.amount,
+        "memo": ledger.memo,
+    }
