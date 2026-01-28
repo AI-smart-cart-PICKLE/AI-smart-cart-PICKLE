@@ -12,5 +12,6 @@ numpy==2.4.1
 passlib[argon2]
 python-jose[cryptography]
 email-validator
+pydantic-settings
 alembic
 psycopg2-binary

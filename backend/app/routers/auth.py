@@ -1,6 +1,6 @@
 # app/routers/auth.py
 from fastapi import APIRouter, Cookie, HTTPException, Depends, status
-from app.utils.jwt import decode_token, create_access_token
+from app.utils.jwt import decode_token, create_access_token, create_refresh_token
 from sqlalchemy.orm import Session
 
 from app.schemas import UserPasswordResetRequest, UserPasswordReset
@@ -12,6 +12,15 @@ import uuid
 from datetime import datetime, timedelta
 from app.utils.email import send_reset_password_email
 from os import getenv
+
+import requests
+from app import models, schemas
+from app.core.config import settings   # settings에서 env 읽는 구조일 때
+
+from fastapi import Query
+from fastapi.responses import JSONResponse, RedirectResponse
+from app.core.config import KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -105,3 +114,138 @@ def reset_password(
     db.commit()
 
     return {"message": "비밀번호가 성공적으로 변경되었습니다."}
+
+
+# 구글 로그인
+@router.post(
+    "/google",
+    response_model=schemas.TokenResponse,
+)
+def google_login(
+    request: schemas.GoogleOAuthRequest,
+    db: Session = Depends(get_db),
+):
+    # 1. code → access token
+    token_res = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "code": request.code,
+            "grant_type": "authorization_code",
+            "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    if token_res.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Google token exchange failed",
+        )
+
+    google_access_token = token_res.json().get("access_token")
+
+    # 2. 사용자 정보 조회
+    user_res = requests.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        headers={
+            "Authorization": f"Bearer {google_access_token}"
+        },
+    )
+
+    user_info = user_res.json()
+
+    email = user_info.get("email")
+    nickname = user_info.get("name")
+
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Google user info invalid",
+        )
+
+    # 3. 사용자 조회
+    user = (
+        db.query(models.AppUser)
+        .filter(
+            models.AppUser.email == email,
+            models.AppUser.provider == "GOOGLE",
+        )
+        .first()
+    )
+
+    # 4. 없으면 회원가입
+    if not user:
+        user = models.AppUser(
+            email=email,
+            nickname=nickname,
+            provider="GOOGLE",
+            password_hash=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # 5. JWT 발급
+    access_token = create_access_token(str(user.user_id))
+    refresh_token = create_refresh_token(str(user.user_id))
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+@router.get("/google/callback")
+def google_callback(
+    code: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Google OAuth redirect endpoint (프론트 미구현용)
+    """
+    # 기존 POST /auth/google 로직을 그대로 재사용
+    oauth_request = schemas.GoogleOAuthRequest(code=code)
+    return google_login(oauth_request, db)
+
+# 카카오 로그인
+@router.get("/kakao/login")
+def kakao_login():
+    kakao_auth_url = (
+        "https://kauth.kakao.com/oauth/authorize"
+        f"?client_id={KAKAO_REST_API_KEY}"
+        f"&redirect_uri={KAKAO_REDIRECT_URI}"
+        "&response_type=code"
+    )
+    return RedirectResponse(kakao_auth_url)
+
+@router.get("/kakao/callback")
+def kakao_callback(code: str):
+    # 토큰 요청
+    token_res = requests.post(
+        "https://kauth.kakao.com/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "client_id": KAKAO_REST_API_KEY,
+            "redirect_uri": KAKAO_REDIRECT_URI,
+            "code": code,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    if token_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="Kakao token failed")
+
+    access_token = token_res.json()["access_token"]
+
+    # 2사용자 정보 요청
+    user_res = requests.get(
+        "https://kapi.kakao.com/v2/user/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    kakao_user = user_res.json()
+
+    return kakao_user
