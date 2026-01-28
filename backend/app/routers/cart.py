@@ -60,10 +60,12 @@ def get_cart_session(
 
     response_items = []
     total_amount = 0
+    total_quantity = 0
 
     for item in cart_items:
         item_total = item.unit_price * item.quantity
         total_amount += item_total
+        total_quantity += item.quantity
         
         response_items.append({
             "cart_item_id": item.cart_item_id,
@@ -77,6 +79,7 @@ def get_cart_session(
         "cart_session_id": session.cart_session_id,
         "status": session.status.value, 
         "total_amount": total_amount,
+        "total_items": total_quantity,
         "items": response_items,        
         "expected_total_g": session.expected_total_g
     }
