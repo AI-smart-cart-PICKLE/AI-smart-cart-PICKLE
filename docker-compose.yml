@@ -6,6 +6,7 @@ services:
     image: pgvector/pgvector:pg16
     container_name: postgres_db
     restart: always
+    env_file: .env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -18,15 +19,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    ports:
+      - "5432:5432"
 
   minio:
     image: minio/minio
     container_name: minio_storage
     restart: always
+    env_file: .env
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -42,12 +43,10 @@ services:
   minio-init:
     image: minio/mc
     container_name: minio_init
+    env_file: .env
     depends_on:
       minio:
         condition: service_healthy
-    environment:
-      MINIO_ROOT_USER: ${MINIO_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
     entrypoint: >
       /bin/sh -c "
       until (mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}); do echo '...waiting for minio...' && sleep 1; done;
@@ -61,6 +60,7 @@ services:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: mlflow_server
     restart: always
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -69,8 +69,8 @@ services:
       airflow:
         condition: service_healthy
     environment:
-      - AWS_ACCESS_KEY_ID=${MINIO_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
     entrypoint: >
       /bin/sh -c "
@@ -90,6 +90,7 @@ services:
       context: ./mlops
       dockerfile: airflow/Dockerfile
     container_name: airflow_standalone
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -97,14 +98,14 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__WEBSERVER__BASE_URL=https://bapsim.site/airflow
+      - AIRFLOW__WEBSERVER__BASE_URL=${AIRFLOW_BASE_URL:-https://bapsim.site/airflow}
       - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=True
     volumes:
       - ./mlops/airflow/dags:/opt/airflow/dags
       - ./mlops/airflow/logs:/opt/airflow/logs
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-      interval: 10s
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $(hostname) || exit 1"]
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 120s
@@ -120,6 +121,7 @@ services:
       dockerfile: Dockerfile
     container_name: fastapi_backend
     restart: always
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -145,11 +147,12 @@ services:
       dockerfile: Dockerfile
     container_name: ai_inference
     restart: always
+    env_file: .env
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_ACCESS_KEY_ID=${MINIO_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
     ports:
       - "8001:8000" # Localhost 8001 -> Container 8000
     volumes:
@@ -177,8 +180,8 @@ services:
       - ./nginx-ssl-prod.conf:/etc/nginx/conf.d/default.conf:ro
       # 프론트엔드 정적 파일
       - ./frontend/web-kiosk/dist:/usr/share/nginx/html:ro
-      # EC2 호스트의 실제 인증서 경로 마운트
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # EC2 호스트의 실제 인증서 경로 마운트 (로컬에선 ./certs 사용)
+      - ${SSL_CERT_PATH:-/etc/letsencrypt}:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend

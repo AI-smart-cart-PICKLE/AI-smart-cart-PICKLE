@@ -131,3 +131,6 @@ CLAUDE.md
 
 # AI inference test files
 ai/inference/tests/
+
+# Local SSL Certs
+certs/
