@@ -8,6 +8,11 @@ from app import models
 from app.dependencies import get_current_user
 from app.schemas import LedgerUpdateRequest
 
+from sqlalchemy import func
+from calendar import monthrange
+
+
+
 
 
 router = APIRouter(
@@ -178,4 +183,51 @@ def update_ledger(
         "category": ledger.category,
         "amount": ledger.amount,
         "memo": ledger.memo,
+    }
+
+# ======================================================
+# 5️⃣ 월별 가계부 요약 조회
+# ======================================================
+@router.get("/summary/monthly")
+def get_monthly_summary(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 월 시작 / 종료일 계산
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    # 카테고리별 합계 조회
+    rows = (
+        db.query(
+            models.LedgerEntry.category,
+            func.sum(models.LedgerEntry.amount).label("amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.category)
+        .all()
+    )
+
+    by_category = [
+        {
+            "category": category,
+            "amount": amount,
+        }
+        for category, amount in rows
+    ]
+
+    total_amount = sum(item["amount"] for item in by_category)
+
+    return {
+        "year": year,
+        "month": month,
+        "total_amount": total_amount,
+        "by_category": by_category,
     }
