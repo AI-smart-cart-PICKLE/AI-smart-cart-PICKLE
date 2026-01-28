@@ -6,7 +6,8 @@ from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 import enum
-from .database import Base
+from app.db.base import Base
+
 
 # --- Enums (DB Enum Types) ---
 
