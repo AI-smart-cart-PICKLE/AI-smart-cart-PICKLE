@@ -108,6 +108,8 @@ deploy:
       DB_PASSWORD=$DB_PASSWORD
       MINIO_ROOT_USER=$MINIO_ROOT_USER
       MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
+      MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+      KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
       EOF"
     
     - echo "Executing Remote Deployment Commands..."
