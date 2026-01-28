@@ -129,6 +129,8 @@ ai/inference/runs/
 GEMINI.md
 CLAUDE.md
 
+# AI inference test files
+ai/inference/tests/
 
 # Local SSL Certs
 certs/

@@ -76,6 +76,7 @@ class LedgerEntryResponse(BaseModel):
     spend_date: date
     category: LedgerCategory
     amount: int
+    memo: Optional[str]
 
     class Config:
         from_attributes = True
@@ -134,7 +135,7 @@ class UserLogin(BaseModel):
     password: str
 
 
-class UserResponse(BaseModel):
+class UserMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     user_id: int
@@ -145,9 +146,12 @@ class UserResponse(BaseModel):
     updated_at: Optional[datetime]
 
 
+class UserNicknameUpdate(BaseModel):
+    nickname: str = Field(min_length=2, max_length=20)
 
-class UserUpdate(BaseModel):
-    nickname: str = Field(min_length=2, max_length=8)
+class UserPasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class TokenResponse(BaseModel):
@@ -158,3 +162,6 @@ class TokenResponse(BaseModel):
 
 class EmailCheckResponse(BaseModel):
     is_available: bool
+
+class UserWithdraw(BaseModel):
+    password: Optional[str] = None

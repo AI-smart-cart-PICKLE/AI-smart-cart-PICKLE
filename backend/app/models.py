@@ -18,7 +18,7 @@ class CartSessionStatus(enum.Enum):
     ACTIVE = "ACTIVE"
     CHECKOUT_REQUESTED = "CHECKOUT_REQUESTED"
     PAID = "PAID"
-    CANCELED = "CANCELED"
+    CANCELLED = "CANCELLED"
 
 class DetectionActionType(enum.Enum):
     ADD = "ADD"
@@ -36,7 +36,7 @@ class PaymentStatus(enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     FAILED = "FAILED"
-    CANCELED = "CANCELED"
+    CANCELLED = "CANCELLED"
 
 class LedgerCategory(enum.Enum):
     GROCERY = "GROCERY"
@@ -59,6 +59,8 @@ class AppUser(Base):
     password_hash = Column(String(255))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, nullable=False, default=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
@@ -255,6 +257,7 @@ class LedgerEntry(Base):
     spend_date = Column(Date, nullable=False)
     category = Column(SAEnum(LedgerCategory), nullable=False, default=LedgerCategory.ETC)
     amount = Column(Integer, nullable=False)
+    memo = Column(Text)
 
     # Relationships
     user = relationship("AppUser", back_populates="ledger_entries")
