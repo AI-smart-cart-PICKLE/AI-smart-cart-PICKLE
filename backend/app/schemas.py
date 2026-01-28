@@ -171,3 +171,7 @@ class EmailCheckResponse(BaseModel):
 
 class UserWithdraw(BaseModel):
     password: Optional[str] = None
+
+# 구글 로그인
+class GoogleOAuthRequest(BaseModel):
+    code: str
