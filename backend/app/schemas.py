@@ -81,6 +81,10 @@ class LedgerEntryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LedgerUpdateRequest(BaseModel):
+    category: Optional[LedgerCategory] = None
+    memo: Optional[str] = None
+
 
 # --- user schemas ---
 
@@ -171,6 +175,11 @@ class EmailCheckResponse(BaseModel):
 
 class UserWithdraw(BaseModel):
     password: Optional[str] = None
+
+# 구글 로그인
+class GoogleOAuthRequest(BaseModel):
+    code: str
+
 
 # --- Cart Schemas ---
 
