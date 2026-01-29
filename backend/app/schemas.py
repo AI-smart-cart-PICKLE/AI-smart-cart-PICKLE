@@ -227,6 +227,23 @@ class CartSessionResponse(BaseModel):
 class CartItemUpdate(BaseModel):
     quantity: int = Field(..., ge=1)
 
+
+# --- Cart Weight Validation ---
+
+class CartWeightValidateRequest(BaseModel):
+    cart_session_id: int
+    measured_weight_g: int = Field(..., gt=0)
+
+class CartWeightValidateResponse(BaseModel):
+    is_valid: bool
+    status: str  # MATCH | OVER_WEIGHT | UNDER_WEIGHT
+    expected_weight: int
+    measured_weight: int
+    difference: int
+    tolerance: int
+    message: str
+
+
 # --- 레시피 추천 Schemas ---
 
 class IngredientSimpleResponse(BaseModel):

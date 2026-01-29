@@ -3,6 +3,12 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, database
 from ..dependencies import get_current_user 
 
+from app.schemas import (
+    CartWeightValidateRequest,
+    CartWeightValidateResponse
+)
+from app.utils.check_data import validate_cart_weight
+
 router = APIRouter(
     prefix="/api/carts",
     tags=["carts"],
@@ -232,3 +238,27 @@ def update_cart_item_quantity(
         "quantity": cart_item.quantity,
         "expected_total_g": session.expected_total_g
     }
+
+# 무게 검증
+@router.post("/weight/validate", response_model=CartWeightValidateResponse)
+def validate_weight(
+    request: CartWeightValidateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == request.cart_session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="장바구니 세션을 찾을 수 없습니다.")
+
+    result = validate_cart_weight(
+        db=db,
+        cart_session_id=request.cart_session_id,
+        measured_weight_g=request.measured_weight_g
+    )
+
+    db.commit()
+    return result

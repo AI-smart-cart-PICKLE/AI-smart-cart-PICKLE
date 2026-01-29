@@ -9,6 +9,8 @@ from .ledger import create_ledger_from_payment
 from ..database import get_db
 from .. import models, schemas
 from ..dependencies import get_current_user 
+from app.utils.check_data import validate_cart_weight
+
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 KAKAO_ADMIN_KEY = os.getenv("KAKAO_ADMIN_KEY")
@@ -53,6 +55,20 @@ async def payment_ready(
     
     if not cart_session:
         raise HTTPException(status_code=404, detail="해당 카트 세션을 찾을 수 없습니다.")
+
+    # 무게 검증
+    weight_check = validate_cart_weight(
+        db=db,
+        cart_session_id=cart_session.cart_session_id,
+        measured_weight_g=cart_session.measured_total_g
+    )
+
+    if not weight_check["is_valid"]:
+        # 무게 초과 / 부족에 맞는 메시지 그대로 반환
+        raise HTTPException(
+            status_code=400,
+            detail=weight_check["message"]
+        )
 
     existing_payment = db.query(models.Payment).filter(
         models.Payment.cart_session_id == request.cart_session_id
