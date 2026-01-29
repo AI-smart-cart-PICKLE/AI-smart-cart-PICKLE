@@ -307,6 +307,43 @@ def get_top_items(
         "items": items,
     }
 
+# ======================================================
+# 9️⃣ 최근 지출 내역 조회
+# ======================================================
+@router.get("/recent")
+def get_recent_ledger(
+    limit: int = Query(5, ge=1, le=20),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    rows = (
+        db.query(models.LedgerEntry, models.Payment)
+        .join(
+            models.Payment,
+            models.LedgerEntry.payment_id == models.Payment.payment_id,
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.Payment.status == models.PaymentStatus.APPROVED,
+        )
+        .order_by(models.LedgerEntry.ledger_entry_id.desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for ledger, payment in rows:
+        items.append({
+            "ledger_entry_id": ledger.ledger_entry_id,
+            "payment_id": payment.payment_id,
+            "spend_date": ledger.spend_date,
+            "amount": ledger.amount,
+            "category": ledger.category,
+            "memo": ledger.memo,
+        })
+
+    return {"items": items}
+
 
 # ======================================================
 # 3️⃣ 가계부 단건 조회 (JWT 인증 + 본인 데이터만)
