@@ -4,16 +4,13 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: ""
   IMAGE_BACKEND: "$DOCKER_USERNAME/smart-cart-backend:latest"
   IMAGE_AI: "$DOCKER_USERNAME/smart-cart-ai:latest"
   IMAGE_AIRFLOW: "$DOCKER_USERNAME/smart-cart-airflow:latest"
   DOCKER_BUILDKIT: 1
+  DOCKER_HOST: "unix:///var/run/docker.sock"
 
-services:
-  - name: docker:24.0.5-dind
-    alias: docker
-    command: ["--tls=false"]
+# services: docker:dind 제거 (Host Docker Socket 사용 - DOOD)
 
 # =========================================================
 # 1. Backend Build Job
@@ -21,20 +18,12 @@ services:
 build-backend:
   stage: build
   image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      alias: docker
-      command: ["--tls=false"]
-  variables:
-    DOCKER_HOST: tcp://docker:2375
   before_script:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building Backend with Cache..."
-    - docker pull $IMAGE_BACKEND || true
+    - echo "Building Backend using Host Cache..."
     - >
       docker build 
-      --cache-from $IMAGE_BACKEND 
       --build-arg BUILDKIT_INLINE_CACHE=1 
       -t $IMAGE_BACKEND ./backend
     - docker push $IMAGE_BACKEND
@@ -50,20 +39,12 @@ build-backend:
 build-ai:
   stage: build
   image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      alias: docker
-      command: ["--tls=false"]
-  variables:
-    DOCKER_HOST: tcp://docker:2375
   before_script:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building AI with Cache..."
-    - docker pull $IMAGE_AI || true
+    - echo "Building AI using Host Cache..."
     - >
       docker build 
-      --cache-from $IMAGE_AI 
       --build-arg BUILDKIT_INLINE_CACHE=1 
       -t $IMAGE_AI ./ai
     - docker push $IMAGE_AI
@@ -79,20 +60,12 @@ build-ai:
 build-airflow:
   stage: build
   image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      alias: docker
-      command: ["--tls=false"]
-  variables:
-    DOCKER_HOST: tcp://docker:2375
   before_script:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
-    - echo "Building Airflow with Cache..."
-    - docker pull $IMAGE_AIRFLOW || true
+    - echo "Building Airflow using Host Cache..."
     - >
       docker build 
-      --cache-from $IMAGE_AIRFLOW 
       --build-arg BUILDKIT_INLINE_CACHE=1 
       -f mlops/airflow/Dockerfile 
       -t $IMAGE_AIRFLOW ./mlops
@@ -118,14 +91,26 @@ deploy:
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
     - echo "Creating full directory structure on EC2..."
-    # 필요한 모든 하위 디렉토리 생성
     - >
       ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202/backend 
       ~/workspaces/S14P11A202/ai 
       ~/workspaces/S14P11A202/mlops/airflow"
     
     - echo "Uploading deployment files..."
+    # init-db.sh 포함해서 업로드
     - scp docker-compose.yml init-db.sh $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+
+    - echo "Generating .env file on EC2..."
+    - |
+      ssh $EC2_USER@$EC2_HOST "cat <<EOF > ~/workspaces/S14P11A202/.env
+      DOCKER_USERNAME=$DOCKER_USERNAME
+      DB_USER=$DB_USER
+      DB_PASSWORD=$DB_PASSWORD
+      MINIO_ROOT_USER=$MINIO_ROOT_USER
+      MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
+      MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+      KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
+      EOF"
     
     - echo "Executing Remote Deployment Commands..."
     - >
