@@ -147,7 +147,7 @@ services:
           memory: 6gb
           cpus: '2.0'
 
-  # [CPU Mode] AI Inference Server (Default for EC2 / Prod)
+  # AI Inference Server (CPU Mode)
   ai-inference:
     profiles: ["cpu", "prod"]
     image: ${DOCKER_USERNAME:-local}/smart-cart-ai:latest
@@ -177,7 +177,7 @@ services:
           memory: 4gb
           cpus: '2.0'
 
-  # [GPU Mode] AI Inference Server (For Local Dev with NVIDIA GPU)
+  # [GPU Mode] AI Inference Server
   ai-inference-gpu:
     profiles: ["dev", "gpu"]
     image: ${DOCKER_USERNAME:-local}/smart-cart-ai:latest
@@ -188,12 +188,13 @@ services:
     restart: always
     env_file: .env
     shm_size: 2gb
+    env_file: .env
     environment:
       - MINIO_ENDPOINT=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
     ports:
       - "8001:8000" # 포트 통일
     volumes:
