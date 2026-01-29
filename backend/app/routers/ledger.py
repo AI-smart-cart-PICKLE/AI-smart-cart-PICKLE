@@ -258,6 +258,57 @@ def get_top_categories(
     }
 
 # ======================================================
+# 8️⃣ Top Items 조회 (구매 횟수 기준 - 임시: 카테고리 사용)
+# ======================================================
+@router.get("/top-items")
+def get_top_items(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    limit: int = Query(5, ge=1, le=10, description="상위 아이템 개수"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    rows = (
+        db.query(
+            models.LedgerEntry.category.label("item_name"),
+            func.count(models.LedgerEntry.ledger_entry_id).label("count"),
+            func.sum(models.LedgerEntry.amount).label("total_amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.category)
+        .order_by(
+            func.count(models.LedgerEntry.ledger_entry_id).desc(),
+            func.sum(models.LedgerEntry.amount).desc(),
+        )
+        .limit(limit)
+        .all()
+    )
+
+    items = [
+        {
+            "item_name": item_name,
+            "count": count,
+            "total_amount": total_amount,
+        }
+        for item_name, count, total_amount in rows
+    ]
+
+    return {
+        "year": year,
+        "month": month,
+        "items": items,
+    }
+
+
+# ======================================================
 # 3️⃣ 가계부 단건 조회 (JWT 인증 + 본인 데이터만)
 # ======================================================
 @router.get("/{ledger_entry_id}")
