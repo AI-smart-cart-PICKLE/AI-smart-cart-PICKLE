@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.database import get_db
-from app.models import Product
+from app.models import Product, ProductCategory
 
 router = APIRouter(
     prefix="/api/products",
@@ -79,3 +79,27 @@ def read_product_detail(
         "product_info": product.product_info,
     }
 
+# 상품 위치 안내
+@router.get("/{product_id}/location")
+def get_product_location(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    product = (
+        db.query(Product)
+        .join(ProductCategory)
+        .filter(Product.product_id == product_id)
+        .first()
+    )
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    category = product.category  # relationship 기준
+
+    return {
+        "product_id": product.product_id,
+        "category": category.name,
+        "zone_code": category.zone_code,
+        "aisle": category.zone_code.split("-")[0],  # A / B / C
+    }
