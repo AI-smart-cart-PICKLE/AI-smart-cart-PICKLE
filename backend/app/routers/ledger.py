@@ -207,6 +207,57 @@ def get_monthly_summary(
     }
 
 # ======================================================
+# 7️⃣ Top Categories 조회 (지출 금액 기준)
+# ======================================================
+@router.get("/top-categories")
+def get_top_categories(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    limit: int = Query(5, ge=1, le=10, description="상위 카테고리 개수"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 월 시작 / 종료일 계산
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    rows = (
+        db.query(
+            models.LedgerEntry.category,
+            func.sum(models.LedgerEntry.amount).label("amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.category)
+        .order_by(func.sum(models.LedgerEntry.amount).desc())
+        .limit(limit)
+        .all()
+    )
+
+    categories = [
+        {
+            "category": category,
+            "amount": amount,
+        }
+        for category, amount in rows
+    ]
+
+    total_amount = sum(item["amount"] for item in categories)
+
+    for item in categories:
+        item["ratio"] = round(item["amount"] / total_amount * 100) if total_amount > 0 else 0
+
+    return {
+        "year": year,
+        "month": month,
+        "categories": categories,
+    }
+
+# ======================================================
 # 3️⃣ 가계부 단건 조회 (JWT 인증 + 본인 데이터만)
 # ======================================================
 @router.get("/{ledger_entry_id}")
