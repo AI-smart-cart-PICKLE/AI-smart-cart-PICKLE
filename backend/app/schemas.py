@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType, UserProvider
 import re
@@ -63,7 +63,7 @@ class PaymentResponse(BaseModel):
 class PaymentCancelRequest(BaseModel):
     reason: str = "사용자 요청에 의한 취소"
 
-# 결제 상세 조회 응답 (기존 PaymentResponse 활용 가능하지만, 명확히 하려면 분리)
+# 결제 상세 조회 응답
 class PaymentDetailResponse(PaymentResponse):
     pass
 
@@ -175,3 +175,50 @@ class EmailCheckResponse(BaseModel):
 
 class UserWithdraw(BaseModel):
     password: Optional[str] = None
+
+# 구글 로그인
+class GoogleOAuthRequest(BaseModel):
+    code: str
+
+
+# --- Cart Schemas ---
+
+# 1. 상품 담기 요청
+class CartItemCreate(BaseModel):
+    product_id: int
+    quantity: int = Field(default=1, ge=1) # 1개 이상 필수
+
+# 2. 상품 간단 정보 (CartItemResponse 내부용)
+class ProductSimpleResponse(BaseModel):
+    product_id: int
+    name: str
+    price: int
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+# 3. 장바구니 아이템 응답
+class CartItemResponse(BaseModel):
+    cart_item_id: int
+    product: ProductSimpleResponse  # 상품 정보 중첩
+    quantity: int
+    unit_price: int
+    total_price: int  # @property 대신 일반 필드로 변경 (확실한 직렬화 위해)
+    
+    class Config:
+        from_attributes = True
+
+# 4. 장바구니 세션 응답 (최종 응답)
+class CartSessionResponse(BaseModel):
+    cart_session_id: int
+    status: str
+    total_amount: int
+    total_items: int = 0      # 상품 종수(또는 개수)
+    expected_total_g: int = 0 # 예상 무게 (기본값 추가)
+    
+    # 장바구니 아이템 목록
+    items: List[CartItemResponse] = [] 
+    
+    class Config:
+        from_attributes = True
