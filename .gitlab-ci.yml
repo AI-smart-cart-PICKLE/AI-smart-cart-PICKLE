@@ -116,6 +116,7 @@ deploy:
       SMTP_USER=$SMTP_USER
       SMTP_PASSWORD=$SMTP_PASSWORD
       FRONTEND_URL=$FRONTEND_URL
+      SSL_CERT_PATH=$SSL_CERT_PATH
       EOF"
     
     - echo "Executing Remote Deployment Commands..."
