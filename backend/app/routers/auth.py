@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas import UserPasswordResetRequest, UserPasswordReset
 from app.database import get_db
-from app.models import AppUser, PasswordResetToken
+from app.models import AppUser, PasswordResetToken, UserProvider
 from app.utils.security import hash_password
 
 import uuid
@@ -19,8 +19,6 @@ from app.core.config import settings   # settings에서 env 읽는 구조일 때
 
 from fastapi import Query
 from fastapi.responses import JSONResponse, RedirectResponse
-from app.core.config import KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI
-
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -210,37 +208,43 @@ def google_callback(
     oauth_request = schemas.GoogleOAuthRequest(code=code)
     return google_login(oauth_request, db)
 
+
 # 카카오 로그인
 @router.get("/kakao/login")
 def kakao_login():
     kakao_auth_url = (
         "https://kauth.kakao.com/oauth/authorize"
-        f"?client_id={KAKAO_REST_API_KEY}"
-        f"&redirect_uri={KAKAO_REDIRECT_URI}"
+        f"?client_id={settings.KAKAO_REST_API_KEY}"
+        f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
         "&response_type=code"
     )
     return RedirectResponse(kakao_auth_url)
 
+
 @router.get("/kakao/callback")
-def kakao_callback(code: str):
-    # 토큰 요청
+def kakao_callback(
+    code: str,
+    db: Session = Depends(get_db),
+):
+    # 1. 토큰 요청
     token_res = requests.post(
         "https://kauth.kakao.com/oauth/token",
         data={
             "grant_type": "authorization_code",
-            "client_id": KAKAO_REST_API_KEY,
-            "redirect_uri": KAKAO_REDIRECT_URI,
+            "client_id": settings.KAKAO_REST_API_KEY,
+            "redirect_uri": settings.KAKAO_REDIRECT_URI,
             "code": code,
         },
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
 
     if token_res.status_code != 200:
-        raise HTTPException(status_code=400, detail="Kakao token failed")
+        print("Kakao token error:", token_res.text)
+        raise HTTPException(status_code=400, detail=token_res.text)
 
     access_token = token_res.json()["access_token"]
 
-    # 2사용자 정보 요청
+    # 2. 사용자 정보
     user_res = requests.get(
         "https://kapi.kakao.com/v2/user/me",
         headers={"Authorization": f"Bearer {access_token}"},
@@ -248,4 +252,42 @@ def kakao_callback(code: str):
 
     kakao_user = user_res.json()
 
-    return kakao_user
+    kakao_id = kakao_user["id"]
+    nickname = kakao_user["properties"]["nickname"]
+
+    email = None
+    if "kakao_account" in kakao_user:
+        email = kakao_user["kakao_account"].get("email")
+
+    # 3. DB 조회
+    user = (
+        db.query(AppUser)
+        .filter(
+            AppUser.provider == UserProvider.KAKAO,
+            AppUser.email == (email or f"kakao_{kakao_id}@kakao.com"),
+        )
+        .first()
+    )
+
+    # 4. 없으면 회원가입
+    if not user:
+        user = AppUser(
+            email=email or f"kakao_{kakao_id}@kakao.com",
+            nickname=nickname,
+            provider=UserProvider.KAKAO,
+            password_hash=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # 5. JWT 발급
+    access_token = create_access_token(str(user.user_id))
+    refresh_token = create_refresh_token(str(user.user_id))
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
