@@ -97,7 +97,7 @@ deploy:
       ~/workspaces/S14P11A202/mlops/airflow"
     
     - echo "Uploading deployment files..."
-    # init-db.sh 포함해서 업로드
+    # feat 브랜치의 수정사항: init-db.sh 포함 업로드
     - scp docker-compose.yml init-db.sh $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
 
     - echo "Generating .env file on EC2..."
@@ -106,6 +106,7 @@ deploy:
       DOCKER_USERNAME=$DOCKER_USERNAME
       DB_USER=$DB_USER
       DB_PASSWORD=$DB_PASSWORD
+      DB_NAME=$DB_NAME
       MINIO_ROOT_USER=$MINIO_ROOT_USER
       MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
       MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
