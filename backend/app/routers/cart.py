@@ -38,3 +38,60 @@ def select_recipe(session_id: int, recipe_id: int, db: Session = Depends(databas
     
     # 실제로는 여기서 세션 상태를 업데이트합니다.
     return {"detail": f"레시피(ID:{recipe_id})가 선택되었습니다."}
+
+
+# 카트에 담긴 상품 목록 조회
+@router.get("/{session_id}/items")
+def get_cart_items(
+    session_id: int,
+    db: Session = Depends(database.get_db)
+):
+    session = (
+        db.query(models.CartSession)
+        .filter(models.CartSession.cart_session_id == session_id)
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(status_code=404, detail="카트 세션을 찾을 수 없습니다.")
+
+    items = (
+        db.query(models.CartItem)
+        .filter(models.CartItem.cart_session_id == session_id)
+        .all()
+    )
+
+    total_price = 0
+    total_expected_weight = 0
+
+    item_list = []
+    for item in items:
+        item_total_price = item.unit_price * item.quantity
+        item_expected_weight = item.product.unit_weight_g * item.quantity
+
+        total_price += item_total_price
+        total_expected_weight += item_expected_weight
+
+        item_list.append({
+            "cart_item_id": item.cart_item_id,
+            "product_id": item.product.product_id,
+            "name": item.product.name,
+            "quantity": item.quantity,
+            "unit_price": item.unit_price,
+            "total_price": item_total_price,
+            "unit_weight_g": item.product.unit_weight_g,
+            "expected_weight_g": item_expected_weight,
+            "image_url": item.product.image_url,
+        })
+
+    return {
+        "cart_session_id": session_id,
+        "status": session.status.value,
+        "summary": {
+            "total_price": total_price,
+            "expected_total_g": total_expected_weight,
+            "measured_total_g": session.measured_total_g,
+            "weight_diff_g": session.measured_total_g - total_expected_weight,
+        },
+        "items": item_list,
+    }
