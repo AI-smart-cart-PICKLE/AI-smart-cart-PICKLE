@@ -153,6 +153,12 @@ class UserPasswordUpdate(BaseModel):
     current_password: str
     new_password: str
 
+class UserPasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class UserPasswordReset(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -165,3 +171,7 @@ class EmailCheckResponse(BaseModel):
 
 class UserWithdraw(BaseModel):
     password: Optional[str] = None
+
+# 구글 로그인
+class GoogleOAuthRequest(BaseModel):
+    code: str
