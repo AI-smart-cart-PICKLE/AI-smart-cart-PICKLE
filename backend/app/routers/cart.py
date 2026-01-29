@@ -32,6 +32,7 @@ def create_cart_session(
         "cart_session_id": new_session.cart_session_id,
         "status": new_session.status.value,
         "total_amount": 0,
+        "total_items": 0,
         "items": [],
         "expected_total_g": 0
     }
@@ -115,22 +116,17 @@ def add_cart_item(
     if existing_item:
         existing_item.quantity += item_req.quantity
     else:
-        new_item = models.CartItem(
+        db.add(models.CartItem(
             cart_session_id=session_id,
             product_id=item_req.product_id,
             quantity=item_req.quantity,
             unit_price=product.price
-        )
-        db.add(new_item)
-    
-    # 예상 무게 업데이트
-    if session.expected_total_g is None:
-        session.expected_total_g = 0
-    
-    unit_weight = product.unit_weight_g or 0
-    session.expected_total_g += (unit_weight * item_req.quantity)
+        ))
 
+    db.flush()                      
+    recalc_expected_weight(session) 
     db.commit()
+    
     return {"message": "장바구니에 상품을 담았습니다."}
 
 
@@ -145,59 +141,94 @@ def select_recipe(session_id: int, recipe_id: int, db: Session = Depends(databas
     return {"detail": f"레시피(ID:{recipe_id})가 선택되었습니다."}
 
 
-# 카트에 담긴 상품 목록 조회
-@router.get("/{session_id}/items")
-def get_cart_items(
-    session_id: int,
-    db: Session = Depends(database.get_db)
+# 예상 무게 계산
+def recalc_expected_weight(session: models.CartSession):
+    total_weight = 0
+    for item in session.items:
+        unit_weight = item.product.unit_weight_g or 0
+        total_weight += unit_weight * item.quantity
+    session.expected_total_g = total_weight
+
+
+# 상품 삭제
+@router.delete("/items/{cart_item_id}")
+def delete_cart_item(
+    cart_item_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
 ):
-    session = (
-        db.query(models.CartSession)
-        .filter(models.CartSession.cart_session_id == session_id)
+    cart_item = (
+        db.query(models.CartItem)
+        .join(models.CartSession)
+        .filter(
+            models.CartItem.cart_item_id == cart_item_id,
+            models.CartSession.user_id == current_user.user_id
+        )
         .first()
     )
 
-    if not session:
-        raise HTTPException(status_code=404, detail="카트 세션을 찾을 수 없습니다.")
+    if not cart_item:
+        raise HTTPException(status_code=404, detail="카트 상품을 찾을 수 없습니다.")
 
-    items = (
-        db.query(models.CartItem)
-        .filter(models.CartItem.cart_session_id == session_id)
-        .all()
-    )
+    session = cart_item.session
 
-    total_price = 0
-    total_expected_weight = 0
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="수정 가능한 카트 상태가 아닙니다.")
 
-    item_list = []
-    for item in items:
-        item_total_price = item.unit_price * item.quantity
-        item_expected_weight = item.product.unit_weight_g * item.quantity
+    db.delete(cart_item)
+    db.flush()
 
-        total_price += item_total_price
-        total_expected_weight += item_expected_weight
+    recalc_expected_weight(session)
 
-        item_list.append({
-            "cart_item_id": item.cart_item_id,
-            "product_id": item.product.product_id,
-            "name": item.product.name,
-            "quantity": item.quantity,
-            "unit_price": item.unit_price,
-            "total_price": item_total_price,
-            "unit_weight_g": item.product.unit_weight_g,
-            "expected_weight_g": item_expected_weight,
-            "image_url": item.product.image_url,
-        })
+    db.commit()
 
     return {
-        "cart_session_id": session_id,
-        "status": session.status.value,
-        "summary": {
-            "total_price": total_price,
-            "expected_total_g": total_expected_weight,
-            "measured_total_g": session.measured_total_g,
-            "weight_diff_g": session.measured_total_g - total_expected_weight,
-        },
-        "items": item_list,
+        "message": "상품이 카트에서 제거되었습니다.",
+        "expected_total_g": session.expected_total_g
     }
 
+# 상품 수량 변경
+@router.patch("/items/{cart_item_id}")
+def update_cart_item_quantity(
+    cart_item_id: int,
+    req: schemas.CartItemUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    # 1. 카트 상품 + 사용자 소유 확인
+    cart_item = (
+        db.query(models.CartItem)
+        .join(models.CartSession)
+        .filter(
+            models.CartItem.cart_item_id == cart_item_id,
+            models.CartSession.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not cart_item:
+        raise HTTPException(status_code=404, detail="카트 상품을 찾을 수 없습니다.")
+
+    session = cart_item.session
+
+    # 2. 카트 상태 확인
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="수정 가능한 카트 상태가 아닙니다.")
+
+    # 3. 수량 변경
+    cart_item.quantity = req.quantity
+
+    db.flush()  # 변경사항 반영
+
+    # 4. 예상 무게 재계산
+    recalc_expected_weight(session)
+
+    db.commit()
+    db.refresh(cart_item)
+
+    return {
+        "message": "상품 수량이 변경되었습니다.",
+        "cart_item_id": cart_item.cart_item_id,
+        "quantity": cart_item.quantity,
+        "expected_total_g": session.expected_total_g
+    }

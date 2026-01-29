@@ -218,10 +218,14 @@ class CartSessionResponse(BaseModel):
     expected_total_g: int = 0 # 예상 무게 (기본값 추가)
     
     # 장바구니 아이템 목록
-    items: List[CartItemResponse] = [] 
+    items: List[CartItemResponse] = Field(default_factory=list)
     
     class Config:
         from_attributes = True
+
+# 상품 수량 변경
+class CartItemUpdate(BaseModel):
+    quantity: int = Field(..., ge=1)
 
 # --- 레시피 추천 Schemas ---
 
