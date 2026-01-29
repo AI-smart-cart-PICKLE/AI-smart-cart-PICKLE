@@ -38,6 +38,7 @@ class PaymentReadyResponse(BaseModel):
     next_redirect_mobile_url: Optional[str] = None
     next_redirect_pc_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
+    partner_order_id: Optional[str] = None
 
 class PaymentApproveRequest(BaseModel):
     tid: str
@@ -66,6 +67,21 @@ class PaymentCancelRequest(BaseModel):
 # 결제 상세 조회 응답
 class PaymentDetailResponse(PaymentResponse):
     pass
+
+# --- Billing Key (카드 등록) Schemas ---
+
+class CardRegisterResponse(BaseModel):
+    next_redirect_mobile_url: str
+    next_redirect_pc_url: str
+    tid: str
+    created_at: datetime
+
+# 카드 등록 완료 후 응답
+class CardRegisterResult(BaseModel):
+    method_id: int
+    card_name: str
+    billing_key: str  # 실제로는 보안상 마스킹해서 보여주거나 숨김
+    message: str = "카드 등록이 완료되었습니다."
 
 # --- Ledger Schemas (가계부 연동을 위해 미리 정의) ---
 
