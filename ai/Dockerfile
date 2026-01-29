@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 # 의존성 설치
 COPY requirements.txt .
+RUN pip install --no-cache-dir torch==2.3.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 소스 코드 복사

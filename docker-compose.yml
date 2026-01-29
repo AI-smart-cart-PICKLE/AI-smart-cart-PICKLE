@@ -27,8 +27,8 @@ services:
     restart: always
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-password123}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password123}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -40,24 +40,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # MinIO Bucket Initialization (Idempotent)
-  minio-init:
-    image: minio/mc
-    container_name: minio_init
-    depends_on:
-      minio:
-        condition: service_healthy
-    environment:
-      MINIO_ROOT_USER: ${MINIO_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-password123}
-    entrypoint: >
-      /bin/sh -c "
-      until (mc alias set minio http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-password123}); do echo '...waiting for minio...' && sleep 1; done;
-      mc mb --ignore-existing minio/mlflow;
-      mc mb --ignore-existing minio/data;
-      exit 0;
-      "
-
   # --- [MLOps Layer] ---
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
@@ -68,11 +50,9 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      airflow:
-        condition: service_healthy
     environment:
-      - AWS_ACCESS_KEY_ID=${MINIO_USER:-admin}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_PASSWORD:-password123}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
     entrypoint: >
       /bin/sh -c "
@@ -134,26 +114,60 @@ services:
           memory: 6gb
           cpus: '2.0'
 
-  # [Local Dev Only] AI Inference Server
+  # [CPU Mode] AI Inference Server (Default for EC2 / Prod)
   ai-inference:
-    profiles: ["dev"]  # 개발 환경(Local)에서만 실행됨
+    profiles: ["cpu"]
     build:
       context: ./ai
       dockerfile: Dockerfile
     container_name: ai_inference
     restart: always
+    shm_size: 2gb
     environment:
+      - MINIO_ENDPOINT=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
-      - AWS_ACCESS_KEY_ID=${MINIO_USER:-admin}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_PASSWORD:-password123}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
     ports:
-      - "8001:8000" # Localhost 8001 -> Container 8000
+      - "8001:8000"
+    volumes:
+      - ./data:/data
     deploy:
       resources:
         limits:
           memory: 4gb
           cpus: '2.0'
+
+  # [GPU Mode] AI Inference Server (For Local Dev with NVIDIA GPU)
+  ai-inference-gpu:
+    profiles: ["gpu"]
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+    container_name: ai_inference_gpu
+    restart: always
+    shm_size: 2gb
+    environment:
+      - MINIO_ENDPOINT=http://minio:9000
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 8gb
+          cpus: '4.0'
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   # --- [Gateway Layer] ---
   nginx:
