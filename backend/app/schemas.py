@@ -270,3 +270,17 @@ class RecipeRecommendResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- Product Schemas ---
+
+class ProductResponse(BaseModel):
+    product_id: int
+    name: str
+    price: int
+    stock_quantity: Optional[int] = 0
+    image_url: Optional[str] = None
+    product_info: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
