@@ -10,7 +10,7 @@ variables:
   DOCKER_BUILDKIT: 1
   DOCKER_HOST: "unix:///var/run/docker.sock"
 
-# services: docker:dind 제거 (Host Docker Socket 사용)
+# services: docker:dind 제거 (Host Docker Socket 사용 - DOOD)
 
 # =========================================================
 # 1. Backend Build Job
@@ -22,8 +22,6 @@ build-backend:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - echo "Building Backend using Host Cache..."
-    # DooD는 호스트의 이미지를 그대로 보므로 --cache-from 명시 안 해도 캐시가 있으면 씀
-    # 확실히 하기 위해 기존 로직 유지하되, pull은 필요 없음 (호스트에 있으면 됨)
     - >
       docker build 
       --build-arg BUILDKIT_INLINE_CACHE=1 
@@ -98,8 +96,9 @@ deploy:
       ~/workspaces/S14P11A202/ai 
       ~/workspaces/S14P11A202/mlops/airflow"
     
-    - echo "Uploading docker-compose.yml..."
-    - scp docker-compose.yml $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+    - echo "Uploading deployment files..."
+    # feat 브랜치의 수정사항: init-db.sh 포함 업로드
+    - scp docker-compose.yml init-db.sh $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
 
     - echo "Generating .env file on EC2..."
     - |
@@ -107,6 +106,7 @@ deploy:
       DOCKER_USERNAME=$DOCKER_USERNAME
       DB_USER=$DB_USER
       DB_PASSWORD=$DB_PASSWORD
+      DB_NAME=$DB_NAME
       MINIO_ROOT_USER=$MINIO_ROOT_USER
       MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
       MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
