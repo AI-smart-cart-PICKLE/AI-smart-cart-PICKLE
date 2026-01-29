@@ -1,18 +1,20 @@
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Numeric, Date, Enum as SAEnum
+    Column, Integer, String, TIMESTAMP, ForeignKey, DateTime, Boolean, Text, Numeric, Date, Enum as SAEnum
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 import enum
-from .database import Base
+from app.db.base import Base
+
 
 # --- Enums (DB Enum Types) ---
 
 class UserProvider(enum.Enum):
     LOCAL = "LOCAL"
     GOOGLE = "GOOGLE"
+    KAKAO = "KAKAO"
 
 class CartSessionStatus(enum.Enum):
     ACTIVE = "ACTIVE"
@@ -59,6 +61,8 @@ class AppUser(Base):
     password_hash = Column(String(255))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, nullable=False, default=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
@@ -66,6 +70,18 @@ class AppUser(Base):
     payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="user")
     ledger_entries = relationship("LedgerEntry", back_populates="user", cascade="all, delete-orphan")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_token"
+
+    token = Column(String, primary_key=True)
+    user_id = Column( Integer, ForeignKey("app_user.user_id"), nullable=False)
+
+    expires_at = Column(TIMESTAMP, nullable=False)
+    used = Column(Boolean, default=False)
+
+    created_at = Column(TIMESTAMP, server_default=func.now())
 
 
 class ProductCategory(Base):
@@ -255,6 +271,7 @@ class LedgerEntry(Base):
     spend_date = Column(Date, nullable=False)
     category = Column(SAEnum(LedgerCategory), nullable=False, default=LedgerCategory.ETC)
     amount = Column(Integer, nullable=False)
+    memo = Column(Text)
 
     # Relationships
     user = relationship("AppUser", back_populates="ledger_entries")

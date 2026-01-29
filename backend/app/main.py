@@ -2,13 +2,15 @@ from dotenv import load_dotenv
 load_dotenv() # .env 파일을 찾아서 환경변수로 로드함
 # 앱 실행 진입점
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from .database import engine, Base
 from . import models  # 우리가 만든 models.py를 가져와야 테이블을 인식합니다!
-from .routers import cart, payment, user, product, ledger # 라우터 파일들 임포트
+from .routers import cart, payment, user, auth, product, ledger, recommendation # 라우터 파일들 임포트
 
 # ★ 핵심: 서버 시작할 때 DB에 없는 테이블을 자동으로 생성함
 # models.py에 정의된 클래스들을 보고 매핑합니다.
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Pickle Project API",
@@ -16,12 +18,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:8000"],  # 모든 출처 허용
+    allow_credentials=True, # 쿠키, Authorization 헤더
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # 라우터 등록 (만들어둔 API 연결)
 app.include_router(user.router)
+app.include_router(auth.router)
 app.include_router(product.router)
 app.include_router(cart.router)
 app.include_router(payment.router)
 app.include_router(ledger.router)
+app.include_router(recommendation.router)
 
 @app.get("/")
 def read_root():

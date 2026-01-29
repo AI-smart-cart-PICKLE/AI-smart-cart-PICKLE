@@ -6,6 +6,7 @@ services:
     image: pgvector/pgvector:pg16
     container_name: postgres_db
     restart: always
+    env_file: .env
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
@@ -25,10 +26,8 @@ services:
     image: minio/minio
     container_name: minio_storage
     restart: always
+    env_file: .env
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password123}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -40,15 +39,34 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO Bucket Initialization (Idempotent)
+  minio-init:
+    image: minio/mc
+    container_name: minio_init
+    env_file: .env
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set minio http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-password123}); do echo '...waiting for minio...' && sleep 1; done;
+      mc mb --ignore-existing minio/mlflow;
+      mc mb --ignore-existing minio/data;
+      exit 0;
+      "
+
   # --- [MLOps Layer] ---
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: mlflow_server
     restart: always
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
-      minio:
+      minio-init:
+        condition: service_completed_successfully
+      airflow:
         condition: service_healthy
     environment:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
@@ -65,12 +83,16 @@ services:
       --allowed-hosts '*'"
     ports:
       - "5001:5000"
+    volumes:
+      - ./data:/data
 
   airflow:
+    image: ${DOCKER_USERNAME:-local}/smart-cart-airflow:latest
     build:
       context: ./mlops
       dockerfile: airflow/Dockerfile
     container_name: airflow_standalone
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -78,12 +100,14 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${DB_USER:-admin}:${DB_PASSWORD:-password123}@db:5432/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__BASE_URL=${AIRFLOW_BASE_URL:-https://bapsim.site/airflow}
+      - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=True
     volumes:
       - ./mlops/airflow/dags:/opt/airflow/dags
       - ./mlops/airflow/logs:/opt/airflow/logs
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-      interval: 10s
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $(hostname) || exit 1"]
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 120s
@@ -93,21 +117,30 @@ services:
 
   # --- [Application Layer] ---
   backend:
+    image: ${DOCKER_USERNAME:-local}/smart-cart-backend:latest
     build: 
       context: ./backend
       dockerfile: Dockerfile
     container_name: fastapi_backend
     restart: always
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@db:5432/app_db
       - MINIO_ENDPOINT=http://minio:9000
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -116,12 +149,14 @@ services:
 
   # [CPU Mode] AI Inference Server (Default for EC2 / Prod)
   ai-inference:
-    profiles: ["cpu"]
+    profiles: ["cpu", "prod"]
+    image: ${DOCKER_USERNAME:-local}/smart-cart-ai:latest
     build:
       context: ./ai
       dockerfile: Dockerfile
     container_name: ai_inference
     restart: always
+    env_file: .env
     shm_size: 2gb
     environment:
       - MINIO_ENDPOINT=http://minio:9000
@@ -133,6 +168,9 @@ services:
       - "8001:8000"
     volumes:
       - ./data:/data
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -141,12 +179,14 @@ services:
 
   # [GPU Mode] AI Inference Server (For Local Dev with NVIDIA GPU)
   ai-inference-gpu:
-    profiles: ["gpu"]
+    profiles: ["dev", "gpu"]
+    image: ${DOCKER_USERNAME:-local}/smart-cart-ai:latest
     build:
       context: ./ai
       dockerfile: Dockerfile
     container_name: ai_inference_gpu
     restart: always
+    env_file: .env
     shm_size: 2gb
     environment:
       - MINIO_ENDPOINT=http://minio:9000
@@ -155,9 +195,12 @@ services:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password123}
     ports:
-      - "8001:8000"
+      - "8001:8000" # 포트 통일
     volumes:
       - ./data:/data
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -176,9 +219,12 @@ services:
     restart: always
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./frontend/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx-ssl-prod.conf:/etc/nginx/conf.d/default.conf:ro
       - ./frontend/web-kiosk/dist:/usr/share/nginx/html:ro
+      - ${SSL_CERT_PATH:-./certs}:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend
       - mlflow

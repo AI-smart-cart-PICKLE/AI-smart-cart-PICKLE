@@ -9,3 +9,9 @@ pgvector
 httpx==0.28.1
 python-dotenv==1.2.1
 numpy==2.4.1
+passlib[argon2]
+python-jose[cryptography]
+email-validator
+pydantic-settings
+alembic
+psycopg2-binary
