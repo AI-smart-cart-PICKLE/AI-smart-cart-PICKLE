@@ -1,11 +1,27 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import Product
+from app.schemas import ProductResponse
 
 router = APIRouter(
     prefix="/api/products",
-    tags=["products"],
-    responses={404: {"description": "Not found"}},
+    tags=["products"]
 )
 
 @router.get("/")
-async def read_products():
-    return [{"name": "Test Product", "price": 1000}]
+def read_products(db: Session = Depends(get_db)):
+    products = db.query(Product).all()
+    return [
+        {
+            "product_id": p.product_id,
+            "name": p.name,
+            "price": p.price,
+            "stock_quantity": p.stock_quantity,
+            "image_url": p.image_url,
+            "product_info": p.product_info,
+        }
+        for p in products
+    ]
+
