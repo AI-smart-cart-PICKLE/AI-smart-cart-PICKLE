@@ -8,6 +8,7 @@ variables:
   IMAGE_AI: "$DOCKER_USERNAME/smart-cart-ai:latest"
   IMAGE_AIRFLOW: "$DOCKER_USERNAME/smart-cart-airflow:latest"
   DOCKER_BUILDKIT: 1
+  DOCKER_HOST: "unix:///var/run/docker.sock"
 
 # services: docker:dind 제거 (Host Docker Socket 사용)
 
