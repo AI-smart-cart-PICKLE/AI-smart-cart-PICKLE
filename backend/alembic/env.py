@@ -34,10 +34,6 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-<<<<<<< HEAD
-target_metadata = None
-=======
->>>>>>> 6035d5bf9979e3ea835c240ff0b362a0681de5a9
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
