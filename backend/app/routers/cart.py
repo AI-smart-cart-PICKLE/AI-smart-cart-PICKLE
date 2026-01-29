@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas, database
 from ..dependencies import get_current_user 
+from sqlalchemy.sql import func 
 
 from app.schemas import (
     CartWeightValidateRequest,
@@ -262,3 +263,36 @@ def validate_weight(
 
     db.commit()
     return result
+
+
+# --- 카트 세션 취소 ---
+@router.post("/{session_id}/cancel")
+def cancel_cart_session(
+    session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="카트 세션을 찾을 수 없습니다.")
+
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(
+            status_code=400,
+            detail="취소 가능한 카트 상태가 아닙니다."
+        )
+
+    session.status = models.CartSessionStatus.CANCELLED
+    session.ended_at = func.now()
+
+    db.commit()
+
+    return {
+        "message": "카트 세션이 취소되었습니다.",
+        "cart_session_id": session.cart_session_id,
+        "status": session.status.value
+    }
