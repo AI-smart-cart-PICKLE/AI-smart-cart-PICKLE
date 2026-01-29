@@ -222,3 +222,30 @@ class CartSessionResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- 레시피 추천 Schemas ---
+
+class IngredientSimpleResponse(BaseModel):
+    product_id: int
+    name: str
+    is_owned: bool  # 장바구니에 이미 있나?
+    
+    class Config:
+        from_attributes = True
+
+class RecipeRecommendResponse(BaseModel):
+    recipe_id: int
+    title: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    difficulty: str = "NORMAL" # DB에 컬럼이 없다면 기본값 or models.py 확인 필요 (현재 models.py엔 없음, 필요시 추가)
+    cooking_time_min: int = 30 # 상동
+    
+    # AI 추천 점수 (거리 기반: 0에 가까울수록 유사함)
+    similarity_score: Optional[float] = None
+    
+    # 재료 분석
+    missing_ingredients: List[IngredientSimpleResponse] = []
+    
+    class Config:
+        from_attributes = True

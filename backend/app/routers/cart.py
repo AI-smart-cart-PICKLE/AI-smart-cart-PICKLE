@@ -134,21 +134,6 @@ def add_cart_item(
     return {"message": "장바구니에 상품을 담았습니다."}
 
 
-# --- 레시피 추천 ---
-@router.get("/recommendations")
-def get_recommendations(product_id: int, db: Session = Depends(database.get_db)):
-    recommendations = (
-        db.query(models.Recipe)
-        .join(models.RecipeIngredient)
-        .filter(models.RecipeIngredient.product_id == product_id)
-        .order_by(models.RecipeIngredient.importance_score.desc())
-        .limit(4)
-        .all()
-    )
-    if not recommendations:
-        return {"detail": "관련된 추천 레시피가 없습니다."}
-    return recommendations
-
 # --- 요리 선택 ---
 @router.post("/{session_id}/select-recipe")
 def select_recipe(session_id: int, recipe_id: int, db: Session = Depends(database.get_db)):
