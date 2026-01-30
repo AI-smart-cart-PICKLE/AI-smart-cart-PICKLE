@@ -234,10 +234,31 @@ class CartSessionResponse(BaseModel):
     expected_total_g: int = 0 # 예상 무게 (기본값 추가)
     
     # 장바구니 아이템 목록
-    items: List[CartItemResponse] = [] 
+    items: List[CartItemResponse] = Field(default_factory=list)
     
     class Config:
         from_attributes = True
+
+# 상품 수량 변경
+class CartItemUpdate(BaseModel):
+    quantity: int = Field(..., ge=1)
+
+
+# --- Cart Weight Validation ---
+
+class CartWeightValidateRequest(BaseModel):
+    cart_session_id: int
+    measured_weight_g: int = Field(..., gt=0)
+
+class CartWeightValidateResponse(BaseModel):
+    is_valid: bool
+    status: str  # MATCH | OVER_WEIGHT | UNDER_WEIGHT
+    expected_weight: int
+    measured_weight: int
+    difference: int
+    tolerance: int
+    message: str
+
 
 # --- 레시피 추천 Schemas ---
 
@@ -265,3 +286,17 @@ class RecipeRecommendResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- Product Schemas ---
+
+class ProductResponse(BaseModel):
+    product_id: int
+    name: str
+    price: int
+    stock_quantity: Optional[int] = 0
+    image_url: Optional[str] = None
+    product_info: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+

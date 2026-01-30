@@ -14,6 +14,7 @@ from app.db.base import Base
 class UserProvider(enum.Enum):
     LOCAL = "LOCAL"
     GOOGLE = "GOOGLE"
+    KAKAO = "KAKAO"
 
 class CartSessionStatus(enum.Enum):
     ACTIVE = "ACTIVE"

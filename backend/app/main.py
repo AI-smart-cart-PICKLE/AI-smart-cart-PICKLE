@@ -10,7 +10,7 @@ from .routers import cart, payment, user, auth, product, ledger, recommendation 
 
 # ★ 핵심: 서버 시작할 때 DB에 없는 테이블을 자동으로 생성함
 # models.py에 정의된 클래스들을 보고 매핑합니다.
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Pickle Project API",
