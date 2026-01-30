@@ -497,6 +497,3 @@ def update_ledger(
         "amount": ledger.amount,
         "memo": ledger.memo,
     }
-
-
-
