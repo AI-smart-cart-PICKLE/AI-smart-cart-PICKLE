@@ -2,7 +2,9 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[3]
+# backend/ 폴더를 기준으로 .env 파일을 찾습니다.
+# app/core/config.py -> parent: app/core -> parent: app -> parent: backend
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 

@@ -28,7 +28,7 @@ def create_ledger_from_payment(
     payment_id: int,
     db: Session = Depends(get_db),
 ):
-    # payment 조회
+    # payment 조회 (CartSession, Items까지 함께 로딩하려면 join 필요할 수 있음)
     payment = db.query(models.Payment).filter(
         models.Payment.payment_id == payment_id
     ).first()
@@ -53,14 +53,80 @@ def create_ledger_from_payment(
             detail="이미 가계부에 등록된 결제입니다."
         )
 
+    # --- 카테고리 자동 매핑 로직 시작 ---
+    
+    # 1. 결제와 연결된 카트 세션 찾기
+    cart_session = payment.session
+    if not cart_session:
+        # 세션이 없으면 기본값
+        main_category = models.LedgerCategory.GROCERY
+        memo_text = "카카오페이 결제 (세션 정보 없음)"
+    else:
+        # 2. 카트 아이템 순회하며 카테고리별 금액 집계
+        category_spending = {}
+        
+        # 상품명 요약용
+        item_names = []
+
+        for item in cart_session.items:
+            # item.product.category.name (예: "정육", "유제품" 등 DB에 저장된 문자열)
+            # 관계 로딩이 안 되어 있을 수 있으므로 접근 시 쿼리 발생 가능
+            prod_cat_name = "ETC"
+            if item.product and item.product.category:
+                prod_cat_name = item.product.category.name
+            
+            # 금액 계산
+            amount = item.quantity * item.unit_price
+            
+            # 집계
+            category_spending[prod_cat_name] = category_spending.get(prod_cat_name, 0) + amount
+            
+            if item.product:
+                item_names.append(item.product.name)
+
+        # 3. 가장 많이 쓴 카테고리 찾기
+        if category_spending:
+            top_category_name = max(category_spending, key=category_spending.get)
+        else:
+            top_category_name = "GROCERY"
+
+        # 4. 문자열 -> LedgerCategory Enum 매핑
+        # DB의 product_category.name 과 LedgerCategory Enum 간의 매핑 테이블 필요
+        # (간단하게 하드코딩 매핑, 추후 DB화 가능)
+        CATEGORY_MAP = {
+            "정육": models.LedgerCategory.MEAT,
+            "축산": models.LedgerCategory.MEAT,
+            "유제품": models.LedgerCategory.DAIRY,
+            "음료": models.LedgerCategory.BEVERAGE,
+            "과자": models.LedgerCategory.SNACK,
+            "간식": models.LedgerCategory.SNACK,
+            "생활용품": models.LedgerCategory.HOUSEHOLD,
+            "채소": models.LedgerCategory.GROCERY,
+            "과일": models.LedgerCategory.GROCERY,
+            "수산": models.LedgerCategory.GROCERY,
+            # 매핑 안 된 것들은 아래 default로 처리
+        }
+        
+        main_category = CATEGORY_MAP.get(top_category_name, models.LedgerCategory.GROCERY)
+        
+        # 메모 생성 (예: "삼겹살 외 3건")
+        if len(item_names) == 1:
+            memo_text = item_names[0]
+        elif len(item_names) > 1:
+            memo_text = f"{item_names[0]} 외 {len(item_names) - 1}건"
+        else:
+            memo_text = "상품 정보 없음"
+
+    # --- 카테고리 자동 매핑 로직 끝 ---
+
     # ledger 생성
     ledger = models.LedgerEntry(
         user_id=payment.user_id,
         payment_id=payment.payment_id,
         spend_date=date.today(),
-        category=models.LedgerCategory.GROCERY,  # TODO: 추후 결제 품목 기반 매핑
+        category=main_category,  
         amount=payment.total_amount,
-        memo="카카오페이 결제",
+        memo=memo_text,
     )
 
     db.add(ledger)
