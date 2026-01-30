@@ -89,7 +89,7 @@ class ProductCategory(Base):
 
     category_id = Column(Integer, primary_key=True, index=True)
     name = Column(String(60), unique=True, nullable=False)
-    zone_code = Column(String(30))
+    zone_code = Column(String(30), nullable=False)
 
     # Relationships
     products = relationship("Product", back_populates="category")
@@ -99,7 +99,7 @@ class Product(Base):
     __tablename__ = "product"
 
     product_id = Column(Integer, primary_key=True, index=True)
-    category_id = Column(Integer, ForeignKey("product_category.category_id"))
+    category_id = Column(Integer, ForeignKey("product_category.category_id"), nullable=False)
     barcode = Column(String(64), unique=True)
     name = Column(String(255), nullable=False)
     price = Column(Integer, nullable=False)
@@ -125,6 +125,7 @@ class Recipe(Base):
     description = Column(Text)
     instructions = Column(Text)
     image_url = Column(Text)
+
     embedding = Column(Vector(1536))
     created_at = Column(DateTime(timezone=True), default=func.now())
 
@@ -181,6 +182,7 @@ class CartSession(Base):
     measured_total_g = Column(Integer, default=0)
     started_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     ended_at = Column(DateTime(timezone=True))
+    camera_view_on = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     device = relationship("CartDevice", back_populates="sessions")

@@ -1,29 +1,38 @@
 import httpx
-import os
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
-from datetime import datetime
+
+# 내부 모듈 임포트
+from .. import models, schemas, database
+from ..dependencies import get_current_user, get_db
+from app.utils.check_data import validate_cart_weight
 from .ledger import create_ledger_from_payment
+from app.core.config import settings
 
-from ..database import get_db
-from .. import models, schemas
-from ..dependencies import get_current_user 
+# 환경 변수 및 키 설정
+BASE_URL = settings.BASE_URL if hasattr(settings, "BASE_URL") else "http://localhost:8000"
+KAKAO_ADMIN_KEY = settings.KAKAO_ADMIN_KEY
 
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-KAKAO_ADMIN_KEY = os.getenv("KAKAO_ADMIN_KEY")
-
+# 라우터 설정
 router = APIRouter(
     prefix="/api/payments",
     tags=["payments"],
-    responses={404: {"description": "Not found"}},
+    responses={404: {"description": "Resource Not found"}},
 )
 
+# --- 카카오페이 CID 설정 ---
+CID_ONETIME = "TC0ONETIME"       # 일반 결제
+CID_SUBSCRIPTION = "TCSUBSCRIP"  # 정기/자동 결제
+
+
 # =========================================================
-# 🛠️ 헬퍼 함수
+# 🛠️ 헬퍼 함수 (중복 로직 분리)
 # =========================================================
 
 def get_payment_or_404(payment_id: int, user_id: int, db: Session):
+    """결제 ID로 결제 내역 조회"""
     payment = db.query(models.Payment).filter(
         models.Payment.payment_id == payment_id,
         models.Payment.user_id == user_id
@@ -33,20 +42,303 @@ def get_payment_or_404(payment_id: int, user_id: int, db: Session):
         raise HTTPException(status_code=404, detail="결제 내역을 찾을 수 없습니다.")
     return payment
 
+async def process_subscription_payment(
+    db: Session, 
+    user: models.AppUser, 
+    cart_session_id: int, 
+    amount: int, 
+    item_name: str
+):
+    """
+    ✅ [수정 3] 결제 실행 공통 로직 함수
+    - request_payment와 pay_subscription에서 공통으로 사용합니다.
+    """
+    # 1. 빌링키 조회
+    my_card = db.query(models.PaymentMethod).filter(
+        models.PaymentMethod.user_id == user.user_id,
+        models.PaymentMethod.billing_key.isnot(None)
+    ).order_by(models.PaymentMethod.is_default.desc()).first()
+    
+    if not my_card:
+        raise HTTPException(status_code=404, detail="등록된 자동결제 수단이 없습니다. 카드를 먼저 등록해주세요.")
+
+    # 2. 카카오페이 결제 요청
+    url = "https://kapi.kakao.com/v1/payment/subscription"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    partner_order_id = f"sub_{cart_session_id}_{int(datetime.now().timestamp())}"
+
+    pay_data = {
+        "cid": CID_SUBSCRIPTION,
+        "sid": my_card.billing_key,
+        "partner_order_id": partner_order_id,
+        "partner_user_id": str(user.user_id),
+        "item_name": item_name,
+        "quantity": 1,
+        "total_amount": amount,
+        "tax_free_amount": 0,
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=pay_data)
+        res_data = response.json()
+        
+    if "tid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"결제 승인 실패: {res_data}")
+
+    # 3. 결제 내역 저장 (Payment)
+    new_payment = models.Payment(
+        user_id=user.user_id,
+        cart_session_id=cart_session_id,
+        method_id=my_card.method_id,
+        pg_provider=models.PgProviderType.KAKAO_PAY,
+        pg_tid=res_data['tid'],
+        status=models.PaymentStatus.APPROVED,
+        total_amount=amount,
+        approved_at=datetime.now()
+    )
+    db.add(new_payment)
+    
+    # 4. 장바구니 상태 업데이트 (ACTIVE -> PAID)
+    # session 객체를 다시 조회해서 업데이트 (안전성 확보)
+    cart_session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == cart_session_id
+    ).first()
+    
+    if cart_session:
+        cart_session.status = models.CartSessionStatus.PAID
+        cart_session.ended_at = datetime.now()
+    
+    db.commit()
+    db.refresh(new_payment)
+    
+    # 5. 가계부 자동 등록
+    try:
+        create_ledger_from_payment(payment_id=new_payment.payment_id, db=db)
+    except Exception as e:
+        print(f"⚠️ 가계부 자동등록 실패: {e}")
+
+    return {
+        "status": "SUCCESS",
+        "message": "결제가 완료되었습니다.",
+        "amount": amount,
+        "tid": res_data["tid"],
+        "approved_at": res_data["approved_at"]
+    }
+
+
 # =========================================================
-# 🚀 API 엔드포인트 (Auth 적용 완료)
+# 🛍️ [Main] 결제 요청 및 검증 (웹 프론트엔드 연동)
 # =========================================================
 
-# --- 1. 결제 준비 (Ready) ---
+@router.post("/request")
+async def request_payment(
+    req: schemas.PaymentRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    [결제 요청 API] 무게 검증 후 자동 결제를 수행합니다.
+    """
+    # 1. 세션 조회
+    cart_session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == req.cart_session_id,
+        models.CartSession.user_id == current_user.user_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE
+    ).first()
+
+    if not cart_session:
+        raise HTTPException(status_code=404, detail="결제할 활성 장바구니 세션을 찾을 수 없습니다.")
+
+    # 2. 무게 업데이트 및 검증
+    cart_session.measured_total_g = req.measured_weight_g
+    db.commit() 
+
+    weight_check = validate_cart_weight(
+        db=db,
+        cart_session_id=req.cart_session_id,
+        measured_weight_g=req.measured_weight_g
+    )
+
+    if not weight_check["is_valid"]:
+        return JSONResponse(
+            status_code=409, 
+            content={
+                "status": "WARNING",
+                "message": weight_check["message"],
+                "difference": weight_check["difference"],
+                "expected_weight": weight_check["expected_weight"],
+                "measured_weight": weight_check["measured_weight"],
+                "action_required": "CHECK_CART_ITEMS" 
+            }
+        )
+
+    # 3. 결제 진행 (자동결제)
+    if req.use_subscription:
+        try:
+            # ♻️ 공통 함수 호출로 코드 중복 해결!
+            return await process_subscription_payment(
+                db=db,
+                user=current_user,
+                cart_session_id=req.cart_session_id,
+                amount=req.amount,
+                item_name="스마트 장바구니 결제"
+            )
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"결제 오류: {str(e)}")
+    else:
+        return {"message": "일반 결제(QR)는 /ready API를 사용하세요."}
+
+
+# =========================================================
+# 🆕 정기결제(Billing Key) 등록 및 테스트 결제
+# =========================================================
+
+@router.post("/subscription/register/ready", response_model=schemas.PaymentReadyResponse)
+async def register_card_ready(
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """[카드 등록 1단계] 인증 요청"""
+    url = "https://kapi.kakao.com/v1/payment/ready"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    order_id = f"reg_{current_user.user_id}_{int(datetime.now().timestamp())}"
+    
+    data = {
+        "cid": CID_SUBSCRIPTION,
+        "partner_order_id": order_id,
+        "partner_user_id": str(current_user.user_id),
+        "item_name": "카드 자동결제 등록",
+        "quantity": 1,
+        "total_amount": 0,
+        "tax_free_amount": 0,
+        "approval_url": f"{BASE_URL}/api/payments/subscription/register/callback?status=success",
+        "cancel_url": f"{BASE_URL}/api/payments/subscription/register/callback?status=cancel",
+        "fail_url": f"{BASE_URL}/api/payments/subscription/register/callback?status=fail",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "tid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"KakaoPay Error: {res_data}")
+
+    return schemas.PaymentReadyResponse(
+        tid=res_data['tid'],
+        next_redirect_app_url=res_data.get('next_redirect_app_url'),
+        next_redirect_mobile_url=res_data.get('next_redirect_mobile_url'),
+        next_redirect_pc_url=res_data.get('next_redirect_pc_url'),
+        partner_order_id=order_id
+    )
+
+
+@router.get("/subscription/register/approve")
+async def register_card_approve(
+    tid: str,
+    pg_token: str,
+    partner_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """[카드 등록 2단계] 빌링키 발급"""
+    url = "https://kapi.kakao.com/v1/payment/approve"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    data = {
+        "cid": CID_SUBSCRIPTION,
+        "tid": tid,
+        "partner_order_id": partner_order_id,
+        "partner_user_id": str(current_user.user_id),
+        "pg_token": pg_token
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "sid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"등록 실패: {res_data}")
+
+    sid = res_data["sid"]
+    card_info = res_data.get("card_info", {})
+    
+    new_method = models.PaymentMethod(
+        user_id=current_user.user_id,
+        method_type=models.PaymentMethodType.KAKAO_PAY,
+        billing_key=sid,
+        card_brand=card_info.get("kakaopay_purchase_corp", "KAKAO"),
+        card_last4=card_info.get("bin", "0000")[:4], 
+        is_default=True 
+    )
+    
+    db.add(new_method)
+    db.commit()
+    db.refresh(new_method)
+
+    return {"message": "카드 등록 완료", "billing_key": sid, "method_id": new_method.method_id}
+
+
+@router.post("/subscription/pay")
+async def pay_subscription(
+    cart_session_id: int,
+    amount: int,
+    item_name: str = "스마트 장바구니 자동결제",
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    [테스트용/직접호출용] 무게 검증 없이 즉시 결제
+    """
+    # ♻️ 공통 함수 호출로 코드 중복 해결!
+    return await process_subscription_payment(
+        db=db,
+        user=current_user,
+        cart_session_id=cart_session_id,
+        amount=amount,
+        item_name=item_name
+    )
+
+
+@router.get("/subscription/register/callback", response_class=HTMLResponse)
+async def register_callback(status: str, pg_token: str = None):
+    if status == "success":
+        return f"""
+        <html>
+            <head><title>등록 성공</title></head>
+            <body>
+                <h1 style="color:blue;">카드 등록 인증 완료!</h1>
+                <p>아래 토큰을 복사해서 <b>approve API</b>에 입력하세요.</p>
+                <div style="background:#eee; padding:10px; font-size:1.2em;">{pg_token}</div>
+            </body>
+        </html>
+        """
+    return "<h1>등록 취소 또는 실패</h1>"
+
+
+# =========================================================
+# 🚀 [Legacy] 일반 1회성 결제 (QR/PC)
+# =========================================================
+# (이하 1회성 결제 코드는 변경 없음, 그대로 유지하면 됩니다)
+# ...
 @router.post("/ready", response_model=schemas.PaymentReadyResponse)
 async def payment_ready(
     request: schemas.PaymentReadyRequest,
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저 주입
+    current_user: models.AppUser = Depends(get_current_user)
 ):
-    # 이제 current_user.user_id 로 진짜 ID를 사용합니다.
     user_id = current_user.user_id
-
     cart_session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == request.cart_session_id
     ).first()
@@ -54,10 +346,18 @@ async def payment_ready(
     if not cart_session:
         raise HTTPException(status_code=404, detail="해당 카트 세션을 찾을 수 없습니다.")
 
+    weight_check = validate_cart_weight(
+        db=db,
+        cart_session_id=cart_session.cart_session_id,
+        measured_weight_g=cart_session.measured_total_g
+    )
+
+    if not weight_check["is_valid"]:
+        raise HTTPException(status_code=400, detail=weight_check["message"])
+
     existing_payment = db.query(models.Payment).filter(
         models.Payment.cart_session_id == request.cart_session_id
     ).first()
-    
     if existing_payment:
         db.delete(existing_payment)
         db.commit()
@@ -69,9 +369,9 @@ async def payment_ready(
     }
     
     data = {
-        "cid": "TC0ONETIME", 
+        "cid": CID_ONETIME,
         "partner_order_id": str(cart_session.cart_session_id),
-        "partner_user_id": str(user_id), # 진짜 유저 ID 사용
+        "partner_user_id": str(user_id),
         "item_name": "스마트 장보기 결제",
         "quantity": 1,
         "total_amount": request.total_amount,
@@ -90,7 +390,7 @@ async def payment_ready(
 
     new_payment = models.Payment(
         cart_session_id=cart_session.cart_session_id,
-        user_id=user_id, # 진짜 유저 ID 저장
+        user_id=user_id,
         pg_provider=models.PgProviderType.KAKAO_PAY,
         pg_tid=res_data['tid'],
         status=models.PaymentStatus.PENDING,
@@ -107,19 +407,16 @@ async def payment_ready(
         next_redirect_pc_url=res_data.get('next_redirect_pc_url')
     )
 
-
-# --- 2. 결제 승인 (Approve) ---
 @router.post("/approve", response_model=schemas.PaymentResponse)
 async def payment_approve(
     request: schemas.PaymentApproveRequest,
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
+    current_user: models.AppUser = Depends(get_current_user)
 ):
     user_id = current_user.user_id
-
     payment = db.query(models.Payment).filter(
         models.Payment.pg_tid == request.tid,
-        models.Payment.user_id == user_id, # 본인 결제만 승인 가능
+        models.Payment.user_id == user_id,
         models.Payment.status == models.PaymentStatus.PENDING
     ).first()
 
@@ -132,7 +429,7 @@ async def payment_approve(
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
     data = {
-        "cid": "TC0ONETIME",
+        "cid": CID_ONETIME,
         "tid": request.tid,
         "partner_order_id": str(payment.cart_session_id),
         "partner_user_id": str(user_id),
@@ -151,34 +448,32 @@ async def payment_approve(
     payment.status = models.PaymentStatus.APPROVED
     payment.approved_at = datetime.now()
     
-    cart_session = db.query(models.CartSession).filter(
-        models.CartSession.cart_session_id == payment.cart_session_id
-    ).first()
-    
-    if cart_session:
-        cart_session.status = models.CartSessionStatus.PAID
-        cart_session.ended_at = datetime.now()
+    if payment.cart_session_id:
+        cart_session = db.query(models.CartSession).filter(
+            models.CartSession.cart_session_id == payment.cart_session_id
+        ).first()
+        if cart_session:
+            cart_session.status = models.CartSessionStatus.PAID
+            cart_session.ended_at = datetime.now()
 
     db.commit()
     db.refresh(payment)
 
     try:
         create_ledger_from_payment(payment_id=payment.payment_id, db=db)
-        print(f"✅ 가계부 자동 등록 완료: Payment ID {payment.payment_id}")
     except Exception as e:
-        print(f"⚠️ 가계부 등록 실패 (결제는 성공): {e}")
+        print(f"⚠️ 가계부 등록 실패: {e}")
 
     return payment
 
-
-# --- 3. 콜백 URL ---
 @router.get("/success", response_class=HTMLResponse)
 async def payment_success_callback(pg_token: str):
     return HTMLResponse(content=f"""
     <html>
         <head><title>결제 성공</title></head>
         <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
-            <h1 style="color:green;">✅ 인증 성공!</h1>
+            <h1 style="color:green;">✅ 결제 승인 대기중</h1>
+            <p>앱으로 돌아가서 결제 완료 버튼을 눌러주세요.</p>
             <p>토큰: <b>{pg_token}</b></p>
         </body>
     </html>
@@ -192,35 +487,25 @@ async def payment_cancel_callback():
 async def payment_fail_callback():
     return JSONResponse(content={"message": "결제 실패", "status": "FAILED"}, status_code=400)
 
-
-# ========================================================
-# 🚨 [라우팅 순서] 구체적인 경로가 위로!
-# ========================================================
-
-# --- 6. 결제 수단 목록 조회 ---
 @router.get("/methods", response_model=list[schemas.PaymentMethodResponse])
 async def get_payment_methods(
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
+    current_user: models.AppUser = Depends(get_current_user)
 ):
     return db.query(models.PaymentMethod).filter(
         models.PaymentMethod.user_id == current_user.user_id
     ).all()
 
-
-# --- 7. 결제 수단 등록 ---
 @router.post("/methods", response_model=schemas.PaymentMethodResponse)
 async def register_payment_method(
     request: schemas.PaymentMethodCreate,
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
+    current_user: models.AppUser = Depends(get_current_user)
 ):
     user_id = current_user.user_id
-    
     existing_count = db.query(models.PaymentMethod).filter(
         models.PaymentMethod.user_id == user_id
     ).count()
-    
     is_default = (existing_count == 0)
 
     new_method = models.PaymentMethod(
@@ -231,24 +516,20 @@ async def register_payment_method(
         billing_key=request.billing_key,
         is_default=is_default or request.is_default
     )
-    
     db.add(new_method)
     db.commit()
     db.refresh(new_method)
-    
     return new_method
 
-
-# --- 8. 결제 수단 삭제 ---
 @router.delete("/methods/{method_id}")
 async def delete_payment_method(
     method_id: int,
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
+    current_user: models.AppUser = Depends(get_current_user)
 ):
     method = db.query(models.PaymentMethod).filter(
         models.PaymentMethod.method_id == method_id,
-        models.PaymentMethod.user_id == current_user.user_id # 본인 카드만 삭제 가능
+        models.PaymentMethod.user_id == current_user.user_id
     ).first()
 
     if not method:
@@ -258,29 +539,20 @@ async def delete_payment_method(
     db.commit()
     return {"message": "결제 수단이 삭제되었습니다."}
 
-
-# ========================================================
-# 👇 상세 조회 및 취소
-# ========================================================
-
-# --- 4. 결제 상세 조회 ---
 @router.get("/{payment_id}", response_model=schemas.PaymentDetailResponse)
 async def get_payment_detail(
     payment_id: int,
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
+    current_user: models.AppUser = Depends(get_current_user)
 ):
-    # 본인 결제 내역만 조회 가능
     return get_payment_or_404(payment_id, current_user.user_id, db)
 
-
-# --- 5. 결제 취소(환불) ---
 @router.post("/{payment_id}/cancel", response_model=schemas.PaymentResponse)
 async def cancel_payment(
     payment_id: int,
     request: schemas.PaymentCancelRequest,
     db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
+    current_user: models.AppUser = Depends(get_current_user)
 ):
     payment = get_payment_or_404(payment_id, current_user.user_id, db)
 
@@ -292,8 +564,11 @@ async def cancel_payment(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
+    
+    cid_to_use = CID_ONETIME if payment.method_id is None else CID_SUBSCRIPTION
+    
     data = {
-        "cid": "TC0ONETIME",
+        "cid": cid_to_use, 
         "tid": payment.pg_tid,
         "cancel_amount": payment.total_amount,
         "cancel_tax_free_amount": 0,
