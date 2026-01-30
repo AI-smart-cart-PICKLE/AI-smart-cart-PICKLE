@@ -1,8 +1,8 @@
-"""init
+"""initial_migration
 
-Revision ID: cc259ae132ab
+Revision ID: 4e8c53bbb5bf
 Revises: 
-Create Date: 2026-01-28 11:45:43.733371
+Create Date: 2026-01-30 14:28:40.290367
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 import pgvector
 
 # revision identifiers, used by Alembic.
-revision: str = 'cc259ae132ab'
+revision: str = '4e8c53bbb5bf'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.create_table('app_user',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
-    sa.Column('provider', sa.Enum('LOCAL', 'GOOGLE', name='userprovider'), nullable=False),
+    sa.Column('provider', sa.Enum('LOCAL', 'GOOGLE', 'KAKAO', name='userprovider'), nullable=False),
     sa.Column('nickname', sa.String(length=40), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
@@ -77,6 +77,15 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('cart_session_id')
     )
     op.create_index(op.f('ix_cart_session_cart_session_id'), 'cart_session', ['cart_session_id'], unique=False)
+    op.create_table('password_reset_token',
+    sa.Column('token', sa.String(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('expires_at', sa.TIMESTAMP(), nullable=False),
+    sa.Column('used', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ),
+    sa.PrimaryKeyConstraint('token')
+    )
     op.create_table('payment_method',
     sa.Column('method_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -203,6 +212,7 @@ def downgrade() -> None:
     op.drop_table('product')
     op.drop_index(op.f('ix_payment_method_method_id'), table_name='payment_method')
     op.drop_table('payment_method')
+    op.drop_table('password_reset_token')
     op.drop_index(op.f('ix_cart_session_cart_session_id'), table_name='cart_session')
     op.drop_table('cart_session')
     op.drop_index(op.f('ix_recipe_recipe_id'), table_name='recipe')
