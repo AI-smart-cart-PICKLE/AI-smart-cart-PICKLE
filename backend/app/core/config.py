@@ -15,8 +15,11 @@ class Settings:
     GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
     KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
     KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI") 
+    KAKAO_ADMIN_KEY = os.getenv("KAKAO_ADMIN_KEY")
     JETSON_BASE_URL = os.getenv("JETSON_BASE_URL")
     JETSON_STREAM_URL = os.getenv("JETSON_STREAM_URL")
+
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 settings = Settings()
 

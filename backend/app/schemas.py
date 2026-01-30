@@ -334,7 +334,10 @@ class RecipeRecommendResponse(BaseModel):
     # AI 추천 점수
     similarity_score: Optional[float] = None
     
-    # 재료 분석
+    # 전체 재료
+    ingredients: List[IngredientSimpleResponse] = [] 
+    
+    # 부족한 재료
     missing_ingredients: List[IngredientSimpleResponse] = []
     
     class Config:

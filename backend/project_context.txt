@@ -1,0 +1,4799 @@
+
+[Project Structure]: C:\Users\SSAFY\Desktop\S14P11A202\backend
+========================================
+backend/
+    .dockerignore
+    alembic.ini
+    Dockerfile
+    environment.yaml
+    README.md
+    requirements.txt
+    alembic/
+        env.py
+        README
+        script.py.mako
+        versions/
+            2b87114328d5_add_cart_session_pairing_token.py
+            3fd7de1c788e_add_camera_on_to_cart_session.py
+            4977b62bd2e4_remove_cart_session_pairing_fields.py
+            4e8c53bbb5bf_initial_migration.py
+            5e709302d134_add_camera_view_on_to_cart_session.py
+            82d52c882a35_make_zone_code_and_category_id_not_null.py
+            e0e8a64d1b86_rename_camera_on_to_camera_view_on.py
+    app/
+        check_data.py
+        database.py
+        dependencies.py
+        init_db.py
+        main.py
+        models.py
+        schemas.py
+        seed_data.py
+        __init__.py
+        core/
+            config.py
+        db/
+            base.py
+        routers/
+            auth.py
+            cart.py
+            ledger.py
+            payment.py
+            product.py
+            recommendation.py
+            user.py
+            __init__.py
+        utils/
+            check_data.py
+            email.py
+            jwt.py
+            security.py
+    scripts/
+        reset_db.py
+        run_sql.py
+        seed_data.sql
+    tests/
+        manual/
+            check_db_data.py
+            test_payment_approve.py
+            test_payment_flow.py
+========================================
+
+[File Contents]
+========================================
+
+Start of file: README.md
+----------------------------------------
+# Backend (Main API Server)
+
+이 디렉토리는 서비스의 핵심 비즈니스 로직을 담당하는 **Main API Server**입니다.
+
+
+
+## 1. 디렉토리 구조
+
+- **`app/`**: FastAPI 소스 코드 메인 패키지
+  - **`main.py`**: 앱 진입점 및 FastAPI 설정
+  - **`routers/`**: API 엔드포인트 모음
+  - **`models.py`**: SQLAlchemy DB 모델 정의
+  - **`schemas.py`**: Pydantic DTO 정의
+  - **`database.py`**: DB 연결 세션 관리
+- **`Dockerfile`**: 백엔드 서버 컨테이너 빌드 파일
+- **`requirements.txt`**: 의존성 패키지 목록
+
+
+
+## 2. 개발 환경
+
+- **Language**: Python 3.12.9
+- **Framework**: FastAPI 0.128.0
+- **Database**: PostgreSQL 16.x (w/ pgvector)
+- **Storage**: MinIO (S3 Compatible) 7.2.20
+
+
+
+## 3. 실행 가이드
+
+
+----------------------------------------
+End of file: README.md
+
+
+Start of file: requirements.txt
+----------------------------------------
+fastapi==0.128.0
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-multipart
+boto3
+mlflow>=3.0.0
+pgvector
+httpx==0.28.1
+python-dotenv==1.2.1
+numpy==2.4.1
+passlib[argon2]
+python-jose[cryptography]
+email-validator
+pydantic-settings
+alembic
+psycopg2-binary
+
+----------------------------------------
+End of file: requirements.txt
+
+
+Start of file: alembic\env.py
+----------------------------------------
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
+
+from alembic import context
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from app.database import Base
+from app.models import *
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
+
+
+target_metadata = Base.metadata
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config = context.config
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
+# Interpret the config file for Python logging.
+# This line sets up loggers basically.
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
+
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
+
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection, target_metadata=target_metadata
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+
+----------------------------------------
+End of file: alembic\env.py
+
+
+Start of file: alembic\versions\2b87114328d5_add_cart_session_pairing_token.py
+----------------------------------------
+"""add cart session pairing token
+
+Revision ID: 2b87114328d5
+Revises: 82d52c882a35
+Create Date: 2026-01-30 14:39:02.455285
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '2b87114328d5'
+down_revision: Union[str, Sequence[str], None] = '82d52c882a35'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.add_column('cart_session', sa.Column('pairing_token', sa.String(length=64), nullable=True))
+    op.add_column('cart_session', sa.Column('paired_at', sa.DateTime(timezone=True), nullable=True))
+    op.create_unique_constraint(None, 'cart_session', ['pairing_token'])
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_constraint(None, 'cart_session', type_='unique')
+    op.drop_column('cart_session', 'paired_at')
+    op.drop_column('cart_session', 'pairing_token')
+    # ### end Alembic commands ###
+
+----------------------------------------
+End of file: alembic\versions\2b87114328d5_add_cart_session_pairing_token.py
+
+
+Start of file: alembic\versions\3fd7de1c788e_add_camera_on_to_cart_session.py
+----------------------------------------
+"""add camera_on to cart_session
+
+Revision ID: 3fd7de1c788e
+Revises: 45a09416681f
+Create Date: 2026-01-30 09:57:10.020006
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '3fd7de1c788e'
+down_revision: Union[str, Sequence[str], None] = '45a09416681f'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.add_column('cart_session', sa.Column('camera_on', sa.Boolean(), nullable=True))
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_column('cart_session', 'camera_on')
+    # ### end Alembic commands ###
+
+----------------------------------------
+End of file: alembic\versions\3fd7de1c788e_add_camera_on_to_cart_session.py
+
+
+Start of file: alembic\versions\4977b62bd2e4_remove_cart_session_pairing_fields.py
+----------------------------------------
+"""remove cart session pairing fields
+
+Revision ID: 4977b62bd2e4
+Revises: 2b87114328d5
+Create Date: 2026-01-30 14:50:33.934586
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision: str = '4977b62bd2e4'
+down_revision: Union[str, Sequence[str], None] = '2b87114328d5'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_constraint(op.f('cart_session_pairing_token_key'), 'cart_session', type_='unique')
+    op.drop_column('cart_session', 'paired_at')
+    op.drop_column('cart_session', 'pairing_token')
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.add_column('cart_session', sa.Column('pairing_token', sa.VARCHAR(length=64), autoincrement=False, nullable=True))
+    op.add_column('cart_session', sa.Column('paired_at', postgresql.TIMESTAMP(timezone=True), autoincrement=False, nullable=True))
+    op.create_unique_constraint(op.f('cart_session_pairing_token_key'), 'cart_session', ['pairing_token'], postgresql_nulls_not_distinct=False)
+    # ### end Alembic commands ###
+
+----------------------------------------
+End of file: alembic\versions\4977b62bd2e4_remove_cart_session_pairing_fields.py
+
+
+Start of file: alembic\versions\4e8c53bbb5bf_initial_migration.py
+----------------------------------------
+"""initial_migration
+
+Revision ID: 4e8c53bbb5bf
+Revises: 
+Create Date: 2026-01-30 14:28:40.290367
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+import pgvector
+
+# revision identifiers, used by Alembic.
+revision: str = '4e8c53bbb5bf'
+down_revision: Union[str, Sequence[str], None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('app_user',
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('provider', sa.Enum('LOCAL', 'GOOGLE', 'KAKAO', name='userprovider'), nullable=False),
+    sa.Column('nickname', sa.String(length=40), nullable=False),
+    sa.Column('password_hash', sa.String(length=255), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('user_id'),
+    sa.UniqueConstraint('email')
+    )
+    op.create_index(op.f('ix_app_user_user_id'), 'app_user', ['user_id'], unique=False)
+    op.create_table('cart_device',
+    sa.Column('cart_device_id', sa.Integer(), nullable=False),
+    sa.Column('device_code', sa.String(length=64), nullable=False),
+    sa.PrimaryKeyConstraint('cart_device_id'),
+    sa.UniqueConstraint('device_code')
+    )
+    op.create_index(op.f('ix_cart_device_cart_device_id'), 'cart_device', ['cart_device_id'], unique=False)
+    op.create_table('product_category',
+    sa.Column('category_id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=60), nullable=False),
+    sa.Column('zone_code', sa.String(length=30), nullable=True),
+    sa.PrimaryKeyConstraint('category_id'),
+    sa.UniqueConstraint('name')
+    )
+    op.create_index(op.f('ix_product_category_category_id'), 'product_category', ['category_id'], unique=False)
+    op.create_table('recipe',
+    sa.Column('recipe_id', sa.Integer(), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('instructions', sa.Text(), nullable=True),
+    sa.Column('image_url', sa.Text(), nullable=True),
+    sa.Column('embedding', pgvector.sqlalchemy.vector.VECTOR(dim=1536), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('recipe_id')
+    )
+    op.create_index(op.f('ix_recipe_recipe_id'), 'recipe', ['recipe_id'], unique=False)
+    op.create_table('cart_session',
+    sa.Column('cart_session_id', sa.Integer(), nullable=False),
+    sa.Column('cart_device_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('status', sa.Enum('ACTIVE', 'CHECKOUT_REQUESTED', 'PAID', 'CANCELLED', name='cartsessionstatus'), nullable=False),
+    sa.Column('budget_limit', sa.Integer(), nullable=True),
+    sa.Column('expected_total_g', sa.Integer(), nullable=True),
+    sa.Column('measured_total_g', sa.Integer(), nullable=True),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('ended_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['cart_device_id'], ['cart_device.cart_device_id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ),
+    sa.PrimaryKeyConstraint('cart_session_id')
+    )
+    op.create_index(op.f('ix_cart_session_cart_session_id'), 'cart_session', ['cart_session_id'], unique=False)
+    op.create_table('password_reset_token',
+    sa.Column('token', sa.String(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('expires_at', sa.TIMESTAMP(), nullable=False),
+    sa.Column('used', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ),
+    sa.PrimaryKeyConstraint('token')
+    )
+    op.create_table('payment_method',
+    sa.Column('method_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('method_type', sa.Enum('CARD', 'KAKAO_PAY', name='paymentmethodtype'), nullable=False),
+    sa.Column('billing_key', sa.String(length=255), nullable=True),
+    sa.Column('card_brand', sa.String(length=30), nullable=True),
+    sa.Column('card_last4', sa.String(length=4), nullable=True),
+    sa.Column('is_default', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('method_id')
+    )
+    op.create_index(op.f('ix_payment_method_method_id'), 'payment_method', ['method_id'], unique=False)
+    op.create_table('product',
+    sa.Column('product_id', sa.Integer(), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=True),
+    sa.Column('barcode', sa.String(length=64), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('price', sa.Integer(), nullable=False),
+    sa.Column('unit_weight_g', sa.Integer(), nullable=False),
+    sa.Column('stock_quantity', sa.Integer(), nullable=True),
+    sa.Column('image_url', sa.Text(), nullable=True),
+    sa.Column('product_info', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('embedding', pgvector.sqlalchemy.vector.VECTOR(dim=1536), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['category_id'], ['product_category.category_id'], ),
+    sa.PrimaryKeyConstraint('product_id'),
+    sa.UniqueConstraint('barcode')
+    )
+    op.create_index(op.f('ix_product_product_id'), 'product', ['product_id'], unique=False)
+    op.create_table('saved_recipe',
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('recipe_id', sa.Integer(), nullable=False),
+    sa.Column('saved_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['recipe_id'], ['recipe.recipe_id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_id', 'recipe_id')
+    )
+    op.create_table('cart_detection_log',
+    sa.Column('log_id', sa.Integer(), nullable=False),
+    sa.Column('cart_session_id', sa.Integer(), nullable=False),
+    sa.Column('cart_device_id', sa.Integer(), nullable=False),
+    sa.Column('product_id', sa.Integer(), nullable=True),
+    sa.Column('action_type', sa.Enum('ADD', 'REMOVE', name='detectionactiontype'), nullable=False),
+    sa.Column('confidence_score', sa.Numeric(precision=5, scale=2), nullable=True),
+    sa.Column('detected_weight_g', sa.Integer(), nullable=True),
+    sa.Column('is_applied', sa.Boolean(), nullable=True),
+    sa.Column('detected_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['cart_device_id'], ['cart_device.cart_device_id'], ),
+    sa.ForeignKeyConstraint(['cart_session_id'], ['cart_session.cart_session_id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['product_id'], ['product.product_id'], ),
+    sa.PrimaryKeyConstraint('log_id')
+    )
+    op.create_index(op.f('ix_cart_detection_log_log_id'), 'cart_detection_log', ['log_id'], unique=False)
+    op.create_table('cart_item',
+    sa.Column('cart_item_id', sa.Integer(), nullable=False),
+    sa.Column('cart_session_id', sa.Integer(), nullable=False),
+    sa.Column('product_id', sa.Integer(), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.Column('unit_price', sa.Integer(), nullable=False),
+    sa.Column('added_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['cart_session_id'], ['cart_session.cart_session_id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['product_id'], ['product.product_id'], ),
+    sa.PrimaryKeyConstraint('cart_item_id')
+    )
+    op.create_index(op.f('ix_cart_item_cart_item_id'), 'cart_item', ['cart_item_id'], unique=False)
+    op.create_table('payment',
+    sa.Column('payment_id', sa.Integer(), nullable=False),
+    sa.Column('cart_session_id', sa.Integer(), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('method_id', sa.Integer(), nullable=True),
+    sa.Column('pg_provider', sa.Enum('KAKAO_PAY', 'CARD_PG', name='pgprovidertype'), nullable=False),
+    sa.Column('pg_tid', sa.String(length=255), nullable=True),
+    sa.Column('status', sa.Enum('PENDING', 'APPROVED', 'FAILED', 'CANCELLED', name='paymentstatus'), nullable=False),
+    sa.Column('total_amount', sa.Integer(), nullable=False),
+    sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['cart_session_id'], ['cart_session.cart_session_id'], ),
+    sa.ForeignKeyConstraint(['method_id'], ['payment_method.method_id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ),
+    sa.PrimaryKeyConstraint('payment_id'),
+    sa.UniqueConstraint('cart_session_id')
+    )
+    op.create_index(op.f('ix_payment_payment_id'), 'payment', ['payment_id'], unique=False)
+    op.create_table('recipe_ingredient',
+    sa.Column('recipe_id', sa.Integer(), nullable=False),
+    sa.Column('product_id', sa.Integer(), nullable=False),
+    sa.Column('quantity_info', sa.String(length=50), nullable=True),
+    sa.Column('importance_score', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['product_id'], ['product.product_id'], ),
+    sa.ForeignKeyConstraint(['recipe_id'], ['recipe.recipe_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('recipe_id', 'product_id')
+    )
+    op.create_table('ledger_entry',
+    sa.Column('ledger_entry_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('payment_id', sa.Integer(), nullable=True),
+    sa.Column('spend_date', sa.Date(), nullable=False),
+    sa.Column('category', sa.Enum('GROCERY', 'MEAT', 'DAIRY', 'BEVERAGE', 'SNACK', 'HOUSEHOLD', 'ETC', name='ledgercategory'), nullable=False),
+    sa.Column('amount', sa.Integer(), nullable=False),
+    sa.Column('memo', sa.Text(), nullable=True),
+    sa.ForeignKeyConstraint(['payment_id'], ['payment.payment_id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['app_user.user_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('ledger_entry_id')
+    )
+    op.create_index(op.f('ix_ledger_entry_ledger_entry_id'), 'ledger_entry', ['ledger_entry_id'], unique=False)
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_ledger_entry_ledger_entry_id'), table_name='ledger_entry')
+    op.drop_table('ledger_entry')
+    op.drop_table('recipe_ingredient')
+    op.drop_index(op.f('ix_payment_payment_id'), table_name='payment')
+    op.drop_table('payment')
+    op.drop_index(op.f('ix_cart_item_cart_item_id'), table_name='cart_item')
+    op.drop_table('cart_item')
+    op.drop_index(op.f('ix_cart_detection_log_log_id'), table_name='cart_detection_log')
+    op.drop_table('cart_detection_log')
+    op.drop_table('saved_recipe')
+    op.drop_index(op.f('ix_product_product_id'), table_name='product')
+    op.drop_table('product')
+    op.drop_index(op.f('ix_payment_method_method_id'), table_name='payment_method')
+    op.drop_table('payment_method')
+    op.drop_table('password_reset_token')
+    op.drop_index(op.f('ix_cart_session_cart_session_id'), table_name='cart_session')
+    op.drop_table('cart_session')
+    op.drop_index(op.f('ix_recipe_recipe_id'), table_name='recipe')
+    op.drop_table('recipe')
+    op.drop_index(op.f('ix_product_category_category_id'), table_name='product_category')
+    op.drop_table('product_category')
+    op.drop_index(op.f('ix_cart_device_cart_device_id'), table_name='cart_device')
+    op.drop_table('cart_device')
+    op.drop_index(op.f('ix_app_user_user_id'), table_name='app_user')
+    op.drop_table('app_user')
+    # ### end Alembic commands ###
+
+----------------------------------------
+End of file: alembic\versions\4e8c53bbb5bf_initial_migration.py
+
+
+Start of file: alembic\versions\5e709302d134_add_camera_view_on_to_cart_session.py
+----------------------------------------
+"""add camera_view_on to cart_session
+
+Revision ID: 5e709302d134
+Revises: e0e8a64d1b86
+Create Date: 2026-01-30 10:57:18.611035
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '5e709302d134'
+down_revision: Union[str, Sequence[str], None] = 'e0e8a64d1b86'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade():
+    op.add_column(
+        "cart_session",
+        sa.Column(
+            "camera_view_on",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=False
+        )
+    )
+
+
+def downgrade():
+    op.drop_column("cart_session", "camera_view_on")
+----------------------------------------
+End of file: alembic\versions\5e709302d134_add_camera_view_on_to_cart_session.py
+
+
+Start of file: alembic\versions\82d52c882a35_make_zone_code_and_category_id_not_null.py
+----------------------------------------
+"""make zone_code and category_id not null
+
+Revision ID: 82d52c882a35
+Revises: 5e709302d134
+Create Date: 2026-01-30 14:09:57.462673
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '82d52c882a35'
+down_revision: Union[str, Sequence[str], None] = '5e709302d134'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_column('cart_session', 'camera_on')
+    op.alter_column('product', 'category_id',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    op.alter_column('product_category', 'zone_code',
+               existing_type=sa.VARCHAR(length=30),
+               nullable=False)
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.alter_column('product_category', 'zone_code',
+               existing_type=sa.VARCHAR(length=30),
+               nullable=True)
+    op.alter_column('product', 'category_id',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.add_column('cart_session', sa.Column('camera_on', sa.BOOLEAN(), autoincrement=False, nullable=True))
+    # ### end Alembic commands ###
+
+----------------------------------------
+End of file: alembic\versions\82d52c882a35_make_zone_code_and_category_id_not_null.py
+
+
+Start of file: alembic\versions\e0e8a64d1b86_rename_camera_on_to_camera_view_on.py
+----------------------------------------
+"""rename camera_on to camera_view_on
+
+Revision ID: e0e8a64d1b86
+Revises: 3fd7de1c788e
+Create Date: 2026-01-30 10:43:43.631679
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = 'e0e8a64d1b86'
+down_revision: Union[str, Sequence[str], None] = '3fd7de1c788e'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade():
+    op.add_column(
+        "cart_session",
+        sa.Column("camera_view_on", sa.Boolean(), server_default="false", nullable=False)
+    )
+    op.drop_column("cart_session", "camera_on")
+
+
+def downgrade():
+    op.add_column(
+        "cart_session",
+        sa.Column("camera_on", sa.Boolean(), server_default="false", nullable=False)
+    )
+    op.drop_column("cart_session", "camera_view_on")
+----------------------------------------
+End of file: alembic\versions\e0e8a64d1b86_rename_camera_on_to_camera_view_on.py
+
+
+Start of file: app\check_data.py
+----------------------------------------
+# backend/check_data.py
+from sqlalchemy import text
+from app.database import SessionLocal
+from app import models
+
+def check_db():
+    db = SessionLocal()
+    try:
+        print("====== 🔍 DB 데이터 점검 ======")
+        
+        # 1. 상품(Product) 확인
+        products = db.query(models.Product).all()
+        print(f"\n🧅 [상품] 총 {len(products)}개")
+        for p in products:
+            print(f" - ID: {p.product_id}, 이름: {p.name}")
+
+        # 2. 레시피(Recipe) 확인
+        recipes = db.query(models.Recipe).all()
+        print(f"\n🍲 [레시피] 총 {len(recipes)}개")
+        for r in recipes:
+            print(f" - ID: {r.recipe_id}, 이름: {r.title}")
+
+        # 3. 연결고리(RecipeIngredient) 확인 (여기가 핵심!)
+        links = db.query(models.RecipeIngredient).all()
+        print(f"\n🔗 [연결] 총 {len(links)}개")
+        for l in links:
+            print(f" - 레시피({l.recipe_id}) <-> 재료({l.product_id}) | 점수: {l.importance_score}")
+
+        if not links:
+            print("\n❌ 문제 발견: 상품과 레시피는 있는데 '연결' 데이터가 없네요!")
+            print("   -> seed_data.py를 다시 실행해야 합니다.")
+        else:
+            print("\n✅ 데이터는 정상입니다. product_id를 다시 확인해보세요.")
+
+    except Exception as e:
+        print(f"❌ 에러 발생: {e}")
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    check_db()
+----------------------------------------
+End of file: app\check_data.py
+
+
+Start of file: app\database.py
+----------------------------------------
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.db.base import Base   
+
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://admin:password123@localhost:5432/postgres"
+)
+
+
+connect_args = {}
+if "sqlite" in SQLALCHEMY_DATABASE_URL:
+    connect_args = {"check_same_thread": False}
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args=connect_args
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+----------------------------------------
+End of file: app\database.py
+
+
+Start of file: app\dependencies.py
+----------------------------------------
+# app/dependencies.py
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import AppUser
+from app.utils.jwt import decode_token
+
+security = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> AppUser:
+    token = credentials.credentials  
+
+    payload = decode_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    user = db.get(AppUser, int(user_id))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user",
+        )
+
+    return user
+
+
+----------------------------------------
+End of file: app\dependencies.py
+
+
+Start of file: app\init_db.py
+----------------------------------------
+# init_db.py
+from sqlalchemy import text
+from app.database import SessionLocal
+
+def init_db():
+    db = SessionLocal()
+    try:
+        # 1. 벡터 확장기능 켜기
+        print("DB에 벡터 기능을 켜는 중...")
+        db.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        db.commit()
+        print("✅ 성공! pgvector 기능이 활성화되었습니다.")
+
+    except Exception as e:
+        print(f"❌ 에러 발생: {e}")
+        print("혹시 DB가 켜져 있는지, .env 설정이 맞는지 확인해주세요.")
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    init_db()
+----------------------------------------
+End of file: app\init_db.py
+
+
+Start of file: app\main.py
+----------------------------------------
+from dotenv import load_dotenv
+load_dotenv() # .env 파일을 찾아서 환경변수로 로드함
+# 앱 실행 진입점
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .database import engine, Base
+from . import models  # 우리가 만든 models.py를 가져와야 테이블을 인식합니다!
+from .routers import cart, payment, user, auth, product, ledger, recommendation # 라우터 파일들 임포트
+
+# ★ 핵심: 서버 시작할 때 DB에 없는 테이블을 자동으로 생성함
+# models.py에 정의된 클래스들을 보고 매핑합니다.
+# Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="Pickle Project API",
+    description="스마트 카트 및 추천/결제 서비스 API",
+    version="1.0.0"
+)
+
+# CORS 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:8000"],  # 모든 출처 허용
+    allow_credentials=True, # 쿠키, Authorization 헤더
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 라우터 등록 (만들어둔 API 연결)
+app.include_router(user.router)
+app.include_router(auth.router)
+app.include_router(product.router)
+app.include_router(cart.router)
+app.include_router(payment.router)
+app.include_router(ledger.router)
+app.include_router(recommendation.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello, Pickle! 서버가 정상 작동 중입니다."}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+----------------------------------------
+End of file: app\main.py
+
+
+Start of file: app\models.py
+----------------------------------------
+from sqlalchemy import (
+    Column, Integer, String, TIMESTAMP, ForeignKey, DateTime, Boolean, Text, Numeric, Date, Enum as SAEnum
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
+import enum
+from app.db.base import Base
+
+
+# --- Enums (DB Enum Types) ---
+
+class UserProvider(enum.Enum):
+    LOCAL = "LOCAL"
+    GOOGLE = "GOOGLE"
+    KAKAO = "KAKAO"
+
+class CartSessionStatus(enum.Enum):
+    ACTIVE = "ACTIVE"
+    CHECKOUT_REQUESTED = "CHECKOUT_REQUESTED"
+    PAID = "PAID"
+    CANCELLED = "CANCELLED"
+
+class DetectionActionType(enum.Enum):
+    ADD = "ADD"
+    REMOVE = "REMOVE"
+
+class PaymentMethodType(enum.Enum):
+    CARD = "CARD"
+    KAKAO_PAY = "KAKAO_PAY"
+
+class PgProviderType(enum.Enum):
+    KAKAO_PAY = "KAKAO_PAY"
+    CARD_PG = "CARD_PG"
+
+class PaymentStatus(enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+class LedgerCategory(enum.Enum):
+    GROCERY = "GROCERY"
+    MEAT = "MEAT"
+    DAIRY = "DAIRY"
+    BEVERAGE = "BEVERAGE"
+    SNACK = "SNACK"
+    HOUSEHOLD = "HOUSEHOLD"
+    ETC = "ETC"
+
+# --- Models ---
+
+class AppUser(Base):
+    __tablename__ = "app_user"
+
+    user_id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False)
+    provider = Column(SAEnum(UserProvider), nullable=False, default=UserProvider.LOCAL)
+    nickname = Column(String(40), nullable=False)
+    password_hash = Column(String(255))
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, nullable=False, default=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
+    cart_sessions = relationship("CartSession", back_populates="user")
+    payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="user")
+    ledger_entries = relationship("LedgerEntry", back_populates="user", cascade="all, delete-orphan")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_token"
+
+    token = Column(String, primary_key=True)
+    user_id = Column( Integer, ForeignKey("app_user.user_id"), nullable=False)
+
+    expires_at = Column(TIMESTAMP, nullable=False)
+    used = Column(Boolean, default=False)
+
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+
+class ProductCategory(Base):
+    __tablename__ = "product_category"
+
+    category_id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(60), unique=True, nullable=False)
+    zone_code = Column(String(30), nullable=False)
+
+    # Relationships
+    products = relationship("Product", back_populates="category")
+
+
+class Product(Base):
+    __tablename__ = "product"
+
+    product_id = Column(Integer, primary_key=True, index=True)
+    category_id = Column(Integer, ForeignKey("product_category.category_id"), nullable=False)
+    barcode = Column(String(64), unique=True)
+    name = Column(String(255), nullable=False)
+    price = Column(Integer, nullable=False)
+    unit_weight_g = Column(Integer, nullable=False)
+    stock_quantity = Column(Integer, default=0)
+    image_url = Column(Text)
+    product_info = Column(JSONB)
+    embedding = Column(Vector(1536))
+    created_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships
+    category = relationship("ProductCategory", back_populates="products")
+    cart_items = relationship("CartItem", back_populates="product")
+    detection_logs = relationship("CartDetectionLog", back_populates="product")
+    recipe_ingredients = relationship("RecipeIngredient", back_populates="product")
+
+
+class Recipe(Base):
+    __tablename__ = "recipe"
+
+    recipe_id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    instructions = Column(Text)
+    image_url = Column(Text)
+
+    embedding = Column(Vector(1536))
+    created_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships
+    ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
+    saved_by_users = relationship("SavedRecipe", back_populates="recipe", cascade="all, delete-orphan")
+
+
+class RecipeIngredient(Base):
+    __tablename__ = "recipe_ingredient"
+
+    recipe_id = Column(Integer, ForeignKey("recipe.recipe_id", ondelete="CASCADE"), primary_key=True)
+    product_id = Column(Integer, ForeignKey("product.product_id"), primary_key=True)
+    quantity_info = Column(String(50))
+    importance_score = Column(Integer, default=1)
+
+    # Relationships
+    recipe = relationship("Recipe", back_populates="ingredients")
+    product = relationship("Product", back_populates="recipe_ingredients")
+
+
+class SavedRecipe(Base):
+    __tablename__ = "saved_recipe"
+
+    user_id = Column(Integer, ForeignKey("app_user.user_id", ondelete="CASCADE"), primary_key=True)
+    recipe_id = Column(Integer, ForeignKey("recipe.recipe_id", ondelete="CASCADE"), primary_key=True)
+    saved_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships
+    user = relationship("AppUser", back_populates="saved_recipes")
+    recipe = relationship("Recipe", back_populates="saved_by_users")
+
+
+class CartDevice(Base):
+    __tablename__ = "cart_device"
+
+    cart_device_id = Column(Integer, primary_key=True, index=True)
+    device_code = Column(String(64), unique=True, nullable=False)
+
+    # Relationships
+    sessions = relationship("CartSession", back_populates="device")
+    logs = relationship("CartDetectionLog", back_populates="device")
+
+
+class CartSession(Base):
+    __tablename__ = "cart_session"
+
+    cart_session_id = Column(Integer, primary_key=True, index=True)
+    cart_device_id = Column(Integer, ForeignKey("cart_device.cart_device_id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("app_user.user_id"))
+    status = Column(SAEnum(CartSessionStatus), nullable=False, default=CartSessionStatus.ACTIVE)
+    budget_limit = Column(Integer, default=0)
+    expected_total_g = Column(Integer, default=0)
+    measured_total_g = Column(Integer, default=0)
+    started_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    ended_at = Column(DateTime(timezone=True))
+    camera_view_on = Column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    device = relationship("CartDevice", back_populates="sessions")
+    user = relationship("AppUser", back_populates="cart_sessions")
+    items = relationship("CartItem", back_populates="session", cascade="all, delete-orphan")
+    logs = relationship("CartDetectionLog", back_populates="session", cascade="all, delete-orphan")
+    payment = relationship("Payment", uselist=False, back_populates="session")
+
+
+class CartItem(Base):
+    __tablename__ = "cart_item"
+
+    cart_item_id = Column(Integer, primary_key=True, index=True)
+    cart_session_id = Column(Integer, ForeignKey("cart_session.cart_session_id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(Integer, ForeignKey("product.product_id"), nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price = Column(Integer, nullable=False)
+    added_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships
+    session = relationship("CartSession", back_populates="items")
+    product = relationship("Product", back_populates="cart_items")
+
+
+class CartDetectionLog(Base):
+    __tablename__ = "cart_detection_log"
+
+    log_id = Column(Integer, primary_key=True, index=True)
+    cart_session_id = Column(Integer, ForeignKey("cart_session.cart_session_id", ondelete="CASCADE"), nullable=False)
+    cart_device_id = Column(Integer, ForeignKey("cart_device.cart_device_id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("product.product_id"))
+    action_type = Column(SAEnum(DetectionActionType), nullable=False)
+    confidence_score = Column(Numeric(5, 2))
+    detected_weight_g = Column(Integer)
+    is_applied = Column(Boolean, default=False)
+    detected_at = Column(DateTime(timezone=True), default=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships
+    session = relationship("CartSession", back_populates="logs")
+    device = relationship("CartDevice", back_populates="logs")
+    product = relationship("Product", back_populates="detection_logs")
+
+
+class PaymentMethod(Base):
+    __tablename__ = "payment_method"
+
+    method_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("app_user.user_id", ondelete="CASCADE"), nullable=False)
+    method_type = Column(SAEnum(PaymentMethodType), nullable=False)
+    billing_key = Column(String(255))
+    card_brand = Column(String(30))
+    card_last4 = Column(String(4))
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships
+    user = relationship("AppUser", back_populates="payment_methods")
+    payments = relationship("Payment", back_populates="method")
+
+
+class Payment(Base):
+    __tablename__ = "payment"
+
+    payment_id = Column(Integer, primary_key=True, index=True)
+    cart_session_id = Column(Integer, ForeignKey("cart_session.cart_session_id"), unique=True)
+    user_id = Column(Integer, ForeignKey("app_user.user_id"), nullable=False)
+    method_id = Column(Integer, ForeignKey("payment_method.method_id"))
+    pg_provider = Column(SAEnum(PgProviderType), nullable=False)
+    pg_tid = Column(String(255))
+    status = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
+    total_amount = Column(Integer, nullable=False)
+    approved_at = Column(DateTime(timezone=True))
+
+    # Relationships
+    session = relationship("CartSession", back_populates="payment")
+    user = relationship("AppUser", back_populates="payments")
+    method = relationship("PaymentMethod", back_populates="payments")
+    ledger_entries = relationship("LedgerEntry", back_populates="payment")
+
+
+class LedgerEntry(Base):
+    __tablename__ = "ledger_entry"
+
+    ledger_entry_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("app_user.user_id", ondelete="CASCADE"), nullable=False)
+    payment_id = Column(Integer, ForeignKey("payment.payment_id", ondelete="SET NULL"))
+    spend_date = Column(Date, nullable=False)
+    category = Column(SAEnum(LedgerCategory), nullable=False, default=LedgerCategory.ETC)
+    amount = Column(Integer, nullable=False)
+    memo = Column(Text)
+
+    # Relationships
+    user = relationship("AppUser", back_populates="ledger_entries")
+    payment = relationship("Payment", back_populates="ledger_entries")
+
+----------------------------------------
+End of file: app\models.py
+
+
+Start of file: app\schemas.py
+----------------------------------------
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
+from typing import Optional, List, Dict, Any
+from datetime import datetime, date
+from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType, UserProvider
+import re
+
+# =========================================================
+# 💳 Payment Method Schemas (결제 수단)
+# =========================================================
+
+class PaymentMethodBase(BaseModel):
+    method_type: PaymentMethodType
+    billing_key: Optional[str] = None
+    card_brand: Optional[str] = None
+    card_last4: Optional[str] = Field(None, min_length=4, max_length=4)
+    is_default: bool = False
+
+class PaymentMethodCreate(PaymentMethodBase):
+    pass
+
+class PaymentMethodResponse(PaymentMethodBase):
+    method_id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# =========================================================
+# 💰 Payment Schemas (결제)
+# =========================================================
+
+# 1. 결제 준비 (Ready)
+class PaymentReadyRequest(BaseModel):
+    cart_session_id: int
+    total_amount: int = Field(..., gt=0, description="결제 금액은 0원 이상이어야 합니다.") 
+    method_id: Optional[int] = None
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 12,
+            "total_amount": 15000,
+            "method_id": None
+        }
+    })
+
+class PaymentReadyResponse(BaseModel):
+    tid: str
+    next_redirect_app_url: Optional[str] = None
+    next_redirect_mobile_url: Optional[str] = None
+    next_redirect_pc_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    partner_order_id: Optional[str] = None
+
+# 2. 결제 승인 (Approve)
+class PaymentApproveRequest(BaseModel):
+    tid: str
+    pg_token: str
+    partner_order_id: str
+    partner_user_id: str
+
+# 3. 결제 내역 응답
+class PaymentResponse(BaseModel):
+    payment_id: int
+    cart_session_id: Optional[int]
+    user_id: int
+    method_id: Optional[int]
+    pg_provider: PgProviderType
+    pg_tid: Optional[str]
+    status: PaymentStatus
+    total_amount: int
+    approved_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+# 4. 결제 취소
+class PaymentCancelRequest(BaseModel):
+    reason: str = "사용자 요청에 의한 취소"
+
+class PaymentDetailResponse(PaymentResponse):
+    pass
+
+# --- ✨ [NEW] 결제 요청 및 무게 검증 (Checkout) ---
+
+class PaymentRequest(BaseModel):
+    """웹에서 결제하기 버튼 클릭 시 전송하는 데이터"""
+    cart_session_id: int
+    amount: int
+    measured_weight_g: int = Field(..., description="Jetson/센서로부터 측정한 현재 무게")
+    use_subscription: bool = True  # 기본적으로 자동결제 사용
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 5,
+            "amount": 25000,
+            "measured_weight_g": 1500,
+            "use_subscription": True
+        }
+    })
+
+class PaymentWarningResponse(BaseModel):
+    """무게 불일치 시 반환하는 경고 데이터 (409 Conflict)"""
+    status: str = "WARNING"
+    message: str
+    difference: int
+    expected_weight: int
+    measured_weight: int
+    action_required: str = "CHECK_CART_ITEMS"  # 프론트엔드 식별용
+
+
+# =========================================================
+# 🔑 Billing Key Schemas (카드 등록)
+# =========================================================
+
+class CardRegisterResponse(BaseModel):
+    next_redirect_mobile_url: str
+    next_redirect_pc_url: str
+    tid: str
+    created_at: datetime
+
+class CardRegisterResult(BaseModel):
+    method_id: int
+    card_name: str
+    billing_key: str
+    message: str = "카드 등록이 완료되었습니다."
+
+
+# =========================================================
+# 📒 Ledger Schemas (가계부)
+# =========================================================
+
+class LedgerEntryResponse(BaseModel):
+    ledger_entry_id: int
+    user_id: int
+    payment_id: Optional[int]
+    spend_date: date
+    category: LedgerCategory
+    amount: int
+    memo: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+class LedgerUpdateRequest(BaseModel):
+    category: Optional[LedgerCategory] = None
+    memo: Optional[str] = None
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "category": "SNACK",
+            "memo": "편의점 간식 구매"
+        }
+    })
+
+
+# =========================================================
+# 👤 User Schemas (회원)
+# =========================================================
+
+NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣]{2,20}$")
+
+class UserBase(BaseModel):
+    email: EmailStr
+    nickname: str = Field(min_length=2, max_length=20)
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    nickname: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+            raise ValueError("Password must contain both letters and numbers")
+        return value
+
+    @field_validator("nickname")
+    @classmethod
+    def validate_nickname(cls, value: str) -> str:
+        if not NICKNAME_REGEX.fullmatch(value):
+            raise ValueError("Nickname must be 2–20 characters long and contain only Korean or English letters")
+        return value
+    
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "email": "user@example.com",
+            "password": "Password123!",
+            "nickname": "행복한쇼핑"
+        }
+    })
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "email": "user@example.com",
+            "password": "Password123!"
+        }
+    })
+
+class UserMeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    user_id: int
+    email: EmailStr
+    provider: UserProvider
+    nickname: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+class UserNicknameUpdate(BaseModel):
+    nickname: str = Field(min_length=2, max_length=20)
+
+class UserPasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
+
+class UserPasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class UserPasswordReset(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+
+class EmailCheckResponse(BaseModel):
+    is_available: bool
+
+class UserWithdraw(BaseModel):
+    password: Optional[str] = None
+
+class GoogleOAuthRequest(BaseModel):
+    code: str
+
+
+# =========================================================
+# 🛒 Cart Schemas (장바구니)
+# =========================================================
+
+class CartItemCreate(BaseModel):
+    product_id: int
+    quantity: int = Field(default=1, ge=1)
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "product_id": 101,
+            "quantity": 2
+        }
+    })
+
+class ProductSimpleResponse(BaseModel):
+    product_id: int
+    name: str
+    price: int
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class CartItemResponse(BaseModel):
+    cart_item_id: int
+    product: ProductSimpleResponse
+    quantity: int
+    unit_price: int
+    total_price: int
+    
+    class Config:
+        from_attributes = True
+
+class CartSessionResponse(BaseModel):
+    cart_session_id: int
+    status: str
+    total_amount: int
+    total_items: int = 0
+    expected_total_g: int = 0
+    items: List[CartItemResponse] = Field(default_factory=list)
+    
+    class Config:
+        from_attributes = True
+
+class CartItemUpdate(BaseModel):
+    quantity: int = Field(..., ge=1)
+
+# --- Cart Weight Validation ---
+class CartWeightValidateRequest(BaseModel):
+    cart_session_id: int
+    measured_weight_g: int = Field(..., gt=0)
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 5,
+            "measured_weight_g": 520
+        }
+    })
+
+class CartWeightValidateResponse(BaseModel):
+    is_valid: bool
+    status: str  # MATCH | OVER_WEIGHT | UNDER_WEIGHT
+    expected_weight: int
+    measured_weight: int
+    difference: int
+    tolerance: int
+    message: str
+
+
+# =========================================================
+# 🍳 Recipe & Product Schemas (추천 및 상품)
+# =========================================================
+
+class IngredientSimpleResponse(BaseModel):
+    product_id: int
+    name: str
+    is_owned: bool
+    
+    class Config:
+        from_attributes = True
+
+class RecipeRecommendResponse(BaseModel):
+    recipe_id: int
+    title: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    
+    # AI 추천 점수
+    similarity_score: Optional[float] = None
+    
+    # 재료 분석
+    missing_ingredients: List[IngredientSimpleResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+class ProductResponse(BaseModel):
+    product_id: int
+    name: str
+    price: int
+    stock_quantity: Optional[int] = 0
+    image_url: Optional[str] = None
+    product_info: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+----------------------------------------
+End of file: app\schemas.py
+
+
+Start of file: app\seed_data.py
+----------------------------------------
+import datetime
+import sys
+import os
+from dotenv import load_dotenv
+
+# Add parent directory to path to allow importing 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Load environment variables
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
+
+from sqlalchemy import text  # ★ 이 줄 꼭 추가하세요!
+from app.database import SessionLocal, engine
+from app import models
+
+def init_data():
+    # ★ [핵심] DB에 벡터 기능을 강제로 켭니다.
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            conn.commit()
+            print("✅ pgvector 기능 활성화 완료!")
+    except Exception as e:
+        print(f"⚠️ 벡터 기능 활성화 경고: {e}")
+
+    # 1. 테이블 생성
+    models.Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    try:
+        print("🌱 데이터 심는 중...")
+
+        # 2. 테스트 유저 생성
+        user = models.AppUser(user_id=1, email="test@test.com", nickname="테스트유저", provider="LOCAL")
+        db.merge(user)
+
+        # 3. 상품 생성 (양파)
+        onion = models.Product(product_id=100, name="양파", price=500, unit_weight_g=200)
+        db.merge(onion)
+
+        # 4. 레시피 생성 (양파수프)
+        soup = models.Recipe(recipe_id=501, title="프렌치 어니언 수프", description="양파가 듬뿍 들어간 수프")
+        db.merge(soup)
+
+        # 5. 상품-레시피 연결 (가중치 5점!)
+        link = models.RecipeIngredient(recipe_id=501, product_id=100, importance_score=5, quantity_info="2개")
+        db.merge(link)
+        
+        # 6. 카트 기기 & 세션 생성
+        device = models.CartDevice(cart_device_id=99, device_code="CART_001")
+        db.merge(device)
+        
+        session = models.CartSession(
+            cart_session_id=1, 
+            cart_device_id=99, 
+            user_id=1, 
+            status=models.CartSessionStatus.ACTIVE
+        )
+        db.merge(session)
+
+        db.commit()
+        print("✅ 기초 데이터 생성 완료! (User:1, Product:100, Session:1)")
+
+    except Exception as e:
+        print(f"❌ 에러 발생: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    init_data()
+----------------------------------------
+End of file: app\seed_data.py
+
+
+Start of file: app\__init__.py
+----------------------------------------
+
+----------------------------------------
+End of file: app\__init__.py
+
+
+Start of file: app\core\config.py
+----------------------------------------
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+# 프로젝트 루트(S14P11A202/) 폴더를 기준으로 .env 파일을 찾습니다.
+# app/core/config.py -> parent(1): app/core -> parent(2): app -> parent(3): backend -> parent(4): 프로젝트 루트
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+load_dotenv(BASE_DIR / ".env")
+
+
+class Settings:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+    KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
+    KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI") 
+    JETSON_BASE_URL = os.getenv("JETSON_BASE_URL")
+    JETSON_STREAM_URL = os.getenv("JETSON_STREAM_URL")
+
+settings = Settings()
+
+
+
+
+----------------------------------------
+End of file: app\core\config.py
+
+
+Start of file: app\db\base.py
+----------------------------------------
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+----------------------------------------
+End of file: app\db\base.py
+
+
+Start of file: app\routers\auth.py
+----------------------------------------
+# app/routers/auth.py
+from fastapi import APIRouter, Cookie, HTTPException, Depends, status
+from app.utils.jwt import decode_token, create_access_token, create_refresh_token
+from sqlalchemy.orm import Session
+
+from app.schemas import UserPasswordResetRequest, UserPasswordReset
+from app.database import get_db
+from app.models import AppUser, PasswordResetToken, UserProvider
+from app.utils.security import hash_password
+
+import uuid
+from datetime import datetime, timedelta
+from app.utils.email import send_reset_password_email
+from os import getenv
+
+import requests
+from app import models, schemas
+from app.core.config import settings   # settings에서 env 읽는 구조일 때
+
+from fastapi import Query
+from fastapi.responses import JSONResponse, RedirectResponse
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/refresh")
+def refresh_access_token(refresh_token: str = Cookie(None)):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+
+    payload = decode_token(refresh_token)
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type")
+
+    new_access_token = create_access_token(payload["sub"])
+
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer",
+    }
+
+
+# TODO: SMTP blocked in SSAFY network
+# TODO: Replace with SendGrid (HTTP API)
+
+# 비밀번호 재설정 요청 API
+@router.post("/password/reset-request")
+def request_password_reset(
+    request: UserPasswordResetRequest,
+    db: Session = Depends(get_db)
+):
+    user = db.query(AppUser).filter(AppUser.email == request.email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="해당 이메일로 가입된 회원이 없습니다."
+        )
+
+    reset_token = str(uuid.uuid4())
+    expires_at = datetime.utcnow() + timedelta(minutes=30)
+
+    token_row = PasswordResetToken(
+        token=reset_token,
+        user_id=user.user_id,
+        expires_at=expires_at,
+        used=False
+    )
+
+    db.add(token_row)
+    db.commit()
+
+    reset_link = f"{getenv('FRONTEND_URL')}/reset-password?token={reset_token}"
+    send_reset_password_email(user.email, reset_link)
+
+    return {"message": "비밀번호 재설정 이메일을 전송했습니다."}
+
+
+# 비밀번호 재설정 실행 API
+@router.post("/password/reset")
+def reset_password(
+    request: UserPasswordReset,
+    db: Session = Depends(get_db)
+):
+    token_row = (
+        db.query(PasswordResetToken)
+        .filter(PasswordResetToken.token == request.token)
+        .first()
+    )
+
+    if not token_row:
+        raise HTTPException(status_code=400, detail="유효하지 않은 토큰입니다.")
+
+    if token_row.used:
+        raise HTTPException(status_code=400, detail="이미 사용된 토큰입니다.")
+
+    if token_row.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="토큰이 만료되었습니다.")
+
+    user = (
+        db.query(AppUser)
+        .filter(AppUser.user_id == token_row.user_id)
+        .first()
+    )
+
+    user.password_hash = hash_password(request.new_password)
+    token_row.used = True
+
+    db.commit()
+
+    return {"message": "비밀번호가 성공적으로 변경되었습니다."}
+
+
+# 구글 로그인
+@router.post(
+    "/google",
+    response_model=schemas.TokenResponse,
+)
+def google_login(
+    request: schemas.GoogleOAuthRequest,
+    db: Session = Depends(get_db),
+):
+    # 1. code → access token
+    token_res = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "code": request.code,
+            "grant_type": "authorization_code",
+            "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    if token_res.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Google token exchange failed",
+        )
+
+    google_access_token = token_res.json().get("access_token")
+
+    # 2. 사용자 정보 조회
+    user_res = requests.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        headers={
+            "Authorization": f"Bearer {google_access_token}"
+        },
+    )
+
+    user_info = user_res.json()
+
+    email = user_info.get("email")
+    nickname = user_info.get("name")
+
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Google user info invalid",
+        )
+
+    # 3. 사용자 조회
+    user = (
+        db.query(models.AppUser)
+        .filter(
+            models.AppUser.email == email,
+            models.AppUser.provider == "GOOGLE",
+        )
+        .first()
+    )
+
+    # 4. 없으면 회원가입
+    if not user:
+        user = models.AppUser(
+            email=email,
+            nickname=nickname,
+            provider="GOOGLE",
+            password_hash=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # 5. JWT 발급
+    access_token = create_access_token(str(user.user_id))
+    refresh_token = create_refresh_token(str(user.user_id))
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+@router.get("/google/callback")
+def google_callback(
+    code: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Google OAuth redirect endpoint (프론트 미구현용)
+    """
+    # 기존 POST /auth/google 로직을 그대로 재사용
+    oauth_request = schemas.GoogleOAuthRequest(code=code)
+    return google_login(oauth_request, db)
+
+
+# 카카오 로그인
+@router.get("/kakao/login")
+def kakao_login():
+    kakao_auth_url = (
+        "https://kauth.kakao.com/oauth/authorize"
+        f"?client_id={settings.KAKAO_REST_API_KEY}"
+        f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
+        "&response_type=code"
+    )
+    return RedirectResponse(kakao_auth_url)
+
+
+@router.get("/kakao/callback")
+def kakao_callback(
+    code: str,
+    db: Session = Depends(get_db),
+):
+    # 1. 토큰 요청
+    token_res = requests.post(
+        "https://kauth.kakao.com/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "client_id": settings.KAKAO_REST_API_KEY,
+            "redirect_uri": settings.KAKAO_REDIRECT_URI,
+            "code": code,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    if token_res.status_code != 200:
+        print("Kakao token error:", token_res.text)
+        raise HTTPException(status_code=400, detail=token_res.text)
+
+    access_token = token_res.json()["access_token"]
+
+    # 2. 사용자 정보
+    user_res = requests.get(
+        "https://kapi.kakao.com/v2/user/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    kakao_user = user_res.json()
+
+    kakao_id = kakao_user["id"]
+    nickname = kakao_user["properties"]["nickname"]
+
+    email = None
+    if "kakao_account" in kakao_user:
+        email = kakao_user["kakao_account"].get("email")
+
+    # 3. DB 조회
+    user = (
+        db.query(AppUser)
+        .filter(
+            AppUser.provider == UserProvider.KAKAO,
+            AppUser.email == (email or f"kakao_{kakao_id}@kakao.com"),
+        )
+        .first()
+    )
+
+    # 4. 없으면 회원가입
+    if not user:
+        user = AppUser(
+            email=email or f"kakao_{kakao_id}@kakao.com",
+            nickname=nickname,
+            provider=UserProvider.KAKAO,
+            password_hash=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # 5. JWT 발급
+    access_token = create_access_token(str(user.user_id))
+    refresh_token = create_refresh_token(str(user.user_id))
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+----------------------------------------
+End of file: app\routers\auth.py
+
+
+Start of file: app\routers\cart.py
+----------------------------------------
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .. import models, schemas, database
+from ..dependencies import get_current_user 
+from sqlalchemy.sql import func 
+import requests
+from app.core.config import settings
+from datetime import datetime
+import uuid
+
+
+from app.schemas import (
+    CartWeightValidateRequest,
+    CartWeightValidateResponse
+)
+from app.utils.check_data import validate_cart_weight
+
+router = APIRouter(
+    prefix="/api/carts",
+    tags=["carts"],
+    responses={404: {"description": "Not found"}},
+)
+
+# QR pair
+@router.post("/pair/qr")
+def pair_cart_by_qr(
+    device_code: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 1. 디바이스 조회 (QR 기반)
+    device = (
+        db.query(models.CartDevice)
+        .filter(models.CartDevice.device_code == device_code)
+        .first()
+    )
+
+    if not device:
+        raise HTTPException(status_code=404, detail="카트 디바이스를 찾을 수 없습니다.")
+
+    # 2. 해당 디바이스의 ACTIVE 세션 조회
+    session = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_device_id == device.cart_device_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .order_by(models.CartSession.started_at.desc())
+        .first()
+    )
+
+    # 3. 없으면 새 세션 생성
+    if not session:
+        session = models.CartSession(
+            cart_device_id=device.cart_device_id,
+            user_id=current_user.user_id,
+            status=models.CartSessionStatus.ACTIVE,
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+    else:
+        # 4. 있으면 사용자만 연결
+        session.user_id = current_user.user_id
+        db.commit()
+
+    return {
+        "cart_session_id": session.cart_session_id,
+        "cart_device_id": device.cart_device_id,
+        "message": "카트가 앱과 연결되었습니다.",
+    }
+
+
+# --- 1. 장바구니 생성 (쇼핑 시작) ---
+@router.post("/", response_model=schemas.CartSessionResponse)
+def create_cart_session(
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    새로운 장바구니 세션을 생성합니다.
+    """
+    new_session = models.CartSession(
+        user_id=current_user.user_id,
+        status=models.CartSessionStatus.ACTIVE,
+        cart_device_id=1  # 테스트용 임시 디바이스 ID
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    
+    # 빈 장바구니 반환
+    return {
+        "cart_session_id": new_session.cart_session_id,
+        "status": new_session.status.value,
+        "total_amount": 0,
+        "total_items": 0,
+        "items": [],
+        "expected_total_g": 0
+    }
+
+
+# --- 2. 장바구니 조회 ---
+@router.get("/{session_id}", response_model=schemas.CartSessionResponse)
+def get_cart_session(
+    session_id: int, 
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    # 세션 본인 확인
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="장바구니를 찾을 수 없습니다.")
+    
+    # 상품 목록 가져오기
+    cart_items = db.query(models.CartItem).filter(
+        models.CartItem.cart_session_id == session_id
+    ).all()
+
+    response_items = []
+    total_amount = 0
+    total_quantity = 0
+
+    for item in cart_items:
+        item_total = item.unit_price * item.quantity
+        total_amount += item_total
+        total_quantity += item.quantity
+        
+        response_items.append({
+            "cart_item_id": item.cart_item_id,
+            "product": item.product, 
+            "quantity": item.quantity,
+            "unit_price": item.unit_price,
+            "total_price": item_total 
+        })
+
+    return {
+        "cart_session_id": session.cart_session_id,
+        "status": session.status.value, 
+        "total_amount": total_amount,
+        "total_items": total_quantity,
+        "items": response_items,        
+        "expected_total_g": session.expected_total_g
+    }
+
+
+# --- 3. 장바구니에 상품 담기 ---
+@router.post("/{session_id}/items")
+def add_cart_item(
+    session_id: int,
+    item_req: schemas.CartItemCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    # 세션 본인 확인
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="장바구니 세션이 없습니다.")
+
+    # 상품 존재 확인
+    product = db.query(models.Product).filter(models.Product.product_id == item_req.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="상품이 존재하지 않습니다.")
+
+    # 이미 담긴 상품인지 확인
+    existing_item = db.query(models.CartItem).filter(
+        models.CartItem.cart_session_id == session_id,
+        models.CartItem.product_id == item_req.product_id
+    ).first()
+
+    if existing_item:
+        existing_item.quantity += item_req.quantity
+    else:
+        db.add(models.CartItem(
+            cart_session_id=session_id,
+            product_id=item_req.product_id,
+            quantity=item_req.quantity,
+            unit_price=product.price
+        ))
+
+    db.flush()                      
+    recalc_expected_weight(session) 
+    db.commit()
+    
+    return {"message": "장바구니에 상품을 담았습니다."}
+
+
+# --- 요리 선택 ---
+@router.post("/{session_id}/select-recipe")
+def select_recipe(session_id: int, recipe_id: int, db: Session = Depends(database.get_db)):
+    session = db.query(models.CartSession).filter(models.CartSession.cart_session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    
+    # 실제로는 여기서 세션 상태를 업데이트합니다.
+    return {"detail": f"레시피(ID:{recipe_id})가 선택되었습니다."}
+
+
+# 예상 무게 계산
+def recalc_expected_weight(session: models.CartSession):
+    total_weight = 0
+    for item in session.items:
+        unit_weight = item.product.unit_weight_g or 0
+        total_weight += unit_weight * item.quantity
+    session.expected_total_g = total_weight
+
+
+# 상품 삭제
+@router.delete("/items/{cart_item_id}")
+def delete_cart_item(
+    cart_item_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    cart_item = (
+        db.query(models.CartItem)
+        .join(models.CartSession)
+        .filter(
+            models.CartItem.cart_item_id == cart_item_id,
+            models.CartSession.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not cart_item:
+        raise HTTPException(status_code=404, detail="카트 상품을 찾을 수 없습니다.")
+
+    session = cart_item.session
+
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="수정 가능한 카트 상태가 아닙니다.")
+
+    db.delete(cart_item)
+    db.flush()
+
+    recalc_expected_weight(session)
+
+    db.commit()
+
+    return {
+        "message": "상품이 카트에서 제거되었습니다.",
+        "expected_total_g": session.expected_total_g
+    }
+
+# 상품 수량 변경
+@router.patch("/items/{cart_item_id}")
+def update_cart_item_quantity(
+    cart_item_id: int,
+    req: schemas.CartItemUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    # 1. 카트 상품 + 사용자 소유 확인
+    cart_item = (
+        db.query(models.CartItem)
+        .join(models.CartSession)
+        .filter(
+            models.CartItem.cart_item_id == cart_item_id,
+            models.CartSession.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not cart_item:
+        raise HTTPException(status_code=404, detail="카트 상품을 찾을 수 없습니다.")
+
+    session = cart_item.session
+
+    # 2. 카트 상태 확인
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="수정 가능한 카트 상태가 아닙니다.")
+
+    # 3. 수량 변경
+    cart_item.quantity = req.quantity
+
+    db.flush()  # 변경사항 반영
+
+    # 4. 예상 무게 재계산
+    recalc_expected_weight(session)
+
+    db.commit()
+    db.refresh(cart_item)
+
+    return {
+        "message": "상품 수량이 변경되었습니다.",
+        "cart_item_id": cart_item.cart_item_id,
+        "quantity": cart_item.quantity,
+        "expected_total_g": session.expected_total_g
+    }
+
+# 무게 검증
+@router.post("/weight/validate", response_model=CartWeightValidateResponse)
+def validate_weight(
+    request: CartWeightValidateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == request.cart_session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="장바구니 세션을 찾을 수 없습니다.")
+
+    result = validate_cart_weight(
+        db=db,
+        cart_session_id=request.cart_session_id,
+        measured_weight_g=request.measured_weight_g
+    )
+
+    db.commit()
+    return result
+
+
+# --- 카트 세션 취소 ---
+@router.post("/{session_id}/cancel")
+def cancel_cart_session(
+    session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="카트 세션을 찾을 수 없습니다.")
+
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(
+            status_code=400,
+            detail="취소 가능한 카트 상태가 아닙니다."
+        )
+
+    session.status = models.CartSessionStatus.CANCELLED
+    session.ended_at = func.now()
+
+    db.commit()
+
+    return {
+        "message": "카트 세션이 취소되었습니다.",
+        "cart_session_id": session.cart_session_id,
+        "status": session.status.value
+    }
+
+# 카메라 뷰 on
+@router.post("/{cart_session_id}/camera/view/on")
+def camera_view_on(
+    cart_session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    cart = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_session_id == cart_session_id,
+            models.CartSession.user_id == current_user.user_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .first()
+    )
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Active cart not found")
+
+    cart.camera_view_on = True
+    db.commit()
+
+    return {
+        "cart_session_id": cart_session_id,
+        "camera_view_on": True,
+        "stream_url": settings.JETSON_STREAM_URL
+    }
+
+
+# camera view close
+@router.post("/{cart_session_id}/camera/view/off")
+def camera_view_off(
+    cart_session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    cart = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_session_id == cart_session_id,
+            models.CartSession.user_id == current_user.user_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .first()
+    )
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Active cart not found")
+
+    cart.camera_view_on = False
+    db.commit()
+
+    return {
+        "cart_session_id": cart_session_id,
+        "camera_view_on": False
+    }
+
+----------------------------------------
+End of file: app\routers\cart.py
+
+
+Start of file: app\routers\ledger.py
+----------------------------------------
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from datetime import date
+from typing import Optional
+
+from app.database import get_db
+from app import models
+from app.dependencies import get_current_user
+from app.schemas import LedgerUpdateRequest
+
+from sqlalchemy import func
+from calendar import monthrange
+
+
+
+
+
+router = APIRouter(
+    prefix="/api/ledger",
+    tags=["ledger"],
+)
+
+# ======================================================
+# 1️⃣ 결제 → 가계부 생성 (payment 승인 기반)
+# ======================================================
+@router.post("/from-payment/{payment_id}")
+def create_ledger_from_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+):
+    # payment 조회 (CartSession, Items까지 함께 로딩하려면 join 필요할 수 있음)
+    payment = db.query(models.Payment).filter(
+        models.Payment.payment_id == payment_id
+    ).first()
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="결제를 찾을 수 없습니다.")
+
+    if payment.status != models.PaymentStatus.APPROVED:
+        raise HTTPException(
+            status_code=400,
+            detail="승인된 결제만 가계부로 등록할 수 있습니다."
+        )
+
+    # 이미 ledger 있는지 확인
+    existing = db.query(models.LedgerEntry).filter(
+        models.LedgerEntry.payment_id == payment_id
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="이미 가계부에 등록된 결제입니다."
+        )
+
+    # --- 카테고리 자동 매핑 로직 시작 ---
+    
+    # 1. 결제와 연결된 카트 세션 찾기
+    cart_session = payment.session
+    if not cart_session:
+        # 세션이 없으면 기본값
+        main_category = models.LedgerCategory.GROCERY
+        memo_text = "카카오페이 결제 (세션 정보 없음)"
+    else:
+        # 2. 카트 아이템 순회하며 카테고리별 금액 집계
+        category_spending = {}
+        
+        # 상품명 요약용
+        item_names = []
+
+        for item in cart_session.items:
+            # item.product.category.name (예: "정육", "유제품" 등 DB에 저장된 문자열)
+            # 관계 로딩이 안 되어 있을 수 있으므로 접근 시 쿼리 발생 가능
+            prod_cat_name = "ETC"
+            if item.product and item.product.category:
+                prod_cat_name = item.product.category.name
+            
+            # 금액 계산
+            amount = item.quantity * item.unit_price
+            
+            # 집계
+            category_spending[prod_cat_name] = category_spending.get(prod_cat_name, 0) + amount
+            
+            if item.product:
+                item_names.append(item.product.name)
+
+        # 3. 가장 많이 쓴 카테고리 찾기
+        if category_spending:
+            top_category_name = max(category_spending, key=category_spending.get)
+        else:
+            top_category_name = "GROCERY"
+
+        # 4. 문자열 -> LedgerCategory Enum 매핑
+        # DB의 product_category.name 과 LedgerCategory Enum 간의 매핑 테이블
+        # (키워드 포함 여부로 매핑)
+        CATEGORY_MAP = {
+            "정육": models.LedgerCategory.MEAT,
+            "고기": models.LedgerCategory.MEAT,
+            "축산": models.LedgerCategory.MEAT,
+            "유제품": models.LedgerCategory.DAIRY,
+            "우유": models.LedgerCategory.DAIRY,
+            "치즈": models.LedgerCategory.DAIRY,
+            "음료": models.LedgerCategory.BEVERAGE,
+            "과자": models.LedgerCategory.SNACK,
+            "간식": models.LedgerCategory.SNACK,
+            "스낵": models.LedgerCategory.SNACK,
+            "생활": models.LedgerCategory.HOUSEHOLD,
+            "채소": models.LedgerCategory.GROCERY,
+            "야채": models.LedgerCategory.GROCERY,
+            "과일": models.LedgerCategory.GROCERY,
+            "수산": models.LedgerCategory.GROCERY,
+            "해산물": models.LedgerCategory.GROCERY,
+            "통조림": models.LedgerCategory.GROCERY, # 가공식품은 보통 GROCERY
+            "소스": models.LedgerCategory.GROCERY,
+            "양념": models.LedgerCategory.GROCERY,
+            "면": models.LedgerCategory.GROCERY,
+            "즉석": models.LedgerCategory.GROCERY,
+        }
+        
+        main_category = models.LedgerCategory.GROCERY # 기본값
+        
+        # 키워드 포함 여부 확인 (예: "정육/계란" -> "정육" 포함 -> MEAT)
+        for key, val in CATEGORY_MAP.items():
+            if key in top_category_name:
+                main_category = val
+                break
+        
+        # 메모 생성 (예: "삼겹살 외 3건")
+        if len(item_names) == 1:
+            memo_text = item_names[0]
+        elif len(item_names) > 1:
+            memo_text = f"{item_names[0]} 외 {len(item_names) - 1}건"
+        else:
+            memo_text = "상품 정보 없음"
+
+    # --- 카테고리 자동 매핑 로직 끝 ---
+
+    # ledger 생성
+    ledger = models.LedgerEntry(
+        user_id=payment.user_id,
+        payment_id=payment.payment_id,
+        spend_date=date.today(),
+        category=main_category,  
+        amount=payment.total_amount,
+        memo=memo_text,
+    )
+
+    db.add(ledger)
+    db.commit()
+    db.refresh(ledger)
+
+    return ledger
+
+
+# ======================================================
+# 2️⃣ 가계부 목록 조회
+# ======================================================
+@router.get("")
+def get_ledger_list(
+    user_id: int = Query(..., description="사용자 ID"),
+    start_date: Optional[date] = Query(None, description="조회 시작일"),
+    end_date: Optional[date] = Query(None, description="조회 종료일"),
+    category: Optional[models.LedgerCategory] = Query(None, description="카테고리"),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.LedgerEntry).filter(
+        models.LedgerEntry.user_id == user_id
+    )
+
+    # 날짜 필터
+    if start_date:
+        query = query.filter(models.LedgerEntry.spend_date >= start_date)
+
+    if end_date:
+        query = query.filter(models.LedgerEntry.spend_date <= end_date)
+
+    # 카테고리 필터
+    if category:
+        query = query.filter(models.LedgerEntry.category == category)
+
+    ledgers = (
+        query
+        .order_by(models.LedgerEntry.spend_date.desc())
+        .all()
+    )
+
+    return [
+        {
+            "ledger_entry_id": l.ledger_entry_id,
+            "payment_id": l.payment_id,
+            "spend_date": l.spend_date,
+            "category": l.category,
+            "amount": l.amount,
+            "memo": l.memo,
+        }
+        for l in ledgers
+    ]
+
+# ======================================================
+# 6️⃣ 월별 가계부 캘린더 조회 (날짜별 지출 합계)
+# ======================================================
+@router.get("/calendar")
+def get_ledger_calendar(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 월 시작 / 종료일 계산
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    rows = (
+        db.query(
+            models.LedgerEntry.spend_date,
+            func.sum(models.LedgerEntry.amount).label("total_amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.spend_date)
+        .order_by(models.LedgerEntry.spend_date)
+        .all()
+    )
+
+    daily_total = {}
+    for spend_date, total_amount in rows:
+        daily_total[str(spend_date)] = int(total_amount)
+
+    return {
+        "year": year,
+        "month": month,
+        "daily_total": daily_total,
+    }
+
+# ======================================================
+# 5️⃣ 월별 가계부 요약 조회
+# ======================================================
+@router.get("/summary/monthly")
+def get_monthly_summary(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 월 시작 / 종료일 계산
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    # 카테고리별 합계 조회
+    rows = (
+        db.query(
+            models.LedgerEntry.category,
+            func.sum(models.LedgerEntry.amount).label("amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.category)
+        .all()
+    )
+
+    by_category = [
+        {
+            "category": category,
+            "amount": amount,
+        }
+        for category, amount in rows
+    ]
+
+    total_amount = sum(item["amount"] for item in by_category)
+
+    # 🔹 ratio(%) 계산
+    for item in by_category:
+        item["ratio"] = round(item["amount"] / total_amount * 100) if total_amount > 0 else 0
+
+    by_category.sort(key=lambda x: x["amount"], reverse=True)
+    return {
+        "year": year,
+        "month": month,
+        "total_amount": total_amount,
+        "by_category": by_category,
+    }
+
+# ======================================================
+# 7️⃣ Top Categories 조회 (지출 금액 기준)
+# ======================================================
+@router.get("/top-categories")
+def get_top_categories(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    limit: int = Query(5, ge=1, le=10, description="상위 카테고리 개수"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 월 시작 / 종료일 계산
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    rows = (
+        db.query(
+            models.LedgerEntry.category,
+            func.sum(models.LedgerEntry.amount).label("amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.category)
+        .order_by(func.sum(models.LedgerEntry.amount).desc())
+        .limit(limit)
+        .all()
+    )
+
+    categories = [
+        {
+            "category": category,
+            "amount": amount,
+        }
+        for category, amount in rows
+    ]
+
+    total_amount = sum(item["amount"] for item in categories)
+
+    for item in categories:
+        item["ratio"] = round(item["amount"] / total_amount * 100) if total_amount > 0 else 0
+
+    return {
+        "year": year,
+        "month": month,
+        "categories": categories,
+    }
+
+# ======================================================
+# 8️⃣ Top Items 조회 (구매 횟수 기준 - 임시: 카테고리 사용)
+# ======================================================
+@router.get("/top-items")
+def get_top_items(
+    year: int = Query(..., ge=2000, description="조회 연도"),
+    month: int = Query(..., ge=1, le=12, description="조회 월 (1~12)"),
+    limit: int = Query(5, ge=1, le=10, description="상위 아이템 개수"),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    start_date = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    end_date = date(year, month, last_day)
+
+    rows = (
+        db.query(
+            models.LedgerEntry.category.label("item_name"),
+            func.count(models.LedgerEntry.ledger_entry_id).label("count"),
+            func.sum(models.LedgerEntry.amount).label("total_amount"),
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.LedgerEntry.spend_date >= start_date,
+            models.LedgerEntry.spend_date <= end_date,
+        )
+        .group_by(models.LedgerEntry.category)
+        .order_by(
+            func.count(models.LedgerEntry.ledger_entry_id).desc(),
+            func.sum(models.LedgerEntry.amount).desc(),
+        )
+        .limit(limit)
+        .all()
+    )
+
+    items = [
+        {
+            "item_name": item_name,
+            "count": count,
+            "total_amount": total_amount,
+        }
+        for item_name, count, total_amount in rows
+    ]
+
+    return {
+        "year": year,
+        "month": month,
+        "items": items,
+    }
+
+# ======================================================
+# 9️⃣ 최근 지출 내역 조회
+# ======================================================
+@router.get("/recent")
+def get_recent_ledger(
+    limit: int = Query(5, ge=1, le=20),
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    rows = (
+        db.query(models.LedgerEntry, models.Payment)
+        .join(
+            models.Payment,
+            models.LedgerEntry.payment_id == models.Payment.payment_id,
+        )
+        .filter(
+            models.LedgerEntry.user_id == current_user.user_id,
+            models.Payment.status == models.PaymentStatus.APPROVED,
+        )
+        .order_by(models.LedgerEntry.ledger_entry_id.desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for ledger, payment in rows:
+        items.append({
+            "ledger_entry_id": ledger.ledger_entry_id,
+            "payment_id": payment.payment_id,
+            "spend_date": ledger.spend_date,
+            "amount": ledger.amount,
+            "category": ledger.category,
+            "memo": ledger.memo,
+        })
+
+    return {"items": items}
+
+
+# ======================================================
+# 3️⃣ 가계부 단건 조회 (JWT 인증 + 본인 데이터만)
+# ======================================================
+@router.get("/{ledger_entry_id}")
+def get_ledger_detail(
+    ledger_entry_id: int,
+    db: Session = Depends(get_db),
+    # 프로젝트에 이미 쓰고 있는 인증 의존성 사용
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    ledger = db.query(models.LedgerEntry).filter(
+        models.LedgerEntry.ledger_entry_id == ledger_entry_id
+    ).first()
+
+    if not ledger:
+        raise HTTPException(status_code=404, detail="가계부 항목을 찾을 수 없습니다.")
+
+    # 본인 가계부만 조회 가능
+    if ledger.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+
+    return {
+        "ledger_entry_id": ledger.ledger_entry_id,
+        "payment_id": ledger.payment_id,
+        "spend_date": ledger.spend_date,
+        "category": ledger.category,
+        "amount": ledger.amount,
+        "memo": ledger.memo,
+    }
+
+# ======================================================
+# 4️⃣ 가계부 수정 (카테고리 / 메모만)
+# ======================================================
+@router.put("/{ledger_entry_id}")
+def update_ledger(
+    ledger_entry_id: int,
+    data: LedgerUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    ledger = (
+        db.query(models.LedgerEntry)
+        .filter(models.LedgerEntry.ledger_entry_id == ledger_entry_id)
+        .first()
+    )
+
+    if not ledger:
+        raise HTTPException(status_code=404, detail="가계부 내역을 찾을 수 없습니다.")
+
+    # 🔐 본인 데이터만 수정 가능
+    if ledger.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+
+    if data.category is not None:
+        ledger.category = data.category
+
+    if data.memo is not None:
+        ledger.memo = data.memo
+
+    db.commit()
+    db.refresh(ledger)
+
+    return {
+        "ledger_entry_id": ledger.ledger_entry_id,
+        "payment_id": ledger.payment_id,
+        "spend_date": ledger.spend_date,
+        "category": ledger.category,
+        "amount": ledger.amount,
+        "memo": ledger.memo,
+    }
+
+
+
+
+----------------------------------------
+End of file: app\routers\ledger.py
+
+
+Start of file: app\routers\payment.py
+----------------------------------------
+import httpx
+import os
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy.orm import Session
+
+# 내부 모듈 임포트
+from .. import models, schemas, database
+from ..dependencies import get_current_user, get_db
+from app.utils.check_data import validate_cart_weight
+from .ledger import create_ledger_from_payment
+
+# 환경 변수 로드
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+KAKAO_ADMIN_KEY = os.getenv("KAKAO_ADMIN_KEY")
+
+# 라우터 설정
+router = APIRouter(
+    prefix="/api/payments",
+    tags=["payments"],
+    responses={404: {"description": "Resource Not found"}},
+)
+
+
+# --- 카카오페이 CID 설정 ---
+# CID는 가맹점 코드입니다. 테스트용 코드를 사용합니다.
+CID_ONETIME = "TC0ONETIME"       # 일반 결제 (1회성, QR/PC)
+CID_SUBSCRIPTION = "TCSUBSCRIP"  # 정기/자동 결제 (빌링키 사용)
+
+
+# =========================================================
+# 🛠️ 헬퍼 함수 (내부 사용)
+# =========================================================
+
+def get_payment_or_404(payment_id: int, user_id: int, db: Session):
+    """결제 ID로 결제 내역을 조회하고, 없으면 404 에러를 반환합니다."""
+    payment = db.query(models.Payment).filter(
+        models.Payment.payment_id == payment_id,
+        models.Payment.user_id == user_id
+    ).first()
+    
+    if not payment:
+        raise HTTPException(status_code=404, detail="결제 내역을 찾을 수 없습니다.")
+    return payment
+
+
+# =========================================================
+# 🛍️ [Main] 결제 요청 및 검증 (웹 프론트엔드 연동)
+# =========================================================
+
+@router.post("/request")
+async def request_payment(
+    req: schemas.PaymentRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    **[결제 요청 API] 웹에서 '결제하기' 버튼을 눌렀을 때 호출되는 핵심 엔드포인트입니다.**
+    
+    1. **무게 업데이트:** Jetson/센서가 측정한 무게(`measured_weight_g`)를 DB에 반영합니다.
+    2. **무게 검증:** 예상 무게와 측정 무게를 비교합니다.
+    3. **분기 처리:**
+       - 🚨 **불일치 시:** 409 Conflict 상태코드와 함께 경고 메시지, 무게 차이 정보를 반환합니다. (프론트에서 팝업 띄움)
+       - ✅ **일치 시:** `use_subscription=True`라면 즉시 자동 결제를 진행하고 결과를 반환합니다.
+    """
+    
+    # 1. 활성 장바구니 세션 조회
+    cart_session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == req.cart_session_id,
+        models.CartSession.user_id == current_user.user_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE
+    ).first()
+
+    if not cart_session:
+        raise HTTPException(status_code=404, detail="결제할 활성 장바구니 세션을 찾을 수 없습니다.")
+
+    # 2. 측정 무게 업데이트 (Jetson -> Web -> Server DB)
+    # 결제 전 가장 최신 무게 상태를 기록합니다.
+    cart_session.measured_total_g = req.measured_weight_g
+    db.commit() 
+
+    # 3. 무게 검증 로직 수행
+    weight_check = validate_cart_weight(
+        db=db,
+        cart_session_id=req.cart_session_id,
+        measured_weight_g=req.measured_weight_g
+    )
+
+    # 4. [검증 실패] 무게 불일치 -> 경고 응답 (409 Conflict)
+    if not weight_check["is_valid"]:
+        # 프론트엔드는 이 응답을 받으면 결제를 중단하고 '상품 점검 팝업'을 띄워야 합니다.
+        return JSONResponse(
+            status_code=409, 
+            content={
+                "status": "WARNING",
+                "message": weight_check["message"], # 예: "무게가 200g 더 무겁습니다."
+                "difference": weight_check["difference"],
+                "expected_weight": weight_check["expected_weight"],
+                "measured_weight": weight_check["measured_weight"],
+                "action_required": "CHECK_CART_ITEMS" 
+            }
+        )
+
+    # 5. [검증 성공] 무게 일치 -> 결제 진행
+    # 사용자가 자동결제(구독) 방식을 사용하는 경우
+    if req.use_subscription:
+        # --- 내부 자동 결제 로직 시작 ---
+        try:
+            # 5-1. 등록된 빌링키(카드) 조회
+            my_card = db.query(models.PaymentMethod).filter(
+                models.PaymentMethod.user_id == current_user.user_id,
+                models.PaymentMethod.billing_key.isnot(None)
+            ).order_by(models.PaymentMethod.is_default.desc()).first()
+            
+            if not my_card:
+                raise HTTPException(status_code=404, detail="등록된 자동결제 수단이 없습니다. 마이페이지에서 카드를 먼저 등록해주세요.")
+
+            # 5-2. 카카오페이 정기결제 API 호출
+            url = "https://kapi.kakao.com/v1/payment/subscription"
+            headers = {
+                "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+                "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+            }
+            
+            # 주문번호에 세션ID와 타임스탬프를 조합해 유니크하게 생성
+            partner_order_id = f"sub_{req.cart_session_id}_{int(datetime.now().timestamp())}"
+
+            pay_data = {
+                "cid": CID_SUBSCRIPTION,
+                "sid": my_card.billing_key, # 저장된 빌링키 사용
+                "partner_order_id": partner_order_id,
+                "partner_user_id": str(current_user.user_id),
+                "item_name": "스마트 장바구니 결제",
+                "quantity": 1,
+                "total_amount": req.amount,
+                "tax_free_amount": 0,
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, data=pay_data)
+                res_data = response.json()
+                
+            if "tid" not in res_data:
+                # 카카오페이 측 에러 (잔액 부족, 한도 초과 등)
+                raise HTTPException(status_code=400, detail=f"결제 승인 실패: {res_data}")
+
+            # 5-3. 결제 성공 처리
+            # (1) Payment 내역 저장
+            new_payment = models.Payment(
+                user_id=current_user.user_id,
+                cart_session_id=req.cart_session_id,
+                method_id=my_card.method_id,
+                pg_provider=models.PgProviderType.KAKAO_PAY,
+                pg_tid=res_data['tid'],
+                status=models.PaymentStatus.APPROVED,
+                total_amount=req.amount,
+                approved_at=datetime.now()
+            )
+            db.add(new_payment)
+            
+            # (2) 장바구니 세션 종료 (ACTIVE -> PAID)
+            cart_session.status = models.CartSessionStatus.PAID
+            cart_session.ended_at = datetime.now()
+            
+            db.commit()
+            db.refresh(new_payment)
+            
+            # (3) 가계부 자동 등록 (실패해도 결제는 성공으로 처리)
+            try:
+                create_ledger_from_payment(payment_id=new_payment.payment_id, db=db)
+            except Exception as e:
+                print(f"⚠️ 가계부 자동등록 실패: {e}")
+
+            return {
+                "status": "SUCCESS",
+                "message": "결제가 완료되었습니다.",
+                "amount": req.amount,
+                "tid": res_data["tid"],
+                "approved_at": res_data["approved_at"]
+            }
+
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"결제 처리 중 서버 오류 발생: {str(e)}")
+
+    else:
+        # 자동결제를 원치 않는 경우 (예: 현장 QR 결제 등)
+        return {"message": "일반 결제(QR) 로직은 /ready API를 사용해주세요."}
+
+
+# =========================================================
+# 🆕 [설정] 정기결제(Billing Key) 등록 프로세스
+# =========================================================
+
+# --- 1. 카드 등록 준비 (인증 요청) ---
+@router.post("/subscription/register/ready", response_model=schemas.PaymentReadyResponse)
+async def register_card_ready(
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    **[카드 등록 1단계]** 카카오페이에 '카드 등록(0원 결제)'을 요청하여 인증 URL을 받아옵니다.
+    - 반환된 `partner_order_id`는 2단계(approve)에서 반드시 동일하게 사용해야 합니다.
+    """
+    url = "https://kapi.kakao.com/v1/payment/ready"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    # 주문번호 생성 (이 값을 기억해야 함!)
+    order_id = f"reg_{current_user.user_id}_{int(datetime.now().timestamp())}"
+    
+    data = {
+        "cid": CID_SUBSCRIPTION,  # 정기결제용 CID
+        "partner_order_id": order_id,
+        "partner_user_id": str(current_user.user_id),
+        "item_name": "카드 자동결제 등록",
+        "quantity": 1,
+        "total_amount": 0,    # 인증용이라 0원
+        "tax_free_amount": 0,
+        "approval_url": f"{BASE_URL}/api/payments/subscription/register/callback?status=success",
+        "cancel_url": f"{BASE_URL}/api/payments/subscription/register/callback?status=cancel",
+        "fail_url": f"{BASE_URL}/api/payments/subscription/register/callback?status=fail",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "tid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"KakaoPay Error: {res_data}")
+
+    return schemas.PaymentReadyResponse(
+        tid=res_data['tid'],
+        next_redirect_app_url=res_data.get('next_redirect_app_url'),
+        next_redirect_mobile_url=res_data.get('next_redirect_mobile_url'),
+        next_redirect_pc_url=res_data.get('next_redirect_pc_url'),
+        partner_order_id=order_id # 클라이언트가 이 값을 저장해뒀다가 approve 때 보내줘야 함
+    )
+
+
+# --- 2. 카드 등록 승인 (Billing Key 발급) ---
+@router.get("/subscription/register/approve")
+async def register_card_approve(
+    tid: str,
+    pg_token: str,
+    partner_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    **[카드 등록 2단계]** 사용자가 카톡 인증을 마치면 받은 pg_token으로 빌링키(SID)를 발급받습니다.
+    - 발급받은 `billing_key`는 DB(`payment_method`)에 암호화 저장되어 추후 결제에 사용됩니다.
+    """
+    url = "https://kapi.kakao.com/v1/payment/approve"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    data = {
+        "cid": CID_SUBSCRIPTION,
+        "tid": tid,
+        "partner_order_id": partner_order_id, # 1단계의 그 ID여야 함
+        "partner_user_id": str(current_user.user_id),
+        "pg_token": pg_token
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "sid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"등록 실패 (주문번호 불일치 등): {res_data}")
+
+    # SID(Billing Key) 저장
+    sid = res_data["sid"]
+    card_info = res_data.get("card_info", {})
+    
+    # 기존 등록된 같은 카드가 있으면 업데이트, 없으면 생성
+    new_method = models.PaymentMethod(
+        user_id=current_user.user_id,
+        method_type=models.PaymentMethodType.KAKAO_PAY,
+        billing_key=sid,  # ★ 핵심: 이 키가 있어야 돈을 뺄 수 있음
+        card_brand=card_info.get("kakaopay_purchase_corp", "KAKAO"),
+        card_last4=card_info.get("bin", "0000")[:4], 
+        is_default=True 
+    )
+    
+    db.add(new_method)
+    db.commit()
+    db.refresh(new_method)
+
+    return {"message": "카드 등록 완료", "billing_key": sid, "method_id": new_method.method_id}
+
+
+# --- 3. 단순 자동 결제 (테스트용) ---
+@router.post("/subscription/pay")
+async def pay_subscription(
+    cart_session_id: int,
+    amount: int,
+    item_name: str = "스마트 장바구니 자동결제",
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    **[테스트용/직접호출용]** 무게 검증 로직 없이 즉시 결제를 수행합니다.
+    - 실제 서비스에서는 `/request` 엔드포인트를 사용하는 것을 권장합니다.
+    """
+    # 0. 세션 확인
+    cart_session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == cart_session_id,
+        models.CartSession.user_id == current_user.user_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE
+    ).first()
+
+    if not cart_session:
+        raise HTTPException(status_code=404, detail="결제할 활성 장바구니 세션이 없습니다.")
+
+    # 1. 빌링키 조회
+    my_card = db.query(models.PaymentMethod).filter(
+        models.PaymentMethod.user_id == current_user.user_id,
+        models.PaymentMethod.billing_key.isnot(None)
+    ).order_by(models.PaymentMethod.is_default.desc()).first()
+    
+    if not my_card:
+        raise HTTPException(status_code=404, detail="등록된 자동결제 수단이 없습니다.")
+
+    # 2. 카카오페이 요청
+    url = "https://kapi.kakao.com/v1/payment/subscription"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    data = {
+        "cid": CID_SUBSCRIPTION,
+        "sid": my_card.billing_key,
+        "partner_order_id": f"sub_{cart_session_id}_{int(datetime.now().timestamp())}",
+        "partner_user_id": str(current_user.user_id),
+        "item_name": item_name,
+        "quantity": 1,
+        "total_amount": amount,
+        "tax_free_amount": 0,
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+        
+    if "tid" not in res_data:
+         raise HTTPException(status_code=400, detail=f"자동 결제 실패: {res_data}")
+
+    # 3. DB 저장 및 상태 업데이트
+    new_payment = models.Payment(
+        user_id=current_user.user_id,
+        cart_session_id=cart_session_id,
+        method_id=my_card.method_id,
+        pg_provider=models.PgProviderType.KAKAO_PAY,
+        pg_tid=res_data['tid'],
+        status=models.PaymentStatus.APPROVED,
+        total_amount=amount,
+        approved_at=datetime.now()
+    )
+    db.add(new_payment)
+    
+    cart_session.status = models.CartSessionStatus.PAID
+    cart_session.ended_at = datetime.now()
+    
+    db.commit()
+    db.refresh(new_payment)
+    
+    try:
+        create_ledger_from_payment(payment_id=new_payment.payment_id, db=db)
+    except Exception as e:
+        print(f"가계부 등록 오류: {e}")
+
+    return {
+        "status": "SUCCESS",
+        "amount": amount,
+        "tid": res_data["tid"],
+        "approved_at": res_data["approved_at"]
+    }
+
+# --- 카드 등록용 콜백 (HTML) ---
+@router.get("/subscription/register/callback", response_class=HTMLResponse)
+async def register_callback(status: str, pg_token: str = None):
+    """카카오톡 인증 후 리다이렉트되는 페이지입니다. 토큰을 보여줍니다."""
+    if status == "success":
+        return f"""
+        <html>
+            <head><title>등록 성공</title></head>
+            <body>
+                <h1 style="color:blue;">카드 등록 인증 완료!</h1>
+                <p>아래 토큰을 복사해서 <b>approve API</b>에 입력하세요.</p>
+                <div style="background:#eee; padding:10px; font-size:1.2em;">{pg_token}</div>
+            </body>
+        </html>
+        """
+    return "<h1>등록 취소 또는 실패</h1>"
+
+
+# =========================================================
+# 🚀 [Legacy] 일반 1회성 결제 (QR/PC)
+# =========================================================
+
+@router.post("/ready", response_model=schemas.PaymentReadyResponse)
+async def payment_ready(
+    request: schemas.PaymentReadyRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    [일반 결제] 1회성 결제 요청입니다. (카카오톡 QR코드 스캔 방식)
+    """
+    user_id = current_user.user_id
+
+    cart_session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == request.cart_session_id
+    ).first()
+    
+    if not cart_session:
+        raise HTTPException(status_code=404, detail="해당 카트 세션을 찾을 수 없습니다.")
+
+    # 무게 검증 (일반 결제도 검증 필수)
+    weight_check = validate_cart_weight(
+        db=db,
+        cart_session_id=cart_session.cart_session_id,
+        measured_weight_g=cart_session.measured_total_g
+    )
+
+    if not weight_check["is_valid"]:
+        raise HTTPException(status_code=400, detail=weight_check["message"])
+
+    # 기존 미완료 결제 내역 정리
+    existing_payment = db.query(models.Payment).filter(
+        models.Payment.cart_session_id == request.cart_session_id
+    ).first()
+    if existing_payment:
+        db.delete(existing_payment)
+        db.commit()
+
+    url = "https://kapi.kakao.com/v1/payment/ready"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    data = {
+        "cid": CID_ONETIME,  # ★ 1회성 CID
+        "partner_order_id": str(cart_session.cart_session_id),
+        "partner_user_id": str(user_id),
+        "item_name": "스마트 장보기 결제",
+        "quantity": 1,
+        "total_amount": request.total_amount,
+        "tax_free_amount": 0,
+        "approval_url": f"{BASE_URL}/api/payments/success",
+        "cancel_url": f"{BASE_URL}/api/payments/cancel",
+        "fail_url": f"{BASE_URL}/api/payments/fail",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "tid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"KakaoPay Error: {res_data}")
+
+    new_payment = models.Payment(
+        cart_session_id=cart_session.cart_session_id,
+        user_id=user_id,
+        pg_provider=models.PgProviderType.KAKAO_PAY,
+        pg_tid=res_data['tid'],
+        status=models.PaymentStatus.PENDING,
+        total_amount=request.total_amount,
+        method_id=request.method_id
+    )
+    db.add(new_payment)
+    db.commit()
+
+    return schemas.PaymentReadyResponse(
+        tid=res_data['tid'],
+        next_redirect_app_url=res_data.get('next_redirect_app_url'),
+        next_redirect_mobile_url=res_data.get('next_redirect_mobile_url'),
+        next_redirect_pc_url=res_data.get('next_redirect_pc_url')
+    )
+
+
+@router.post("/approve", response_model=schemas.PaymentResponse)
+async def payment_approve(
+    request: schemas.PaymentApproveRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    [일반 결제] 사용자가 QR 승인 후, TID와 pg_token으로 최종 승인 요청
+    """
+    user_id = current_user.user_id
+
+    payment = db.query(models.Payment).filter(
+        models.Payment.pg_tid == request.tid,
+        models.Payment.user_id == user_id,
+        models.Payment.status == models.PaymentStatus.PENDING
+    ).first()
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="대기 중인 결제 정보를 찾을 수 없습니다.")
+
+    url = "https://kapi.kakao.com/v1/payment/approve"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    data = {
+        "cid": CID_ONETIME,
+        "tid": request.tid,
+        "partner_order_id": str(payment.cart_session_id),
+        "partner_user_id": str(user_id),
+        "pg_token": request.pg_token
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "aid" not in res_data:
+        payment.status = models.PaymentStatus.FAILED
+        db.commit()
+        raise HTTPException(status_code=400, detail=f"Approval failed: {res_data}")
+
+    payment.status = models.PaymentStatus.APPROVED
+    payment.approved_at = datetime.now()
+    
+    # 장바구니 상태 업데이트
+    if payment.cart_session_id:
+        cart_session = db.query(models.CartSession).filter(
+            models.CartSession.cart_session_id == payment.cart_session_id
+        ).first()
+        if cart_session:
+            cart_session.status = models.CartSessionStatus.PAID
+            cart_session.ended_at = datetime.now()
+
+    db.commit()
+    db.refresh(payment)
+
+    # 가계부 연동
+    try:
+        create_ledger_from_payment(payment_id=payment.payment_id, db=db)
+    except Exception as e:
+        print(f"⚠️ 가계부 등록 실패: {e}")
+
+    return payment
+
+# --- 콜백 URL들 ---
+@router.get("/success", response_class=HTMLResponse)
+async def payment_success_callback(pg_token: str):
+    return HTMLResponse(content=f"""
+    <html>
+        <head><title>결제 성공</title></head>
+        <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
+            <h1 style="color:green;">✅ 결제 승인 대기중</h1>
+            <p>앱으로 돌아가서 결제 완료 버튼을 눌러주세요.</p>
+            <p>토큰: <b>{pg_token}</b></p>
+        </body>
+    </html>
+    """)
+
+@router.get("/cancel")
+async def payment_cancel_callback():
+    return JSONResponse(content={"message": "결제 취소", "status": "CANCELLED"})
+
+@router.get("/fail")
+async def payment_fail_callback():
+    return JSONResponse(content={"message": "결제 실패", "status": "FAILED"}, status_code=400)
+
+
+# ========================================================
+# 📦 CRUD 및 관리 기능 (결제 수단, 조회, 취소)
+# ========================================================
+
+@router.get("/methods", response_model=list[schemas.PaymentMethodResponse])
+async def get_payment_methods(
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """등록된 결제 수단 목록 조회"""
+    return db.query(models.PaymentMethod).filter(
+        models.PaymentMethod.user_id == current_user.user_id
+    ).all()
+
+
+@router.post("/methods", response_model=schemas.PaymentMethodResponse)
+async def register_payment_method(
+    request: schemas.PaymentMethodCreate,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """[테스트용] 결제 수단 수동 등록 (빌링키 직접 입력)"""
+    user_id = current_user.user_id
+    existing_count = db.query(models.PaymentMethod).filter(
+        models.PaymentMethod.user_id == user_id
+    ).count()
+    is_default = (existing_count == 0)
+
+    new_method = models.PaymentMethod(
+        user_id=user_id,
+        method_type=request.method_type,
+        card_brand=request.card_brand,
+        card_last4=request.card_last4,
+        billing_key=request.billing_key,
+        is_default=is_default or request.is_default
+    )
+    db.add(new_method)
+    db.commit()
+    db.refresh(new_method)
+    return new_method
+
+
+@router.delete("/methods/{method_id}")
+async def delete_payment_method(
+    method_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """결제 수단 삭제"""
+    method = db.query(models.PaymentMethod).filter(
+        models.PaymentMethod.method_id == method_id,
+        models.PaymentMethod.user_id == current_user.user_id
+    ).first()
+
+    if not method:
+        raise HTTPException(status_code=404, detail="결제 수단을 찾을 수 없습니다.")
+
+    db.delete(method)
+    db.commit()
+    return {"message": "결제 수단이 삭제되었습니다."}
+
+
+@router.get("/{payment_id}", response_model=schemas.PaymentDetailResponse)
+async def get_payment_detail(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """결제 상세 내역 조회"""
+    return get_payment_or_404(payment_id, current_user.user_id, db)
+
+
+@router.post("/{payment_id}/cancel", response_model=schemas.PaymentResponse)
+async def cancel_payment(
+    payment_id: int,
+    request: schemas.PaymentCancelRequest,
+    db: Session = Depends(get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    결제 취소 요청 (전액 취소)
+    - 카카오페이 API를 통해 실제 환불 처리를 진행합니다.
+    """
+    payment = get_payment_or_404(payment_id, current_user.user_id, db)
+
+    if payment.status != models.PaymentStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="승인 완료된 결제만 취소할 수 있습니다.")
+
+    url = "https://kapi.kakao.com/v1/payment/cancel"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
+        "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+    }
+    
+    # 결제 방식(정기/일반)에 따라 CID가 다를 수 있음
+    cid_to_use = CID_ONETIME if payment.method_id is None else CID_SUBSCRIPTION
+    
+    data = {
+        "cid": cid_to_use, 
+        "tid": payment.pg_tid,
+        "cancel_amount": payment.total_amount,
+        "cancel_tax_free_amount": 0,
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, data=data)
+        res_data = response.json()
+
+    if "tid" not in res_data:
+        raise HTTPException(status_code=400, detail=f"Cancel failed: {res_data}")
+
+    payment.status = models.PaymentStatus.CANCELLED
+    db.commit()
+    db.refresh(payment)
+
+    return payment
+----------------------------------------
+End of file: app\routers\payment.py
+
+
+Start of file: app\routers\product.py
+----------------------------------------
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
+
+from app.database import get_db
+from app.models import Product, ProductCategory
+
+router = APIRouter(
+    prefix="/api/products",
+    tags=["products"]
+)
+
+# 상품 목록 조회
+@router.get("/")
+def read_products(db: Session = Depends(get_db)):
+    products = db.query(Product).all()
+    return [
+        {
+            "product_id": p.product_id,
+            "name": p.name,
+            "price": p.price,
+            "stock_quantity": p.stock_quantity,
+            "image_url": p.image_url,
+            "product_info": p.product_info,
+        }
+        for p in products
+    ]
+
+# 상품 검색 (웹 / pg_trgm 기반) 
+@router.get("/search")
+def search_products(
+    q: str = Query(..., min_length=1, description="검색어"),
+    db: Session = Depends(get_db),
+):
+    products = (
+        db.query(Product)
+        .filter(func.similarity(Product.name, q) > 0.2)
+        .order_by(func.similarity(Product.name, q).desc())
+        .limit(20)
+        .all()
+    )
+
+    return [
+        {
+            "product_id": p.product_id,
+            "name": p.name,
+            "price": p.price,
+            "stock_quantity": p.stock_quantity,
+            "in_stock": p.stock_quantity > 0,
+            "image_url": p.image_url,
+        }
+        for p in products
+    ]
+
+# 상품 상세 조회
+@router.get("/{product_id}")
+def read_product_detail(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    product = (
+        db.query(Product)
+        .filter(Product.product_id == product_id)
+        .first()
+    )
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found"
+        )
+
+    return {
+        "product_id": product.product_id,
+        "name": product.name,
+        "price": product.price,
+        "stock_quantity": product.stock_quantity,
+        "image_url": product.image_url,
+        "product_info": product.product_info,
+    }
+
+# 상품 위치 안내
+@router.get("/{product_id}/location")
+def get_product_location(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    product = (
+        db.query(Product)
+        .join(ProductCategory)
+        .filter(Product.product_id == product_id)
+        .first()
+    )
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    category = product.category  # relationship 기준
+
+    return {
+        "product_id": product.product_id,
+        "category": category.name,
+        "zone_code": category.zone_code,
+        "aisle": category.zone_code.split("-")[0],  # A / B / C
+    }
+
+----------------------------------------
+End of file: app\routers\product.py
+
+
+Start of file: app\routers\recommendation.py
+----------------------------------------
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
+from typing import List
+
+from .. import models, schemas, database
+from ..dependencies import get_current_user
+
+router = APIRouter(
+    prefix="/api/recommendations",
+    tags=["recommendations"],
+)
+
+@router.get("/by-product/{product_id}", response_model=List[schemas.RecipeRecommendResponse])
+def recommend_recipes_ai(
+    product_id: int, 
+    cart_session_id: int = None, # 내 장바구니랑 비교하려면 필요
+    db: Session = Depends(database.get_db)
+):
+    """
+    [AI 추천 로직]
+    1. 선택한 상품(product_id)의 임베딩 벡터를 가져옵니다.
+    2. pgvector를 사용해 해당 상품과 '의미적으로 가장 가까운' 레시피를 찾습니다.
+    3. (옵션) 현재 장바구니에 없는 부족한 재료를 계산해서 알려줍니다.
+    """
+    
+    # 1. 상품 조회 (벡터 포함)
+    target_product = db.query(models.Product).filter(models.Product.product_id == product_id).first()
+    if not target_product:
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다.")
+
+    # 2. AI 추천 쿼리 작성
+    # embedding이 있는 경우: 코사인 거리(Cosine Distance)로 유사도 정렬
+    # embedding이 없는 경우: 단순히 해당 재료를 포함하는 레시피 검색 (Fallback)
+    
+    if target_product.embedding is not None:
+        # 🔥 핵심: pgvector의 <=> 연산자 (Cosine Distance) 사용
+        # 상품의 벡터와 레시피의 벡터 거리가 가까울수록 상위에 노출
+        recommendations = (
+            db.query(models.Recipe)
+            .order_by(models.Recipe.embedding.cosine_distance(target_product.embedding))
+            .limit(5)
+            .all()
+        )
+    else:
+        # 벡터가 없으면 기존처럼 '재료 포함 여부'로 검색 (Hard Rule)
+        recommendations = (
+            db.query(models.Recipe)
+            .join(models.RecipeIngredient)
+            .filter(models.RecipeIngredient.product_id == product_id)
+            .limit(5)
+            .all()
+        )
+
+    # 3. 장바구니 비교를 위한 내 아이템 조회
+    my_owned_product_ids = set()
+    if cart_session_id:
+        my_items = db.query(models.CartItem).filter(models.CartItem.cart_session_id == cart_session_id).all()
+        my_owned_product_ids = {item.product_id for item in my_items}
+        # 방금 찍은 상품도 포함
+        my_owned_product_ids.add(product_id)
+
+    # 4. 응답 데이터 조립 (부족한 재료 계산)
+    results = []
+    for recipe in recommendations:
+        # 이 레시피의 모든 재료 가져오기
+        recipe_ingredients = db.query(models.RecipeIngredient).filter(
+            models.RecipeIngredient.recipe_id == recipe.recipe_id
+        ).all()
+        
+        all_ingredients = []
+        missing_list = []
+        for ri in recipe_ingredients:
+            # 주재료(Product) 정보 가져오기
+            ing_product = ri.product 
+            is_owned = ing_product.product_id in my_owned_product_ids
+            
+            # 전체 재료 리스트
+            all_ingredients.append({
+                "product_id": ing_product.product_id,
+                "name": ing_product.name,
+                "is_owned": is_owned
+            })
+            
+            if not is_owned:
+                missing_list.append({
+                    "product_id": ing_product.product_id,
+                    "name": ing_product.name,
+                    "is_owned": False
+                })
+
+        # 결과 추가
+        results.append({
+            "recipe_id": recipe.recipe_id,
+            "title": recipe.title,
+            "description": recipe.description,
+            "image_url": recipe.image_url,
+            # AI 유사도 점수가 있으면 넣고 아니면 0 (embedding이 없을 수도 있으므로)
+            "similarity_score": 0.0, # 계산하려면 쿼리에서 distance 컬럼을 select 해야 함 (복잡도 때문에 생략하거나 추후 고도화)
+            "ingredients": all_ingredients,  
+            "missing_ingredients": missing_list
+        })
+
+    return results
+----------------------------------------
+End of file: app\routers\recommendation.py
+
+
+Start of file: app\routers\user.py
+----------------------------------------
+# app/routers/user.py
+from fastapi import APIRouter, Depends, HTTPException, status, Response
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from app.database import get_db
+from app import schemas
+from app.models import AppUser, UserProvider
+from app.utils.security import hash_password, verify_password
+from app.utils.jwt import create_access_token, create_refresh_token
+from app.dependencies import get_current_user
+from app.schemas import UserNicknameUpdate, UserPasswordUpdate
+from datetime import datetime
+
+
+router = APIRouter(prefix="/api", tags=["User"])
+
+
+# 회원가입
+@router.post("/auth/signup", response_model=schemas.UserMeResponse)
+def signup(
+    request: schemas.UserCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        user = AppUser(
+            email=request.email,
+            password_hash=hash_password(request.password),
+            nickname=request.nickname,
+            provider=UserProvider.LOCAL
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    # 이메일 중복
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # 해시 과정에서 발생하는 예외를 422로 변환 (서버 500 방지)
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+# 로그인
+@router.post("/auth/login")
+def login(
+    request: schemas.UserLogin,
+    response: Response,             
+    db: Session = Depends(get_db)
+):
+    user = (
+        db.query(AppUser)
+        .filter(AppUser.email == request.email)
+        .first()
+    )
+
+    if not user or not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    if not verify_password(request.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    access_token = create_access_token(str(user.user_id))
+    refresh_token = create_refresh_token(str(user.user_id))
+
+    # Refresh Token을 HttpOnly Cookie로 설정
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        samesite="lax",
+        secure=False,   # HTTPS면 True
+        path="/"
+    )
+
+    # dict로 반환 (FastAPI가 JSON Response 자동 생성)
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+# 로그아웃
+@router.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+    )
+    return {"message": "Logged out successfully"}
+
+
+# 내 정보 조회
+@router.get("/users/me", response_model=schemas.UserMeResponse)
+def read_me(
+    current_user: AppUser = Depends(get_current_user)
+):
+    return current_user
+
+# 닉네임 변경
+@router.patch("/users/me/nickname", response_model=schemas.UserMeResponse)
+def update_nickname(
+    req: schemas.UserNicknameUpdate,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    current_user.nickname = req.nickname
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+# 비밀번호 변경
+@router.patch("/users/me/password")
+def update_password(
+    req: schemas.UserPasswordUpdate,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    # OAuth 유저 차단
+    if current_user.provider != UserProvider.LOCAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth users cannot change password"
+        )
+
+    # 현재 비밀번호 검증 
+    if not verify_password(req.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    current_user.password_hash = hash_password(req.new_password)
+    db.commit()
+
+    return {"message": "Password updated successfully"}
+
+
+# 회원탈퇴
+@router.delete("/users/me")
+def withdraw_user(
+    req: schemas.UserWithdraw,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    # 이미 탈퇴한 유저 방어
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already withdrawn"
+        )
+
+    # LOCAL 유저 → 비밀번호 검증
+    if current_user.provider == UserProvider.LOCAL:
+        if not req.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required"
+            )
+        if not verify_password(req.password, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is incorrect"
+            )
+
+    # Soft delete 처리
+    current_user.is_active = False
+    current_user.deleted_at = datetime.utcnow()
+    db.commit()
+
+    # 로그아웃 처리 (refresh token 제거)
+    response.delete_cookie(
+        key="refresh_token",
+        path="/"
+    )
+
+    return {"message": "Account withdrawn successfully"}
+
+----------------------------------------
+End of file: app\routers\user.py
+
+
+Start of file: app\routers\__init__.py
+----------------------------------------
+
+----------------------------------------
+End of file: app\routers\__init__.py
+
+
+Start of file: app\utils\check_data.py
+----------------------------------------
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from app.models import CartSession, CartItem, Product
+
+# 오차 허용 
+TOLERANCE_RATE = 0.05  # 5%
+
+# 무게 검증
+def validate_cart_weight(
+    db: Session,
+    cart_session_id: int,
+    measured_weight_g: int
+) -> dict:
+    cart = db.query(CartSession).filter(
+        CartSession.cart_session_id == cart_session_id
+    ).first()
+
+    items = db.query(CartItem).join(Product).filter(
+        CartItem.cart_session_id == cart_session_id
+    ).all()
+
+    expected_weight = sum(
+        item.quantity * item.product.unit_weight_g
+        for item in items
+    )
+
+    difference = measured_weight_g - expected_weight
+    tolerance = int(expected_weight * TOLERANCE_RATE)
+
+    if abs(difference) <= tolerance:
+        status = "MATCH"
+        message = "무게 검증 통과. 결제 가능합니다."
+    elif difference > 0:
+        status = "OVER_WEIGHT"
+        message = "무게가 초과되었습니다. 상품 수량을 변경하거나 상품을 추가해 주세요."
+    else:
+        status = "UNDER_WEIGHT"
+        message = "무게가 부족합니다. 상품을 삭제하거나 수량을 변경해 주세요."
+
+    cart.expected_total_g = expected_weight
+    cart.measured_total_g = measured_weight_g
+
+    return {
+        "is_valid": status == "MATCH",
+        "status": status,
+        "expected_weight": expected_weight,
+        "measured_weight": measured_weight_g,
+        "difference": difference,
+        "tolerance": tolerance,
+        "message": message
+    }
+
+----------------------------------------
+End of file: app\utils\check_data.py
+
+
+Start of file: app\utils\email.py
+----------------------------------------
+# app/utils/email.py
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from os import getenv
+
+SMTP_HOST = getenv("SMTP_HOST")
+SMTP_PORT = int(getenv("SMTP_PORT"))
+SMTP_USER = getenv("SMTP_USER")
+SMTP_PASSWORD = getenv("SMTP_PASSWORD")
+
+
+def send_reset_password_email(to_email: str, reset_link: str):
+    msg = MIMEMultipart()
+    msg["From"] = SMTP_USER
+    msg["To"] = to_email
+    msg["Subject"] = "[SmartCart] 비밀번호 재설정 안내"
+
+    body = f"""
+안녕하세요.
+
+아래 링크를 클릭하여 비밀번호를 재설정해주세요.
+
+{reset_link}
+
+본 링크는 일정 시간 후 만료됩니다.
+"""
+    msg.attach(MIMEText(body, "plain"))
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+
+----------------------------------------
+End of file: app\utils\email.py
+
+
+Start of file: app\utils\jwt.py
+----------------------------------------
+# app/utils/jwt.py
+from datetime import datetime, timedelta
+from jose import jwt, JWTError, ExpiredSignatureError
+from typing import Optional
+from fastapi import HTTPException, status
+
+SECRET_KEY = "SECRET_KEY"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+
+def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+
+    payload = {
+        "sub": subject,
+        "exp": expire,
+        "type": "access",
+    }
+
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    )
+
+    payload = {
+        "sub": subject,
+        "exp": expire,
+        "type": "refresh",
+    }
+
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired"
+        )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+----------------------------------------
+End of file: app\utils\jwt.py
+
+
+Start of file: app\utils\security.py
+----------------------------------------
+# app/utils/security.py
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(
+    schemes=["argon2"],
+    deprecated="auto"
+)
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+----------------------------------------
+End of file: app\utils\security.py
+
+
+Start of file: scripts\reset_db.py
+----------------------------------------
+import os
+import sys
+from sqlalchemy import create_engine, text
+from app.core.config import settings
+
+def reset_database():
+    print("🗑️ Database reset initiated...")
+    
+    # DB URL 확인
+    db_url = settings.DATABASE_URL
+    if not db_url:
+        print("❌ DATABASE_URL not found!")
+        sys.exit(1)
+        
+    engine = create_engine(db_url)
+    
+    # Drop all tables and types logic
+    # CASCADE를 사용하여 의존성 있는 객체들도 모두 삭제
+    drop_sql = text("""
+    DO $$ DECLARE
+        r RECORD;
+    BEGIN
+        -- 1. Drop all tables
+        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+        END LOOP;
+        
+        -- 2. Drop all enums/types
+        FOR r IN (SELECT typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE n.nspname = 'public' AND t.typtype = 'e') LOOP
+            EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.typname) || ' CASCADE';
+        END LOOP;
+        
+        -- 3. Clear alembic_version table just in case
+        EXECUTE 'DROP TABLE IF EXISTS alembic_version CASCADE';
+    END $$;
+    """)
+    
+    try:
+        with engine.connect() as conn:
+            conn.execute(drop_sql)
+            conn.commit()
+        print("✅ Database successfully cleared (Tables & Types dropped).")
+    except Exception as e:
+        print(f"❌ Failed to reset database: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    reset_database()
+
+----------------------------------------
+End of file: scripts\reset_db.py
+
+
+Start of file: scripts\run_sql.py
+----------------------------------------
+import os
+import sys
+from sqlalchemy import create_engine, text
+from app.core.config import settings
+
+def run_seed_sql():
+    print("🌱 Seeding database from SQL file...")
+    
+    db_url = settings.DATABASE_URL
+    if not db_url:
+        print("❌ DATABASE_URL not found!")
+        sys.exit(1)
+        
+    engine = create_engine(db_url)
+    
+    # SQL 파일 경로
+    sql_file_path = os.path.join(os.path.dirname(__file__), "seed_data.sql")
+    
+    try:
+        with open(sql_file_path, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+            
+        with engine.connect() as conn:
+            # SQL 문장을 세미콜론(;) 기준으로 나누지 않고 통째로 실행하려면 text() 사용
+            # 하지만 여러 문장이 섞여 있으므로, text()가 이를 지원하는지 DB 드라이버에 따라 다름.
+            # PostgreSQL(psycopg2)은 지원함.
+            conn.execute(text(sql_content))
+            conn.commit()
+            
+        print("✅ Data seeded successfully!")
+    except Exception as e:
+        print(f"❌ Failed to seed data: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    run_seed_sql()
+
+----------------------------------------
+End of file: scripts\run_sql.py
+
+
+Start of file: scripts\seed_data.sql
+----------------------------------------
+-- [1. 초기화] 기존 데이터 삭제
+TRUNCATE TABLE recipe_ingredient, recipe, cart_item, product, product_category CASCADE;
+
+-- ========================================================
+-- 🏷️ 1. 카테고리 (기존 + 팀원 데이터 통합)
+-- ========================================================
+-- [기존] 1~5번
+INSERT INTO product_category (category_id, name, zone_code) VALUES 
+(1, '채소/과일', 'A-01'),
+(2, '정육/계란', 'B-02'),
+(3, '수산/해산물', 'C-03'),
+(4, '가공/유제품', 'D-04'),
+(5, '양념/오일', 'E-05');
+
+-- [팀원 - AI 시연용] 11~16번 (ID 충돌 방지 위해 번호 이동)
+INSERT INTO product_category (category_id, name, zone_code) VALUES
+(11, '통조림', 'A-10'),
+(12, '소스류', 'A-20'),
+(13, '면류', 'A-30'),
+(14, '즉석식품', 'B-10'),
+(15, '잼/스프레드', 'B-20'),
+(16, '음료', 'C-10');
+
+
+-- ========================================================
+-- 🥫 2. 상품 데이터
+-- ========================================================
+
+-- [Team AI 시연 물품] (ID 1~8 유지 / 카테고리만 11번대로 매핑)
+INSERT INTO product (product_id, category_id, barcode, name, price, unit_weight_g, stock_quantity, image_url, product_info) VALUES
+(1, 11, '8801000000001', '스팸 200g', 5200, 200, 30, 'https://example.com/spam.jpg', '{"code":"spam_200g","brand":"CJ"}'),
+(2, 12, '8801000000002', '토마토 케찹 300g', 2800, 300, 40, 'https://example.com/ketchup.jpg', '{"code":"tomato_ketchup_300g"}'),
+(3, 13, '8801000000003', '스파게티면 500g', 3200, 500, 25, 'https://example.com/spaghetti.jpg', '{"code":"spaghetti_noodle_500g"}'),
+(4, 11, '8801000000004', '살코기참치 90g', 2200, 90, 18, 'https://example.com/tuna.jpg', '{"code":"tuna_lean_90g"}'),
+(5, 14, '8801000000005', '3분카레 약간매운맛', 3500, 200, 20, 'https://example.com/curry.jpg', '{"code":"curry_3min_mildhot_200g","spicy":"mild"}'),
+(6, 15, '8801000000006', '딸기잼 570g', 4800, 570, 15, 'https://example.com/jam.jpg', '{"code":"strawberry_jam_570g"}'),
+(7, 13, '8801000000007', '신라면', 950, 120, 100, 'https://example.com/shinramen.jpg', '{"code":"shin_ramen","spicy":"hot"}'),
+(8, 16, '8801000000008', '펩시 제로슈거 라임', 2100, 500, 50, 'https://example.com/pepsi.jpg', '{"code":"pepsi_zero_lime_500ml","sugar":"zero"}');
+
+-- [기존 더미 물품] (ID 100번대 - 시연 물품과 연결될 재료들)
+INSERT INTO product (product_id, category_id, name, price, unit_weight_g, barcode, image_url) VALUES 
+(100, 1, '햇 양파', 3500, 1000, '8801000001001', 'https://example.com/onion.jpg'),
+(101, 1, '대파 (한단)', 2800, 400, '8801000001002', 'https://example.com/greenonion.jpg'),
+(102, 1, '다진 마늘', 4500, 200, '8801000001003', 'https://example.com/garlic.jpg'),
+(103, 1, '청양고추', 1500, 100, '8801000001004', 'https://example.com/chili.jpg'),
+(104, 1, '애호박', 1200, 300, '8801000001005', 'https://example.com/zucchini.jpg'),
+(105, 1, '감자 (흙감자)', 4000, 800, '8801000001006', 'https://example.com/potato.jpg'),
+(106, 1, '당근', 2000, 300, '8801000001007', 'https://example.com/carrot.jpg'),
+(200, 2, '한돈 생삼겹살', 15900, 600, '8802000002001', 'https://example.com/porkbelly.jpg'),
+(300, 4, '찌개용 두부', 1500, 300, '8803000003001', 'https://example.com/tofu.jpg'),
+(301, 4, '종가집 맛김치', 8900, 1000, '8803000003002', 'https://example.com/kimchi.jpg'),
+(303, 3, '부산 사각어묵', 3000, 250, '8803000003004', 'https://example.com/fishcake.jpg'),
+(400, 5, '태양초 고추장', 7500, 500, '8804000004001', 'https://example.com/gochujang.jpg'),
+(401, 5, '재래식 된장', 6900, 500, '8804000004002', 'https://example.com/doenjang.jpg'),
+(402, 5, '진간장', 5000, 900, '8804000004003', 'https://example.com/soysauce.jpg'),
+(403, 5, '참기름', 8000, 300, '8804000004004', 'https://example.com/sesameoil.jpg'),
+(404, 5, '설탕', 3000, 1000, '8804000004005', 'https://example.com/sugar.jpg');
+
+
+-- ========================================================
+-- 🍳 3. 레시피 (시연 물품과 기존 재료를 엮는 연결고리!)
+-- ========================================================
+
+INSERT INTO recipe (recipe_id, title, description, instructions) VALUES 
+-- [기존] 
+(1, '돼지고기 김치찌개', '한국인의 소울푸드! 칼칼하고 깊은 맛의 김치찌개.', '설명 생략...'),
+(2, '차돌 된장찌개', '구수함의 끝판왕 된장찌개.', '설명 생략...'),
+(10, '의정부식 부대찌개', '스팸과 라면사리의 환상 조합! 집에서 즐기는 진한 부대찌개입니다.', 
+'1. 냄비에 김치, 스팸, 소시지, 두부를 둘러 담습니다.\n2. 양념장(고추장, 마늘, 간장)을 얹고 물을 붓습니다.\n3. 끓어오르면 라면사리(신라면)를 넣습니다.\n4. 대파를 듬뿍 넣고 면이 익을 때까지 끓이면 완성!'),
+(11, '3분 컷 참치 김치찌개', '살코기 참치의 담백함이 국물에 쏙! 초간단 밥도둑.', 
+'1. 냄비에 참기름을 두르고 김치를 볶습니다.\n2. 물을 붓고 끓으면 참치 기름까지 함께 넣습니다.\n3. 양파와 대파를 넣고 푹 끓여냅니다.'),
+(12, '추억의 나폴리탄 스파게티', '케찹으로 만드는 달콤새콤한 맛. 아이들이 정말 좋아해요.', 
+'1. 끓는 물에 스파게티 면을 삶습니다.\n2. 팬에 기름을 두르고 편마늘, 양파, 소세지를 볶습니다.\n3. 삶은 면과 케찹 4큰술을 넣고 볶습니다.\n4. 면수를 약간 넣어 농도를 맞추면 완성!');
+
+
+-- ========================================================
+-- 🔗 4. 레시피-재료 연결 (매핑)
+-- ========================================================
+
+-- 기존 김치찌개 (돼지고기 사용)
+INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_score) VALUES 
+(1, 200, '300g', 5), (1, 301, '1/4포기', 5), (1, 300, '반 모', 3), (1, 101, '1대', 3);
+
+-- 기존 된장찌개
+INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_score) VALUES 
+(2, 401, '2큰술', 5), (2, 300, '반 모', 3), (2, 104, '1/3개', 3), (2, 105, '1개', 3);
+
+
+-- ✨ [시연용 1] 부대찌개 (스팸, 라면 -> 김치, 두부, 대파 추천)
+INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_score) VALUES 
+(10, 1, '1캔', 5),   -- 스팸 (시연 물품)
+(10, 7, '1개', 5),   -- 신라면 (시연 물품)
+(10, 301, '반포기', 5), -- 김치 (추가 구매 유도!)
+(10, 300, '한모', 3),   -- 두부 (추가 구매 유도!)
+(10, 101, '2대', 3),    -- 대파 (추가 구매 유도!)
+(10, 400, '1큰술', 1);  -- 고추장
+
+-- ✨ [시연용 2] 참치 김치찌개 (참치 -> 김치, 양파 추천)
+INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_score) VALUES 
+(11, 4, '1캔', 5),   -- 참치 (시연 물품)
+(11, 301, '반포기', 5), -- 김치 (추가 구매 유도!)
+(11, 100, '반개', 3),   -- 양파
+(11, 103, '1개', 1);    -- 청양고추
+
+-- ✨ [시연용 3] 나폴리탄 (스파게티, 케찹 -> 양파 추천)
+INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_score) VALUES 
+(12, 3, '1인분', 5),  -- 스파게티면 (시연 물품)
+(12, 2, '4큰술', 5),  -- 케찹 (시연 물품)
+(12, 100, '반개', 3),   -- 양파
+(12, 102, '1큰술', 1);  -- 마늘
+
+----------------------------------------
+End of file: scripts\seed_data.sql
+
+
+Start of file: tests\manual\check_db_data.py
+----------------------------------------
+"""
+[DB 데이터 검증 스크립트]
+이 스크립트는 특정 유저의 이메일을 기반으로 관련 DB 데이터가 정상적으로 생성되었는지 확인합니다.
+SQLAlchemy를 사용하여 DB에 직접 접속합니다.
+
+검증 항목:
+1. 유저 정보 (User)
+2. 장바구니 세션 상태 (CartSession) - PAID 여부
+3. 결제 내역 (Payment) - APPROVED 여부
+4. 가계부 내역 (LedgerEntry) - 생성 여부
+
+실행 방법:
+스크립트 하단의 verify_data("이메일") 부분을 수정한 뒤 실행하세요.
+$ python -m tests.manual.check_db_data
+"""
+import sys
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app import models
+from app.db.base import Base
+
+# DB 연결 설정
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:password123@localhost:5432/postgres")
+if os.getenv("DB_PASSWORD"): # 환경변수에 비번이 따로 있으면 조합 (일반적인 경우 .env에서 로드됨)
+    pass 
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
+db = SessionLocal()
+
+def verify_data(email):
+    print(f"🔍 '{email}' 유저 데이터 조회 중...\n")
+
+    # 1. 유저 찾기
+    user = db.query(models.AppUser).filter(models.AppUser.email == email).first()
+    if not user:
+        print("❌ 유저를 찾을 수 없습니다.")
+        return
+
+    print(f"👤 유저 ID: {user.user_id}, 닉네임: {user.nickname}")
+
+    # 2. 카트 세션 확인
+    cart = db.query(models.CartSession).filter(
+        models.CartSession.user_id == user.user_id,
+        models.CartSession.status == models.CartSessionStatus.PAID
+    ).order_by(models.CartSession.cart_session_id.desc()).first()
+    
+    if cart:
+        print(f"🛒 [완료된 장바구니] ID: {cart.cart_session_id}, 상태: {cart.status.value}, 종료시간: {cart.ended_at}")
+    else:
+        print("⚠️ 완료된(PAID) 장바구니 세션이 없습니다.")
+
+    # 3. 결제 내역 확인
+    payment = db.query(models.Payment).filter(models.Payment.user_id == user.user_id).order_by(models.Payment.payment_id.desc()).first()
+    if payment:
+        print(f"💳 [결제 내역] ID: {payment.payment_id}, TID: {payment.pg_tid}, 금액: {payment.total_amount}원, 상태: {payment.status.value}")
+    else:
+        print("⚠️ 결제 내역이 없습니다.")
+
+    # 4. 가계부 내역 확인 (메모 컬럼 제외하고 조회)
+    # models.LedgerEntry 전체를 조회하면 스키마 불일치로 에러가 발생하므로 필요한 필드만 조회
+    ledger = db.query(
+        models.LedgerEntry.ledger_entry_id,
+        models.LedgerEntry.spend_date,
+        models.LedgerEntry.amount,
+        models.LedgerEntry.category
+    ).filter(models.LedgerEntry.user_id == user.user_id).order_by(models.LedgerEntry.ledger_entry_id.desc()).first()
+
+    if ledger:
+        # 튜플로 반환되므로 인덱스나 이름으로 접근 불가할 수 있어 단순 출력
+        print(f"📔 [가계부] ID: {ledger.ledger_entry_id}, 날짜: {ledger.spend_date}, 금액: {ledger.amount}원, 카테고리: {ledger.category.value}")
+    else:
+        print("⚠️ 가계부 내역이 없습니다.")
+
+if __name__ == "__main__":
+    verify_data("test_fy97rs9d@example.com")
+
+----------------------------------------
+End of file: tests\manual\check_db_data.py
+
+
+Start of file: tests\manual\test_payment_approve.py
+----------------------------------------
+"""
+[결제 전체 프로세스 테스트 스크립트 - Part 2]
+이 스크립트는 카카오페이 결제 승인(Approve) API를 호출하여 최종 결제를 완료합니다.
+브라우저에서 결제 완료 후 발급받은 pg_token이 필요합니다.
+
+기능:
+1. 사용자 로그인 (토큰 발급)
+2. 결제 승인 API 호출
+3. 결제 상태(APPROVED) 및 가계부 생성 확인
+
+실행 방법:
+$ python -m tests.manual.test_payment_approve <이메일> <비밀번호> <TID> <PG_TOKEN>
+예: python -m tests.manual.test_payment_approve test@example.com TestPass123! T123... pg_token...
+"""
+import requests
+import sys
+
+BASE_URL = "http://localhost:8000"
+API_AUTH_LOGIN = f"{BASE_URL}/api/auth/login"
+API_PAYMENT_APPROVE = f"{BASE_URL}/api/payments/approve"
+
+def login(email, password):
+    res = requests.post(API_AUTH_LOGIN, json={"email": email, "password": password})
+    if res.status_code != 200:
+        print("❌ 로그인 실패")
+        sys.exit(1)
+    return res.json()["access_token"]
+
+def main():
+    if len(sys.argv) < 5:
+        print("사용법: python test_payment_approve.py <email> <password> <tid> <pg_token>")
+        return
+
+    email = sys.argv[1]
+    password = sys.argv[2]
+    tid = sys.argv[3]
+    pg_token = sys.argv[4]
+
+    token = login(email, password)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    print(f"💳 결제 승인(Approve) 요청 중... (TID: {tid})")
+    
+    # schemas.PaymentApproveRequest 형식에 맞춤
+    payload = {
+        "tid": tid,
+        "pg_token": pg_token,
+        "partner_order_id": "dummy", # 서버 로직에서 DB 값으로 대체하므로 dummy 전달 가능
+        "partner_user_id": "dummy"
+    }
+
+    res = requests.post(API_PAYMENT_APPROVE, headers=headers, json=payload)
+
+    if res.status_code == 200:
+        print("\n" + "="*50)
+        print("✅ 결제 최종 승인 성공!!!")
+        print(f"결제 ID: {res.json().get('payment_id')}")
+        print(f"상태: {res.json().get('status')}")
+        print(f"승인 시각: {res.json().get('approved_at')}")
+        print("="*50)
+        print("ℹ️ 이제 DB의 cart_session 상태가 'PAID'로 변경되었고, 가계부(Ledger)에 내역이 등록되었습니다.")
+    else:
+        print(f"❌ 승인 실패: {res.text}")
+
+if __name__ == "__main__":
+    main()
+
+----------------------------------------
+End of file: tests\manual\test_payment_approve.py
+
+
+Start of file: tests\manual\test_payment_flow.py
+----------------------------------------
+"""
+[결제 로직 통합 테스트 스크립트 - 수정본]
+이 스크립트는 새로운 '/api/payments/request' 엔드포인트를 중심으로
+장바구니 무게 검증 및 결제 분기 처리를 테스트합니다.
+
+기능:
+1. 유저 생성 및 로그인
+2. 테스트 상품(무게 100g) 생성
+3. 장바구니에 상품 담기 (2개 -> 예상 무게 200g)
+4. [테스트 1] 무게 불일치 시나리오 (150g 전송) -> 409 Conflict 예상
+5. [테스트 2] 무게 일치 시나리오 (200g 전송) -> 200 OK 예상
+
+실행 방법:
+$ cd backend
+$ python -m tests.manual.test_payment_flow
+"""
+import requests
+import random
+import string
+import sys
+import os
+
+# --- 설정 ---
+BASE_URL = "http://localhost:8000"
+API_AUTH_SIGNUP = f"{BASE_URL}/api/auth/signup"
+API_AUTH_LOGIN = f"{BASE_URL}/api/auth/login"
+API_PAYMENT_REQUEST = f"{BASE_URL}/api/payments/request"
+
+# --- 유틸리티 ---
+def random_string(length=8):
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+def create_random_user():
+    email = f"test_{random_string()}@example.com"
+    password = "TestPassword123!"
+    nick_rand = ''.join(random.choices(string.ascii_lowercase, k=4))
+    nickname = f"User{nick_rand}"
+    
+    print(f"🆕 회원가입 시도: {email}")
+    requests.post(API_AUTH_SIGNUP, json={
+        "email": email,
+        "password": password,
+        "nickname": nickname
+    })
+    return email, password
+
+def login(email, password):
+    res = requests.post(API_AUTH_LOGIN, json={"email": email, "password": password})
+    if res.status_code != 200:
+        print(f"❌ 로그인 실패: {res.text}")
+        sys.exit(1)
+    return res.json()["access_token"]
+
+def ensure_test_product_exists():
+    """테스트용 상품(100g, 1500원) 생성/조회"""
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from app.database import SessionLocal
+    from app import models
+    
+    db = SessionLocal()
+    try:
+        # 테스트 카테고리 확인
+        category = db.query(models.ProductCategory).filter_by(name="테스트카테고리").first()
+        if not category:
+            category = models.ProductCategory(name="테스트카테고리", zone_code="T-1")
+            db.add(category)
+            db.commit()
+
+        # 테스트 상품 확인
+        product_name = "테스트용 과자(100g)"
+        product = db.query(models.Product).filter_by(name=product_name).first()
+        
+        if not product:
+            print("📦 테스트 상품 생성 중...")
+            new_product = models.Product(
+                category_id=category.category_id,
+                name=product_name,
+                price=1500,
+                unit_weight_g=100,  # 100g
+                barcode=f"TEST{random.randint(1000,9999)}"
+            )
+            db.add(new_product)
+            db.commit()
+            db.refresh(new_product)
+            return new_product.product_id
+        
+        return product.product_id
+    except Exception as e:
+        print(f"⚠️ DB 오류: {e}")
+        sys.exit(1)
+    finally:
+        db.close()
+
+def main():
+    print("🚀 [결제/무게 검증 테스트] 시작합니다...")
+    
+    # 0. 준비
+    product_id = ensure_test_product_exists() 
+    email, password = create_random_user()
+    token = login(email, password)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. 카트 세션 준비
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from app.database import SessionLocal
+    from app import models
+    db = SessionLocal()
+    
+    device_code = "TEST_DEVICE_001"
+    device = db.query(models.CartDevice).filter_by(device_code=device_code).first()
+    if not device:
+        device = models.CartDevice(device_code=device_code)
+        db.add(device)
+        db.commit()
+        db.refresh(device)
+    
+    user_id = db.query(models.AppUser).filter_by(email=email).first().user_id
+    
+    # 기존 활성 세션 정리
+    db.query(models.CartSession).filter_by(user_id=user_id, status=models.CartSessionStatus.ACTIVE).update({"status": models.CartSessionStatus.CANCELLED})
+    db.commit()
+    
+    new_session = models.CartSession(
+        cart_device_id=device.cart_device_id,
+        user_id=user_id,
+        status=models.CartSessionStatus.ACTIVE
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    cart_session_id = new_session.cart_session_id
+    db.close()
+    
+    print(f"✅ 세션 준비 완료: ID {cart_session_id}")
+
+    # 2. 상품 담기 (100g * 2개 = 200g, 3000원)
+    # 수정된 경로: /api/carts/{session_id}/items
+    print(f"➕ 상품 담기 (ID: {product_id}, 2개)...")
+    API_CART_ADD_ITEM = f"{BASE_URL}/api/carts/{cart_session_id}/items"
+    res = requests.post(API_CART_ADD_ITEM, headers=headers, json={
+        "product_id": product_id,
+        "quantity": 2
+    })
+    if res.status_code != 200:
+        print(f"❌ 상품 담기 실패: {res.status_code} - {res.text}")
+        sys.exit(1)
+    print("✅ 상품 담기 성공")
+
+    # 3. [TEST CASE 1] 무게 불일치 테스트
+    print("\n⚖️  [CASE 1] 무게 불일치 테스트 (예상 200g vs 측정 150g)")
+    payload_fail = {
+        "cart_session_id": cart_session_id,
+        "measured_weight_g": 150,  
+        "amount": 3000,
+        "use_subscription": False
+    }
+    res = requests.post(API_PAYMENT_REQUEST, headers=headers, json=payload_fail)
+    
+    if res.status_code == 409:
+        print("✅ 성공: 409 Conflict 응답 받음")
+        print(f"   메시지: {res.json().get('message')}")
+    else:
+        print(f"❌ 실패: {res.status_code} (예상: 409)")
+        print(f"   응답: {res.text}")
+
+    # 4. [TEST CASE 2] 무게 일치 테스트
+    print("\n⚖️  [CASE 2] 무게 일치 테스트 (예상 200g vs 측정 200g)")
+    payload_success = {
+        "cart_session_id": cart_session_id,
+        "measured_weight_g": 200, 
+        "amount": 3000,
+        "use_subscription": False
+    }
+    res = requests.post(API_PAYMENT_REQUEST, headers=headers, json=payload_success)
+    
+    if res.status_code == 200:
+        print("✅ 성공: 200 OK 응답 받음")
+        print(f"   결과: {res.json()}")
+    else:
+        print(f"❌ 실패: {res.status_code} (예상: 200)")
+        print(f"   응답: {res.text}")
+
+    print("\n🏁 테스트 완료")
+
+if __name__ == "__main__":
+    main()
+
+----------------------------------------
+End of file: tests\manual\test_payment_flow.py
+
