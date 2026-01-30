@@ -89,7 +89,7 @@ class ProductCategory(Base):
 
     category_id = Column(Integer, primary_key=True, index=True)
     name = Column(String(60), unique=True, nullable=False)
-    zone_code = Column(String(30))
+    zone_code = Column(String(30), nullable=False)
 
     # Relationships
     products = relationship("Product", back_populates="category")
@@ -99,7 +99,7 @@ class Product(Base):
     __tablename__ = "product"
 
     product_id = Column(Integer, primary_key=True, index=True)
-    category_id = Column(Integer, ForeignKey("product_category.category_id"))
+    category_id = Column(Integer, ForeignKey("product_category.category_id"), nullable=False)
     barcode = Column(String(64), unique=True)
     name = Column(String(255), nullable=False)
     price = Column(Integer, nullable=False)
