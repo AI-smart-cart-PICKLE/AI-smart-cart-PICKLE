@@ -125,6 +125,7 @@ class Recipe(Base):
     description = Column(Text)
     instructions = Column(Text)
     image_url = Column(Text)
+
     embedding = Column(Vector(1536))
     created_at = Column(DateTime(timezone=True), default=func.now())
 

@@ -38,6 +38,7 @@ class PaymentReadyResponse(BaseModel):
     next_redirect_mobile_url: Optional[str] = None
     next_redirect_pc_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
+    partner_order_id: Optional[str] = None
 
 class PaymentApproveRequest(BaseModel):
     tid: str
@@ -67,6 +68,21 @@ class PaymentCancelRequest(BaseModel):
 class PaymentDetailResponse(PaymentResponse):
     pass
 
+# --- Billing Key (카드 등록) Schemas ---
+
+class CardRegisterResponse(BaseModel):
+    next_redirect_mobile_url: str
+    next_redirect_pc_url: str
+    tid: str
+    created_at: datetime
+
+# 카드 등록 완료 후 응답
+class CardRegisterResult(BaseModel):
+    method_id: int
+    card_name: str
+    billing_key: str  # 실제로는 보안상 마스킹해서 보여주거나 숨김
+    message: str = "카드 등록이 완료되었습니다."
+
 # --- Ledger Schemas (가계부 연동을 위해 미리 정의) ---
 
 class LedgerEntryResponse(BaseModel):
@@ -92,7 +108,7 @@ NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣]{2,20}$")
 
 class UserBase(BaseModel):
     email: EmailStr
-    nickname: str = Field(min_length=2, max_length=8)
+    nickname: str = Field(min_length=2, max_length=20)
 
 
 class UserCreate(BaseModel):
@@ -259,8 +275,6 @@ class RecipeRecommendResponse(BaseModel):
     title: str
     description: Optional[str] = None
     image_url: Optional[str] = None
-    difficulty: str = "NORMAL" # DB에 컬럼이 없다면 기본값 or models.py 확인 필요 (현재 models.py엔 없음, 필요시 추가)
-    cooking_time_min: int = 30 # 상동
     
     # AI 추천 점수 (거리 기반: 0에 가까울수록 유사함)
     similarity_score: Optional[float] = None
