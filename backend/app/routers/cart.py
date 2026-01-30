@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, database
 from ..dependencies import get_current_user 
 from sqlalchemy.sql import func 
+import requests
+from app.core.config import settings
+
 
 from app.schemas import (
     CartWeightValidateRequest,
@@ -295,4 +298,62 @@ def cancel_cart_session(
         "message": "카트 세션이 취소되었습니다.",
         "cart_session_id": session.cart_session_id,
         "status": session.status.value
+    }
+
+# 카메라 뷰 on
+@router.post("/{cart_session_id}/camera/view/on")
+def camera_view_on(
+    cart_session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    cart = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_session_id == cart_session_id,
+            models.CartSession.user_id == current_user.user_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .first()
+    )
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Active cart not found")
+
+    cart.camera_view_on = True
+    db.commit()
+
+    return {
+        "cart_session_id": cart_session_id,
+        "camera_view_on": True,
+        "stream_url": settings.JETSON_STREAM_URL
+    }
+
+
+# camera view close
+@router.post("/{cart_session_id}/camera/view/off")
+def camera_view_off(
+    cart_session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    cart = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_session_id == cart_session_id,
+            models.CartSession.user_id == current_user.user_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .first()
+    )
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Active cart not found")
+
+    cart.camera_view_on = False
+    db.commit()
+
+    return {
+        "cart_session_id": cart_session_id,
+        "camera_view_on": False
     }

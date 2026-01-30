@@ -14,8 +14,9 @@ class Settings:
     GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
     KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
-    KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI")   
-
+    KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI") 
+    JETSON_BASE_URL = os.getenv("JETSON_BASE_URL")
+    JETSON_STREAM_URL = os.getenv("JETSON_STREAM_URL")
 
 settings = Settings()
 
