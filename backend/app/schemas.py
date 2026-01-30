@@ -108,7 +108,7 @@ NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣]{2,20}$")
 
 class UserBase(BaseModel):
     email: EmailStr
-    nickname: str = Field(min_length=2, max_length=8)
+    nickname: str = Field(min_length=2, max_length=20)
 
 
 class UserCreate(BaseModel):
@@ -275,8 +275,6 @@ class RecipeRecommendResponse(BaseModel):
     title: str
     description: Optional[str] = None
     image_url: Optional[str] = None
-    difficulty: str = "NORMAL" # DB에 컬럼이 없다면 기본값 or models.py 확인 필요 (현재 models.py엔 없음, 필요시 추가)
-    cooking_time_min: int = 30 # 상동
     
     # AI 추천 점수 (거리 기반: 0에 가까울수록 유사함)
     similarity_score: Optional[float] = None
