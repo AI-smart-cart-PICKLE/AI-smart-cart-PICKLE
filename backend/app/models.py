@@ -181,6 +181,7 @@ class CartSession(Base):
     measured_total_g = Column(Integer, default=0)
     started_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     ended_at = Column(DateTime(timezone=True))
+    camera_view_on = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     device = relationship("CartDevice", back_populates="sessions")

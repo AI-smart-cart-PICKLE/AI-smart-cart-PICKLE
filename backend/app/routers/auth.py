@@ -77,8 +77,6 @@ def request_password_reset(
     return {"message": "비밀번호 재설정 이메일을 전송했습니다."}
 
 
-
-
 # 비밀번호 재설정 실행 API
 @router.post("/password/reset")
 def reset_password(
