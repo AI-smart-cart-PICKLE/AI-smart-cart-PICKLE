@@ -91,23 +91,39 @@ def create_ledger_from_payment(
             top_category_name = "GROCERY"
 
         # 4. 문자열 -> LedgerCategory Enum 매핑
-        # DB의 product_category.name 과 LedgerCategory Enum 간의 매핑 테이블 필요
-        # (간단하게 하드코딩 매핑, 추후 DB화 가능)
+        # DB의 product_category.name 과 LedgerCategory Enum 간의 매핑 테이블
+        # (키워드 포함 여부로 매핑)
         CATEGORY_MAP = {
             "정육": models.LedgerCategory.MEAT,
+            "고기": models.LedgerCategory.MEAT,
             "축산": models.LedgerCategory.MEAT,
             "유제품": models.LedgerCategory.DAIRY,
+            "우유": models.LedgerCategory.DAIRY,
+            "치즈": models.LedgerCategory.DAIRY,
             "음료": models.LedgerCategory.BEVERAGE,
             "과자": models.LedgerCategory.SNACK,
             "간식": models.LedgerCategory.SNACK,
-            "생활용품": models.LedgerCategory.HOUSEHOLD,
+            "스낵": models.LedgerCategory.SNACK,
+            "생활": models.LedgerCategory.HOUSEHOLD,
             "채소": models.LedgerCategory.GROCERY,
+            "야채": models.LedgerCategory.GROCERY,
             "과일": models.LedgerCategory.GROCERY,
             "수산": models.LedgerCategory.GROCERY,
-            # 매핑 안 된 것들은 아래 default로 처리
+            "해산물": models.LedgerCategory.GROCERY,
+            "통조림": models.LedgerCategory.GROCERY, # 가공식품은 보통 GROCERY
+            "소스": models.LedgerCategory.GROCERY,
+            "양념": models.LedgerCategory.GROCERY,
+            "면": models.LedgerCategory.GROCERY,
+            "즉석": models.LedgerCategory.GROCERY,
         }
         
-        main_category = CATEGORY_MAP.get(top_category_name, models.LedgerCategory.GROCERY)
+        main_category = models.LedgerCategory.GROCERY # 기본값
+        
+        # 키워드 포함 여부 확인 (예: "정육/계란" -> "정육" 포함 -> MEAT)
+        for key, val in CATEGORY_MAP.items():
+            if key in top_category_name:
+                main_category = val
+                break
         
         # 메모 생성 (예: "삼겹살 외 3건")
         if len(item_names) == 1:
