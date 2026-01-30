@@ -18,10 +18,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+import os
+
 # CORS 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+origins = [
+    frontend_url,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000"],  # 모든 출처 허용
+    allow_origins=origins,
     allow_credentials=True, # 쿠키, Authorization 헤더
     allow_methods=["*"],
     allow_headers=["*"],
