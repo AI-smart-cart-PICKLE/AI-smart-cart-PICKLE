@@ -37,6 +37,14 @@ class PaymentReadyRequest(BaseModel):
     total_amount: int = Field(..., gt=0, description="결제 금액은 0원 이상이어야 합니다.") 
     method_id: Optional[int] = None
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 12,
+            "total_amount": 15000,
+            "method_id": None
+        }
+    })
+
 class PaymentReadyResponse(BaseModel):
     tid: str
     next_redirect_app_url: Optional[str] = None
@@ -82,6 +90,15 @@ class PaymentRequest(BaseModel):
     amount: int
     measured_weight_g: int = Field(..., description="Jetson/센서로부터 측정한 현재 무게")
     use_subscription: bool = True  # 기본적으로 자동결제 사용
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 5,
+            "amount": 25000,
+            "measured_weight_g": 1500,
+            "use_subscription": True
+        }
+    })
 
 class PaymentWarningResponse(BaseModel):
     """무게 불일치 시 반환하는 경고 데이터 (409 Conflict)"""
@@ -130,6 +147,13 @@ class LedgerUpdateRequest(BaseModel):
     category: Optional[LedgerCategory] = None
     memo: Optional[str] = None
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "category": "SNACK",
+            "memo": "편의점 간식 구매"
+        }
+    })
+
 
 # =========================================================
 # 👤 User Schemas (회원)
@@ -161,10 +185,25 @@ class UserCreate(BaseModel):
         if not NICKNAME_REGEX.fullmatch(value):
             raise ValueError("Nickname must be 2–20 characters long and contain only Korean or English letters")
         return value
+    
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "email": "user@example.com",
+            "password": "Password123!",
+            "nickname": "행복한쇼핑"
+        }
+    })
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "email": "user@example.com",
+            "password": "Password123!"
+        }
+    })
 
 class UserMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -212,6 +251,13 @@ class CartItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(default=1, ge=1)
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "product_id": 101,
+            "quantity": 2
+        }
+    })
+
 class ProductSimpleResponse(BaseModel):
     product_id: int
     name: str
@@ -249,6 +295,13 @@ class CartItemUpdate(BaseModel):
 class CartWeightValidateRequest(BaseModel):
     cart_session_id: int
     measured_weight_g: int = Field(..., gt=0)
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 5,
+            "measured_weight_g": 520
+        }
+    })
 
 class CartWeightValidateResponse(BaseModel):
     is_valid: bool
