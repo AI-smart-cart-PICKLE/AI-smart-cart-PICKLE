@@ -97,8 +97,8 @@ deploy:
       ~/workspaces/S14P11A202/mlops/airflow"
     
     - echo "Uploading deployment files..."
-    # feat 브랜치의 수정사항: init-db.sh 포함 업로드
-    - scp docker-compose.yml init-db.sh $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+    # feat 브랜치의 수정사항: init-db.sh, nginx 설정 포함 업로드
+    - scp docker-compose.yml init-db.sh nginx-ssl-prod.conf $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
 
     - echo "Generating .env file on EC2..."
     - |
