@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/payment_repository.dart';
-import '../data/mock_payment_repository.dart';
+import '../repository/payment_repository.dart';
+import '../repository/mock_payment_repository.dart';
 import '../../../domain/models/payment.dart';
 
 final payment_repository_provider = Provider<PaymentRepository>((ref) {

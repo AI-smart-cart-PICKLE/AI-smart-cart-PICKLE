@@ -8,7 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../cart/presentation/cart_providers.dart';
-import '../data/payment_repository.dart';
+import '../repository/payment_repository.dart';
 import 'payment_providers.dart';
 
 class KakaoPayCheckoutScreen extends ConsumerStatefulWidget {

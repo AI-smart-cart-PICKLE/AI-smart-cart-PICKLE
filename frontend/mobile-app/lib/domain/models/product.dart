@@ -16,4 +16,17 @@ class Product {
     required this.is_in_stock,
     required this.aisle_label,
   });
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      product_id: (json['product_id'] ?? 0).toString(),
+      name: json['name'] ?? '',
+      price: json['price'] ?? 0,
+      unit_label: json['unit_weight_g'] != null ? '${json['unit_weight_g']}g' : '1개',
+      image_url: json['image_url'] ?? '',
+      is_in_stock: (json['stock_quantity'] ?? 0) > 0,
+      // 백엔드에서 위치 정보를 주지 않을 경우 기본값 처리
+      aisle_label: json['zone_code'] ?? '위치 정보 없음',
+    );
+  }
 }

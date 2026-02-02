@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/account_repository.dart';
-import '../data/mock_account_repository.dart';
+import '../repository/account_repository.dart';
+import '../repository/mock_account_repository.dart';
 import '../../../domain/models/user_profile.dart';
 import '../../../domain/models/spending.dart';
 

@@ -8,7 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/primary_button.dart';
-import '../../payment/data/payment_repository.dart';
+import '../../payment/repository/payment_repository.dart';
 import 'payment_providers.dart';
 
 class AddNewCardScreen extends ConsumerStatefulWidget {

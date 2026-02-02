@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/mock_product_repository.dart';
-import '../data/product_repository.dart';
+import '../repository/mock_product_repository.dart';
+import '../repository/product_repository.dart';
 import '../../../domain/models/product.dart';
 
 final product_repository_provider = Provider<ProductRepository>((ref) {

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/recipe_repository.dart';
-import '../data/mock_recipe_repository.dart';
+import '../repository/recipe_repository.dart';
+import '../repository/mock_recipe_repository.dart';
 import '../../../domain/models/recipe.dart';
 
 final recipe_repository_provider = Provider<RecipeRepository>((ref) {

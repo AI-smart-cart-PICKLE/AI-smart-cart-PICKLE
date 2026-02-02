@@ -7,7 +7,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/app_text_field.dart';
-import '../data/account_repository.dart';
+import '../repository/account_repository.dart';
 import 'account_providers.dart';
 
 class ChangeNicknameScreen extends ConsumerStatefulWidget {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/primary_button.dart';
+import 'auth_providers.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -15,6 +16,11 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slide_animation;
+
+  final _nickname_controller = TextEditingController();
+  final _email_controller = TextEditingController();
+  final _password_controller = TextEditingController();
+  bool _is_loading = false;
 
   @override
   void initState() {
@@ -36,7 +42,56 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
   @override
   void dispose() {
     _controller.dispose();
+    _nickname_controller.dispose();
+    _email_controller.dispose();
+    _password_controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _handle_signup() async {
+    final nickname = _nickname_controller.text.trim();
+    final email = _email_controller.text.trim();
+    final password = _password_controller.text.trim();
+
+    if (nickname.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모든 필드를 입력해주세요.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _is_loading = true;
+    });
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.signup(
+        email: email,
+        password: password,
+        nickname: nickname,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('회원가입이 완료되었습니다!'))
+        );
+        // 회원가입 성공 시 authRepo.signup 내부에서 로그인을 수행하므로 바로 홈으로 이동
+        context.go(AppRoutes.home);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('회원가입 실패: ${e.toString().replaceAll("Exception: ", "")}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _is_loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -71,6 +126,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 ),
                 const SizedBox(height: 48),
                 TextField(
+                  controller: _nickname_controller,
                   decoration: InputDecoration(
                     labelText: '닉네임',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -86,6 +142,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 ),
                 const SizedBox(height: 16),
                 TextField(
+                  controller: _email_controller,
                   decoration: InputDecoration(
                     labelText: '이메일',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -101,6 +158,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 ),
                 const SizedBox(height: 16),
                 TextField(
+                  controller: _password_controller,
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: '비밀번호',
@@ -117,14 +175,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 ),
                 const SizedBox(height: 32),
                 PrimaryButton(
-                  label: '회원가입 완료',
-                  on_pressed: () {
-                    // Logic for signup success
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('회원가입이 완료되었습니다!'))
-                    );
-                    context.go(AppRoutes.login);
-                  },
+                  label: _is_loading ? '가입 중...' : '회원가입 완료',
+                  on_pressed: _is_loading ? () {} : _handle_signup,
                 ),
                 const SizedBox(height: 16),
                 Center(

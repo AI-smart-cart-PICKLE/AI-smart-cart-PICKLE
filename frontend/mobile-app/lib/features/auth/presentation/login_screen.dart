@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/primary_button.dart';
+import 'auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +16,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slide_animation;
+  
+  final _email_controller = TextEditingController();
+  final _password_controller = TextEditingController();
+  bool _is_loading = false;
 
   @override
   void initState() {
@@ -36,7 +41,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   @override
   void dispose() {
     _controller.dispose();
+    _email_controller.dispose();
+    _password_controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _handle_login() async {
+    final email = _email_controller.text.trim();
+    final password = _password_controller.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _is_loading = true;
+    });
+
+    try {
+      // AuthProvider 임포트가 필요할 수 있음 (상단 자동 추가 확인 필요)
+      // 현재 auth_providers.dart 위치: features/auth/presentation/auth_providers.dart
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.login(email: email, password: password);
+      
+      if (mounted) {
+        context.go(AppRoutes.home);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('로그인 실패: ${e.toString().replaceAll("Exception: ", "")}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _is_loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -67,6 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 48),
                 TextField(
+                  controller: _email_controller,
                   decoration: InputDecoration(
                     labelText: '이메일',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -82,6 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 16),
                 TextField(
+                  controller: _password_controller,
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: '비밀번호',
@@ -98,8 +146,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 32),
                 PrimaryButton(
-                  label: '로그인',
-                  on_pressed: () => context.go(AppRoutes.home),
+                  label: _is_loading ? '로그인 중...' : '로그인',
+                  on_pressed: _is_loading ? () {} : _handle_login,
                 ),
                 const SizedBox(height: 16),
                 Center(
