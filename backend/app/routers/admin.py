@@ -5,7 +5,7 @@ import os
 
 # 필요하다면 관리자 인증 의존성(Depends) 추가 가능
 router = APIRouter(
-    prefix="/api/admin",
+    prefix="/admin",
     tags=["admin"],
     responses={404: {"description": "Not found"}},
 )

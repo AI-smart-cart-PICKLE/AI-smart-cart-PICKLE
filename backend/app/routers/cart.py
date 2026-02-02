@@ -15,7 +15,7 @@ from app.schemas import (
 from app.utils.check_data import validate_cart_weight
 
 router = APIRouter(
-    prefix="/api/carts",
+    prefix="/carts",
     tags=["carts"],
     responses={404: {"description": "Not found"}},
 )

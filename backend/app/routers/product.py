@@ -6,8 +6,9 @@ from app.database import get_db
 from app.models import Product, ProductCategory
 
 router = APIRouter(
-    prefix="/api/products",
-    tags=["products"]
+    prefix="/products",
+    tags=["products"],
+    responses={404: {"description": "Not found"}},
 )
 
 # 상품 목록 조회
