@@ -4,6 +4,7 @@ from datetime import datetime, date
 from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType, UserProvider
 import re
 
+
 # =========================================================
 # 💳 Payment Method Schemas (결제 수단)
 # =========================================================
@@ -246,6 +247,15 @@ class GoogleOAuthRequest(BaseModel):
 # =========================================================
 # 🛒 Cart Schemas (장바구니)
 # =========================================================
+
+# 기기 기반 상품 동기화 (AI 추론 서버용)
+class CartSyncItem(BaseModel):
+    product_name: str
+    quantity: int
+
+class CartSyncRequest(BaseModel):
+    device_code: str
+    items: List[CartSyncItem]
 
 class CartItemCreate(BaseModel):
     product_id: int
