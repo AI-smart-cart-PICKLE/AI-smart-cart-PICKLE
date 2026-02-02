@@ -16,3 +16,6 @@ dependencies:
     - pytest
     - black
     - isort
+    - httpx==0.28.1
+    - python-dotenv==1.2.1
+    - numpy==2.4.1

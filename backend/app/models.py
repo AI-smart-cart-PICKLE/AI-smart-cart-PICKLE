@@ -1,18 +1,20 @@
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Numeric, Date, Enum as SAEnum
+    Column, Integer, String, TIMESTAMP, ForeignKey, DateTime, Boolean, Text, Numeric, Date, Enum as SAEnum
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 import enum
-from .database import Base
+from app.db.base import Base
+
 
 # --- Enums (DB Enum Types) ---
 
 class UserProvider(enum.Enum):
     LOCAL = "LOCAL"
     GOOGLE = "GOOGLE"
+    KAKAO = "KAKAO"
 
 class CartSessionStatus(enum.Enum):
     ACTIVE = "ACTIVE"
@@ -59,6 +61,8 @@ class AppUser(Base):
     password_hash = Column(String(255))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, nullable=False, default=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
@@ -68,12 +72,24 @@ class AppUser(Base):
     ledger_entries = relationship("LedgerEntry", back_populates="user", cascade="all, delete-orphan")
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_token"
+
+    token = Column(String, primary_key=True)
+    user_id = Column( Integer, ForeignKey("app_user.user_id"), nullable=False)
+
+    expires_at = Column(TIMESTAMP, nullable=False)
+    used = Column(Boolean, default=False)
+
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+
 class ProductCategory(Base):
     __tablename__ = "product_category"
 
     category_id = Column(Integer, primary_key=True, index=True)
     name = Column(String(60), unique=True, nullable=False)
-    zone_code = Column(String(30))
+    zone_code = Column(String(30), nullable=False)
 
     # Relationships
     products = relationship("Product", back_populates="category")
@@ -83,7 +99,7 @@ class Product(Base):
     __tablename__ = "product"
 
     product_id = Column(Integer, primary_key=True, index=True)
-    category_id = Column(Integer, ForeignKey("product_category.category_id"))
+    category_id = Column(Integer, ForeignKey("product_category.category_id"), nullable=False)
     barcode = Column(String(64), unique=True)
     name = Column(String(255), nullable=False)
     price = Column(Integer, nullable=False)
@@ -109,6 +125,7 @@ class Recipe(Base):
     description = Column(Text)
     instructions = Column(Text)
     image_url = Column(Text)
+
     embedding = Column(Vector(1536))
     created_at = Column(DateTime(timezone=True), default=func.now())
 
@@ -165,6 +182,7 @@ class CartSession(Base):
     measured_total_g = Column(Integer, default=0)
     started_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     ended_at = Column(DateTime(timezone=True))
+    camera_view_on = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     device = relationship("CartDevice", back_populates="sessions")
@@ -255,6 +273,7 @@ class LedgerEntry(Base):
     spend_date = Column(Date, nullable=False)
     category = Column(SAEnum(LedgerCategory), nullable=False, default=LedgerCategory.ETC)
     amount = Column(Integer, nullable=False)
+    memo = Column(Text)
 
     # Relationships
     user = relationship("AppUser", back_populates="ledger_entries")
