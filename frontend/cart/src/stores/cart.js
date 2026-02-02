@@ -7,7 +7,11 @@ export const useCartStore = defineStore("cart", () => {
    * 1. State
    * ========================= */
   const cartItems = ref([]);
-  const cartSession = ref(null); // 세션 정보 (status 등)
+  const cartSession = ref({
+    cart_session_id: null,
+    status: 'ACTIVE',
+    device_code: 'CART-DEVICE-001',
+  }) // 세션 정보 (status 등)
 
   /* =========================
    * 2. Getters
@@ -39,7 +43,7 @@ export const useCartStore = defineStore("cart", () => {
     cartSession.value = {
       cart_session_id: res.data.cart_session_id,
       status: res.data.status,
-      device_code: res.data.device_code,
+      device_code: res.data.device_code ?? 'CART-DEVICE-001',
     };
 
     cartItems.value = (res.data.items ?? []).map((item) => ({
@@ -134,14 +138,24 @@ const addItemByBarcode = async (barcode) => {
   };
 
   /**
-   * 🔹 카트 세션 취소
-   * POST /api/carts/cancel
-   */
-  const cancelCart = async () => {
-    await api.post("/api/carts/cancel");
-    cartItems.value = [];
-    cartSession.value = null;
+ * 🔹 카트 세션 취소
+ * POST /api/carts/{session_id}/cancel
+ */
+const cancelCart = async () => {
+  const sessionId = cartSession.value?.cart_session_id;
+  if (!sessionId) return;
+
+  await api.post(`/api/carts/${sessionId}/cancel`);
+
+  cartItems.value = [];
+  cartSession.value = {
+    cart_session_id: null,
+    status: "CANCELLED",
+    device_code: "CART-DEVICE-001",
   };
+};
+
+
 
   return {
     // state
