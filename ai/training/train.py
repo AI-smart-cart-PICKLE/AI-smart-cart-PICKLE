@@ -42,7 +42,12 @@ def train(
     model = YOLO(model_name)
 
     # 3. MLflow Run 시작
-    mlflow.end_run() # 안전장치: 혹시라도 닫히지 않은 이전 Run 강제 종료
+    try:
+        if mlflow.active_run():
+            mlflow.end_run()
+    except Exception:
+        pass # 존재하지 않는 Run 종료 시도 시 무시
+
     with mlflow.start_run() as run:
         print(f"[MLflow] Run ID: {run.info.run_id}")
         
