@@ -17,9 +17,9 @@ KAKAO_ADMIN_KEY = settings.KAKAO_ADMIN_KEY
 
 # 라우터 설정
 router = APIRouter(
-    prefix="/api/payments",
+    prefix="/payments",
     tags=["payments"],
-    responses={404: {"description": "Resource Not found"}},
+    responses={404: {"description": "Not found"}},
 )
 
 # --- 카카오페이 CID 설정 ---

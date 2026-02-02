@@ -7,8 +7,9 @@ from .. import models, schemas, database
 from ..dependencies import get_current_user
 
 router = APIRouter(
-    prefix="/api/recommendations",
+    prefix="/recommendations",
     tags=["recommendations"],
+    responses={404: {"description": "Not found"}},
 )
 
 @router.get("/by-product/{product_id}", response_model=List[schemas.RecipeRecommendResponse])
