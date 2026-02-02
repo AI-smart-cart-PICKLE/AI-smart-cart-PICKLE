@@ -11,17 +11,14 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User> login({required String email, required String password}) async {
     try {
-      // ★ 중요 1: FastAPI 로그인은 'application/x-www-form-urlencoded' 타입이어야 함
-      // ★ 중요 2: 필드명은 'email'이 아니라 'username'이어야 함 (FastAPI 표준)
+      // 백엔드가 JSON 형식을 기대함 (422 에러 해결)
       final response = await _dioClient.dio.post(
-        '/api/auth/login', // URL 경로 수정 (/api 추가, 보통 login 대신 token 엔드포인트 사용)
+        '/api/auth/login',
         data: {
-          'username': email, // email 값을 username 필드에 넣어서 보냄
+          'email': email, 
           'password': password,
         },
-        options: Options(
-          contentType: Headers.formUrlEncodedContentType, // 폼 데이터 형식 지정
-        ),
+        // Options 제거 -> 기본값이 JSON
       );
 
       final accessToken = response.data['access_token'];
