@@ -88,6 +88,33 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   /**
+ * 🔹 바코드로 상품 추가
+ * POST /api/carts/items/barcode
+ */
+const addItemByBarcode = async (barcode) => {
+  if (!cartSession.value?.cart_session_id) {
+    throw new Error("카트 세션이 없습니다.")
+  }
+
+  // 1️ 바코드 → 상품 조회
+  const productRes = await api.get(`/api/products/barcode/${barcode}`)
+  const product = productRes.data
+
+  // 2️ 장바구니에 추가
+  await api.post(
+    `/api/carts/${cartSession.value.cart_session_id}/items`,
+    {
+      product_id: product.product_id,
+      quantity: 1,
+    }
+  )
+
+  // 3️⃣ 다시 조회해서 UI 동기화
+  await fetchCartSession(cartSession.value.cart_session_id)
+}
+
+
+  /**
    * 🔹 무게 검증
    * POST /api/carts/weight/validate
    */
@@ -132,5 +159,6 @@ export const useCartStore = defineStore("cart", () => {
     validateWeight,
     checkout,
     cancelCart,
+    addItemByBarcode,
   };
 });
