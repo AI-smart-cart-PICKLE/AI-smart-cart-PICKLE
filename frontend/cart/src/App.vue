@@ -1,6 +1,14 @@
 <script setup>
 import { RouterView } from 'vue-router'
+import { onMounted } from 'vue'    
 import TheHeader from './components/TheHeader.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+
+onMounted(() => {
+  authStore.fetchMe()
+})
 </script>
 
 <template>

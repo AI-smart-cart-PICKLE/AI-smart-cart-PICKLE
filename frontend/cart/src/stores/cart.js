@@ -36,27 +36,27 @@ export const useCartStore = defineStore("cart", () => {
   const fetchCartSession = async (cartSessionId) => {
     const res = await api.get(`/api/carts/${cartSessionId}`);
 
-    /*
-      예상 응답 형태
-      {
-        cart_session_id: 1,
-        status: "ACTIVE",
-        items: [
-          {
-            cart_item_id: 1,
-            product_id: 3,
-            name: "스파게티면 500g",
-            unit_price: 3200,
-            quantity: 1,
-            image_url: "...",
-            status: "verified"
-          }
-        ]
-      }
-    */
-    cartSession.value = res.data;
-    cartItems.value = res.data.items ?? [];
+    cartSession.value = {
+      cart_session_id: res.data.cart_session_id,
+      status: res.data.status,
+      device_code: res.data.device_code,
+    };
+
+    cartItems.value = (res.data.items ?? []).map((item) => ({
+      cart_item_id: item.cart_item_id,
+      product_id: item.product?.product_id,
+
+      // 프론트 표준 필드
+      product_name: item.product?.name,
+      unit_price: item.unit_price,
+      quantity: item.quantity,
+      image_url: item.product?.image_url,
+
+      // 검증 상태 가공 (임시로 true 처리, 필요시 백엔드 스키마 확장 필요)
+      is_verified: true,
+    }));
   };
+
 
   /**
    * 🔹 상품 수량 변경
