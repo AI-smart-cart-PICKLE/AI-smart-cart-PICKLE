@@ -1,25 +1,24 @@
-# AI 프로젝트 가상환경과 동일한 Python 3.10 사용
-FROM python:3.10.19-slim
+# Jetson Orin Nano (JetPack 5/6) 및 일반 플랫폼 호환 이미지
+# Jetson: JetPack + CUDA + PyTorch 사전 설치된 베이스 이미지 사용
+# AMD64/ARM64: Ultralytics 공식 이미지 (PyTorch, YOLO 포함)
+FROM ultralytics/ultralytics:latest-jetson
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
 # 시스템 패키지 설치 (OpenCV 및 PyTorch 연산을 위해 필수)
-RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
     libglib2.0-0 \
     libgomp1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 필수 Python 패키지 설치 (environment.yaml 의존성 준수)
-# 엣지 에이전트 실행에 필요한 핵심 라이브러리만 설치
+# 필수 Python 패키지 설치
+# ultralytics, torch, torchvision은 베이스 이미지에 포함되어 있음
 RUN pip install --no-cache-dir \
-    torch==2.3.1 \
-    torchvision \
-    numpy==1.26.4 \
-    ultralytics==8.4.2 \
-    opencv-python-headless \
-    requests
+    requests \
+    opencv-python-headless
 
 # 소스 코드 및 모델 복사
 COPY cart_agent.py .
