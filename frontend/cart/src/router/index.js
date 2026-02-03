@@ -1,3 +1,4 @@
+// index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '@/views/DashboardView.vue'
 import PairView from '@/views/PairView.vue'
