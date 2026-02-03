@@ -100,6 +100,53 @@ def create_cart_session(
 
 
 # --- 2. 장바구니 조회 ---
+@router.get("/current", response_model=schemas.CartSessionResponse)
+def get_current_cart_session(
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    """
+    현재 로그인된 사용자의 활성 장바구니 세션을 조회합니다.
+    없으면 404를 반환합니다.
+    """
+    session = db.query(models.CartSession).filter(
+        models.CartSession.user_id == current_user.user_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE
+    ).order_by(models.CartSession.cart_session_id.desc()).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="활성화된 장바구니가 없습니다.")
+    
+    # 기존 get_cart_session 로직 재사용 가능하게 분리하면 좋지만 
+    # 일단 여기에 구현
+    response_items = []
+    total_amount = 0
+    total_quantity = 0
+
+    for item in session.items:
+        item_total = item.unit_price * item.quantity
+        total_amount += item_total
+        total_quantity += item.quantity
+        
+        response_items.append({
+            "cart_item_id": item.cart_item_id,
+            "product": item.product, 
+            "quantity": item.quantity,
+            "unit_price": item.unit_price,
+            "total_price": item_total 
+        })
+
+    return {
+        "cart_session_id": session.cart_session_id,
+        "status": session.status.value, 
+        "total_amount": total_amount,
+        "total_items": total_quantity,
+        "items": response_items,        
+        "expected_total_g": session.expected_total_g
+    }
+
+
+# --- 2.1 특정 ID로 장바구니 조회 ---
 @router.get("/{session_id}", response_model=schemas.CartSessionResponse)
 def get_cart_session(
     session_id: int, 

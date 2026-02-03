@@ -1,10 +1,20 @@
-1.너가 하는 말들 한글로 번역해서 보여줘.
-2.아래의 ERD 테이블을 반드시 보고 작성한다.
-3,아래의 api 명세서 .csv 파일을 반드시 보고 작성한다.
-4.변수명은 snake case로 한다.
-5.코드는 객체 지향적으로 유지, 보수, 재사용성이 쉽도록 작성한다.
-6.backend 디렉토리에 있는 app 폴더 안에 db와 mobile_app 디렉토리 안에 UI를 보고 UI와 DB가 연동이 잘 됐는지 검증한다.
-7.내부 통신 규걱은 http이고, 외부 통신 규격은 https이다.
+너가 하는 말들 한글로 번역해서 보여줘.
+로그,분석결과 이런것들 한국어로 말해.
+
+아래의 api 명세서 .csv 파일을 반드시 보고 작성한다.
+변수명은 snake case로 한다.
+코드는 객체 지향적으로 유지, 보수, 재사용성이 쉽도록 작성한다.
+backend 디렉토리에 있는 app 폴더 안에 db와 mobile_app 디렉토리 안에 UI를 보고 UI와 DB가 연동이 잘 됐는지 검증한다.
+내부 통신 규걱은 http이고, 외부 통신 규격은 https이다.
+
+1. 너가 하는 말들 한글로 번역해서 보여줘.
+2. 분석결과/ERD 등 기술적 내용은 반드시 한글로 설명해.
+3. 아래의 api 명세서 .csv 파일을 반드시 참고하여 개발해.
+4. 변수명은 snake case를 사용해.
+5. 코드는 객체 지향적이고 유지보수가 용이하도록 작성해.
+6. backend/app/db 구조와 mobile_app UI 연동 상태를 주기적으로 검증해.
+7. 내부 통신은 http, 외부 통신은 https 규격을 준수해.
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -252,61 +262,49 @@ CREATE TABLE ledger_entry (
 
 ```api 명세 csv파일
 
-ID,백 구현,구분,method,URI,API,설명,담당,상태
-,Yes,회원(Auth),POST,/api/auth/signup,회원가입,이메일/비밀번호 기반 회원가입 (User Router),,구현 완료
-,Yes,회원(Auth),POST,/api/auth/login,로그인,이메일 로그인 및 JWT 발급 (User Router),,구현 완료
-,Yes,회원(Auth),POST,/api/auth/logout,로그아웃,리프레시 토큰 쿠키 삭제 (User Router),,구현 완료
-,Yes,회원(Auth),POST,/auth/refresh,토큰 갱신,Refresh Token을 이용한 Access Token 재발급 (Auth Router),,구현 완료
-,Yes,회원(Auth),POST,/auth/password/reset-request,비밀번호 재설정 요청,이메일로 재설정 링크 전송,,구현 완료
-,Yes,회원(Auth),POST,/auth/password/reset,비밀번호 재설정,토큰 검증 후 새로운 비밀번호로 변경,,구현 완료
-,Yes,회원(Auth),POST,/auth/google,구글 로그인,Google OAuth Code로 로그인 및 회원가입 처리,,구현 완료
-,Yes,회원(Auth),GET,/auth/google/callback,구글 로그인 콜백,Google Redirect 용 (프론트엔드 연동용),,구현 완료
-,Yes,회원(Auth),GET,/auth/kakao/login,카카오 로그인,카카오 인증 페이지 리다이렉트,,구현 완료
-,Yes,회원(Auth),GET,/auth/kakao/callback,카카오 로그인 콜백,카카오 Code로 로그인 및 회원가입 처리,,구현 완료
-,Yes,회원(User),GET,/api/users/me,내 정보 조회,현재 로그인된 사용자의 정보 조회,,구현 완료
-,Yes,회원(User),PATCH,/api/users/me/nickname,닉네임 변경,사용자 닉네임 수정,,구현 완료
-,Yes,회원(User),PATCH,/api/users/me/password,비밀번호 변경,기존 비밀번호 확인 후 변경 (로컬 유저 전용),,구현 완료
-,Yes,회원(User),DELETE,/api/users/me,회원 탈퇴,계정 비활성화 (Soft Delete),,구현 완료
-,Yes,상품,GET,/api/products/,상품 목록 조회,전체 상품 목록 조회,,구현 완료
-,Yes,상품,GET,/api/products/search,상품 검색,상품명 유사도 기반 검색 (pg_trgm),,구현 완료
-,Yes,상품,GET,/api/products/{product_id},상품 상세 조회,특정 상품의 상세 정보 조회,,구현 완료
-,Yes,상품,GET,/api/products/{product_id}/location,상품 위치 안내,상품의 매장 내 구역(Zone) 및 매대 정보,,구현 완료
-,Yes,카트,POST,/api/carts/pair/qr,카트 QR 로그인,QR 코드를 통해 카트 디바이스와 사용자 계정 연결,,구현 완료
-,Yes,카트,POST,/api/carts/,카트 세션 생성,새로운 장바구니 세션 시작 (쇼핑 시작),,구현 완료
-,Yes,카트,GET,/api/carts/{session_id},카트 세션 조회,장바구니 상태, 총액, 상품 목록 등 조회,,구현 완료
-,Yes,카트,POST,/api/carts/{session_id}/items,카트 상품 추가,장바구니에 상품 추가 및 무게 검증 요청,,구현 완료
-,Yes,카트,DELETE,/api/carts/items/{cart_item_id},카트 상품 삭제,장바구니에서 특정 상품 제거,,구현 완료
-,Yes,카트,PATCH,/api/carts/items/{cart_item_id},카트 상품 수량 변경,상품 수량 수정 및 예상 무게 재계산,,구현 완료
-,Yes,카트,POST,/api/carts/{session_id}/select-recipe,레시피 선택,쇼핑 중 레시피 선택 상태 동기화,,구현 완료
-,Yes,카트,POST,/api/carts/weight/validate,무게 검증,카트의 예상 무게와 실제 측정 무게 비교 검증,,구현 완료
-,Yes,카트,POST,/api/carts/{session_id}/cancel,카트 세션 취소,쇼핑 중단 및 카트 세션 종료,,구현 완료
-,Yes,카트,POST,/api/carts/{cart_session_id}/camera/view/on,카메라 뷰 켜기,카트의 AI 카메라 스트림 활성화,,구현 완료
-,Yes,카트,POST,/api/carts/{cart_session_id}/camera/view/off,카메라 뷰 끄기,카트의 AI 카메라 스트림 종료,,구현 완료
-,Yes,추천,GET,/api/recommendations/by-product/{product_id},AI 레시피 추천,선택 상품과 벡터 유사도가 높은 레시피 추천,,구현 완료
-,Yes,결제,POST,/api/payments/request,결제 요청 (자동),무게 검증 후 등록된 수단으로 자동 결제 진행,,구현 완료
-,Yes,결제,POST,/api/payments/subscription/register/ready,정기결제 등록 준비,카카오페이 정기결제 등록 요청 (Redirect URL 발급),,구현 완료
-,Yes,결제,GET,/api/payments/subscription/register/approve,정기결제 등록 승인,카카오페이 인증 후 빌링키 발급 및 저장,,구현 완료
-,Yes,결제,POST,/api/payments/subscription/pay,정기결제 (테스트),저장된 빌링키를 이용한 즉시 결제 테스트,,구현 완료
-,Yes,결제,GET,/api/payments/subscription/register/callback,정기결제 콜백,결제 수단 등록 결과 페이지,,구현 완료
-,Yes,결제,POST,/api/payments/ready,단건 결제 준비,카카오페이 1회성 결제 준비 요청,,구현 완료
-,Yes,결제,POST,/api/payments/approve,단건 결제 승인,카카오페이 1회성 결제 승인 처리,,구현 완료
-,Yes,결제,GET,/api/payments/success,결제 성공 페이지,결제 승인 완료 안내 페이지,,구현 완료
-,Yes,결제,GET,/api/payments/cancel,결제 취소 페이지,결제 중 취소 안내 페이지,,구현 완료
-,Yes,결제,GET,/api/payments/fail,결제 실패 페이지,결제 실패 안내 페이지,,구현 완료
-,Yes,결제,GET,/api/payments/methods,결제 수단 목록,등록된 카드/빌링키 목록 조회,,구현 완료
-,Yes,결제,POST,/api/payments/methods,결제 수단 등록,결제 수단 수동 등록 (테스트/초기화용),,구현 완료
-,Yes,결제,DELETE,/api/payments/methods/{method_id},결제 수단 삭제,등록된 결제 수단 제거,,구현 완료
-,Yes,결제,GET,/api/payments/{payment_id},결제 상세 조회,특정 결제 건의 상세 정보 조회,,구현 완료
-,Yes,결제,POST,/api/payments/{payment_id}/cancel,결제 취소,승인된 결제에 대한 환불(취소) 요청,,구현 완료
-,Yes,가계부,POST,/api/ledger/from-payment/{payment_id},가계부 자동 생성,결제 완료 건을 가계부 내역으로 변환 및 저장,,구현 완료
-,Yes,가계부,GET,/api/ledger,가계부 목록 조회,날짜 및 카테고리 필터링 조회,,구현 완료
-,Yes,가계부,GET,/api/ledger/calendar,가계부 캘린더,월별 일자별 지출 합계 조회,,구현 완료
-,Yes,가계부,GET,/api/ledger/summary/monthly,월별 지출 요약,카테고리별 지출 통계,,구현 완료
-,Yes,가계부,GET,/api/ledger/top-categories,Top Categories,지출 금액 기준 상위 카테고리 조회,,구현 완료
-,Yes,가계부,GET,/api/ledger/top-items,Top Items,구매 횟수 기준 상위 아이템(카테고리) 조회,,구현 완료
-,Yes,가계부,GET,/api/ledger/recent,최근 지출 내역,최근 발생한 결제/지출 내역 조회,,구현 완료
-,Yes,가계부,GET,/api/ledger/{ledger_entry_id},가계부 상세 조회,가계부 단건 상세 내용 조회,,구현 완료
-,Yes,가계부,PUT,/api/ledger/{ledger_entry_id},가계부 수정,카테고리 및 메모 수정,,구현 완료
+ID,백 구현,구분,method,URI,API,설명
+회원,Yes,회원 정보 조회(User Router),,/api/users/me
+회원,Yes,닉네임 변경(User Router),,/api/users/me/nickname
+회원,Yes,비밀번호 변경(User Router),,/api/users/me/password
+인증,Yes,토큰 갱신(Auth Router),,/api/auth/refresh
+인증,Yes,구글 로그인(Auth Router),,/api/auth/google
+인증,Yes,구글 콜백(Auth Router),,/api/auth/google/callback
+인증,Yes,카카오 로그인(Auth Router),,/api/auth/kakao
+인증,Yes,카카오 콜백(Auth Router),,/api/auth/kakao/callback
+상품,Yes,상품 목록 조회,/api/products/
+상품,Yes,상품 검색,/api/products/search
+상품,Yes,상품 상세,/api/products/{product_id}
+상품,Yes,상품 위치,/api/products/{product_id}/location
+카트,Yes,카트 QR 로그인,/api/carts/pair/qr
+카트,Yes,카트 세션 생성,/api/carts/
+카트,Yes,카트 세션 조회,/api/carts/{session_id}
+카트,Yes,상품 추가,/api/carts/{session_id}/items
+카트,Yes,상품 제거,/api/carts/items/{cart_item_id}
+카트,Yes,상품 수량 변경,/api/carts/items/{cart_item_id}
+카트,Yes,요리 선택,/api/carts/{session_id}/select-recipe
+카트,Yes,무게 검증,/api/carts/weight/validate
+카트,Yes,카트 세션 취소,/api/carts/{session_id}/cancel
+카트,Yes,카메라 뷰 켜기,/api/carts/{cart_session_id}/camera/view/on
+카트,Yes,카메라 뷰 끄기,/api/carts/{cart_session_id}/camera/view/off
+추천,Yes,재료 기반 레시피 추천,/api/recommendations/by-product/{product_id}
+결제,Yes,결제 요청,/api/payments/request
+결제,Yes,자동결제 등록 준비,/api/payments/subscription/register/ready
+결제,Yes,자동결제 등록 승인,/api/payments/subscription/register/approve
+결제,Yes,자동결제 실행,/api/payments/subscription/pay
+결제,Yes,결제 준비,/api/payments/ready
+결제,Yes,결제 승인,/api/payments/approve
+결제,Yes,결제 상세 조회,/api/payments/{payment_id}
+결제,Yes,결제 수단 목록,/api/payments/methods
+결제,Yes,결제 수단 등록,/api/payments/methods
+결제,Yes,결제 수단 삭제,/api/payments/methods/{method_id}
+가계부,Yes,가계부 내역 조회,/api/ledger
+가계부,Yes,가계부 캘린더,/api/ledger/calendar
+가계부,Yes,가계부 월별 요약,/api/ledger/summary/monthly
+가계부,Yes,가계부 상위 카테고리,/api/ledger/top-categories
+가계부,Yes,가계부 상위 상품,/api/ledger/top-items
+가계부,Yes,최근 지출 내역,/api/ledger/recent
+가계부,Yes,가계부 단건 상세,/api/ledger/{ledger_entry_id}
+가계부,Yes,가계부 정보 수정,/api/ledger/{ledger_entry_id}
 
 ```
 
@@ -315,8 +313,7 @@ ID,백 구현,구분,method,URI,API,설명,담당,상태
 
 ## **1. 목적 (Purpose)**
 
-본 문서는 팀 내 Git 커밋 메시지 규칙(Commit Convention)을 정의하여,
- 일관된 변경 이력 관리와 명확한 변경 의도 전달을 목표로 한다.
+본 문서는 팀 내 Git 커밋 메시지 규칙(Commit Convention)을 정의하여, 일관된 변경 이력 관리와 명확한 변경 의도 전달을 목표로 한다.
 
 ## **2. 기본 구조 (Structure)**
 

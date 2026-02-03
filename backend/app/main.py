@@ -34,10 +34,10 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True, # 쿠키, Authorization 헤더
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # 모든 곳에서 접속 허용 (보안상 개발때만 사용)
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP Method 허용 (GET, POST 등)
+    allow_headers=["*"],  # 모든 헤더 허용
 )
 
 # 라우터 등록 (만들어둔 API 연결)

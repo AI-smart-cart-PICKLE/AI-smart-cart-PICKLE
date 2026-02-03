@@ -39,5 +39,8 @@ def get_recipe_detail(
         "description": recipe.description,
         "instructions": recipe.instructions,
         "image_url": recipe.image_url,
+        "prep_time_min": 30, # 임시값
+        "difficulty_label": "보통", # 임시값
+        "calories": 500, # 임시값
         "ingredients": ingredients_response
     }

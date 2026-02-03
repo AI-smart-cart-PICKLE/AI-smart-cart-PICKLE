@@ -545,7 +545,36 @@ async def get_payment_detail(
     db: Session = Depends(get_db),
     current_user: models.AppUser = Depends(get_current_user)
 ):
-    return get_payment_or_404(payment_id, current_user.user_id, db)
+    """
+    결제 상세 내역 조회
+    - 결제 정보 및 해당 장바구니 세션의 아이템 목록을 포함합니다.
+    """
+    # 1. 본인 결제 내역인지 확인하며 조회
+    payment = get_payment_or_404(payment_id, current_user.user_id, db)
+    
+    # 2. 응답 데이터 생성 (Pydantic 모델 변환)
+    response = schemas.PaymentDetailResponse.model_validate(payment)
+    
+    # 3. 장바구니 품목 목록 추가 (CartSession -> items)
+    if payment.session and payment.session.items:
+        items_list = []
+        for item in payment.session.items:
+            # item.product는 lazy loading 되므로 명시적으로 변환
+            product_simple = schemas.ProductSimpleResponse.model_validate(item.product)
+
+            cart_item_res = schemas.CartItemResponse(
+                cart_item_id=item.cart_item_id,
+                product=product_simple,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                total_price=item.unit_price * item.quantity
+            )
+            items_list.append(cart_item_res)
+
+        response.items = items_list
+
+    return response
+
 
 @router.post("/{payment_id}/cancel", response_model=schemas.PaymentResponse)
 async def cancel_payment(

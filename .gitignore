@@ -1,48 +1,85 @@
-# ------------------------------------------------
-# 1. Python & AI (PyTorch, YOLO, VirtualEnv)
-# ------------------------------------------------
+# ================================================
+# 1. Python & AI (PyTorch, YOLO, MLflow)
+# ================================================
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual Environment
 venv/
 env/
 .venv/
 
-# YOLO & PyTorch specific
+# YOLO, PyTorch & Weights
 *.pt
 *.pth
 *.onnx
+ai/inference/models/*.pt
+
+# ML/DL Experiment Tracking
 runs/
 wandb/
 mlruns/
+.trash/
+ai/inference/runs/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
 
-# Distribution / Packaging
-build/
-dist/
-*.egg-info/
+# ================================================
+# 2. Mobile & Cross-Platform (Flutter, Dart, Mobile)
+# ================================================
+# Flutter/Dart/Pub
+**/doc/api/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+# pubspec.lock  # Commented out to track dependency versions
+**/coverage/
 
-# ------------------------------------------------
-# 2. C/C++ & Embedded (Control Part)
-# ------------------------------------------------
-# CMake
+# Android Related
+**/android/**/generated/
+**/android/local.properties
+**/android/key.properties
+**/android/**/*.keystore
+**/android/**/*.jks
+**/android/*.iml
+**/android/pickle_android.iml
+
+# iOS Related
+**/ios/Flutter/.last_build_id
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/DerivedData/
+**/ios/Pods/
+**/ios/.symlinks/
+
+# Symbols & Obfuscation
+app.*.symbols
+app.*.map.json
+
+# ================================================
+# 3. C/C++ & Embedded (Control Part)
+# ================================================
+# CMake & Make
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 
-# Compiled Object files
+# Object & Binary files
 *.o
 *.obj
 *.so
 *.dylib
 *.dll
-
-# Executables
 *.exe
 *.out
 *.app
@@ -50,57 +87,9 @@ Makefile
 *.bin
 *.hex
 
-# Build directories
-build/
-bin/
-obj/
-
-# ------------------------------------------------
-# 3. Environment & Secrets (SECURITY FIRST!)
-# ------------------------------------------------
-.env
-.env.local
-.env.*.local
-*.key
-*.pem
-secrets.json
-
-# ------------------------------------------------
-# 4. OS & IDE Settings
-# ------------------------------------------------
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# MacOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# VS Code
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
-# JetBrains (PyCharm, CLion)
-.idea/
-
-# ------------------------------------------------
-# 5. Project Specific Data
-# ------------------------------------------------
-# 데이터셋은 보통 용량이 크므로 Git에 올리지 않고 별도 관리
-data/
-datasets/
-logs/
-*.log
-
-# ------------------------------------------------
-# 6. Docker & Service Runtime
-# ------------------------------------------------
+# ================================================
+# 4. Infrastructure & Database (Docker, Airflow, DB)
+# ================================================
 # Airflow
 airflow/logs/
 airflow/*.pid
@@ -108,29 +97,71 @@ airflow/*.err
 airflow/*.log
 airflow/airflow-webserver.pid
 
-# MLflow
-mlruns/
-.trash/
-
-# Database mounts (if outside data/)
+# Database & Storage
 postgres-data/
 minio-data/
 
+# ================================================
+# 5. Environment, Secrets & Certs
+# ================================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets.json
+certs/
 
-# inference test data
+# ================================================
+# 6. Build, Logs & Project Data
+# ================================================
+build/ 
+bin/
+obj/
+dist/
+*.egg-info/
+.build/
+.buildlog/
+
+# Logs & Datasets
+logs/
+*.log 
+data/
+datasets/
+ai/inference/tests/
 ai/inference/tests/*.jpg
 
-# model weights
-ai/inference/models/*.pt
-
-# experiment outputs
-ai/inference/runs/
-
+# Miscellaneous
+*.bak
+*.tmp
+*.temp
+*.swp
+.history
+.history/
+.svn/
+.swiftpm/
+migrate_working_dir/
 GEMINI.md
 CLAUDE.md
 
-# AI inference test files
-ai/inference/tests/
+# ================================================
+# 7. OS & IDE Settings
+# ================================================
+# Windows & MacOS
+Thumbs.db
+Desktop.ini
+.DS_Store 
 
-# Local SSL Certs
-certs/
+# VS Code
+.vscode/ 
+!.vscode/settings.json 
+!.vscode/tasks.json 
+!.vscode/launch.json 
+!.vscode/extensions.json 
+*.code-workspace
+
+# JetBrains (IntelliJ, PyCharm, etc.)
+**/.idea/ 
+**/*.iml
+**/*.ipr
+**/*.iws
