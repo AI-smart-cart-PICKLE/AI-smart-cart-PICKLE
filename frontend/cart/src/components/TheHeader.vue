@@ -41,16 +41,13 @@ const logout = async () => {
   >
     <!-- Left -->
     <div class="flex items-center gap-3">
-      <div class="bg-primary p-2 rounded-xl">
+      <div class="bg-violet-500 p-2 rounded-xl">
         <span class="material-icons-round text-white">
           shopping_basket
         </span>
       </div>
-      <h1 class="text-xl font-extrabold tracking-tight">
-        Pickle
-        <span class="text-primary text-sm font-bold ml-1 uppercase">
-          Smart Dashboard
-        </span>
+      <h1 class="text-xl font-extrabold text-violet-500 tracking-tight">
+        Pickle Dashboard
       </h1>
     </div>
 
