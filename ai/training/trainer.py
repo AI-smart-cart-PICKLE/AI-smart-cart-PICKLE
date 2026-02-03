@@ -22,7 +22,7 @@ class YOLOTrainer:
 
     def run(self, 
             data_yaml: str,
-            model_name: str = "yolov8s.pt",
+            model_name: str = "yolo11s.pt",
             epochs: int = 50,
             imgsz: int = 640,
             batch: int = 16,
