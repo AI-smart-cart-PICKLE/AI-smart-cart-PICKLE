@@ -38,28 +38,44 @@ export const useCartStore = defineStore("cart", () => {
    * GET /api/carts/{session_id}
    */
   const fetchCartSession = async (cartSessionId) => {
-    const res = await api.get(`/api/carts/${cartSessionId}`);
+    try {
+      const res = await api.get(`/api/carts/${cartSessionId}`);
+      
+      // ACTIVE가 아니면 세션이 없는 것으로 간주
+      if (res.data.status !== 'ACTIVE') {
+        cartSession.value = null;
+        cartItems.value = [];
+        localStorage.removeItem('cart_session_id');
+        return;
+      }
 
-    cartSession.value = {
-      cart_session_id: res.data.cart_session_id,
-      status: res.data.status,
-      device_code: res.data.device_code ?? 'CART-DEVICE-001',
-    };
+      cartSession.value = {
+        cart_session_id: res.data.cart_session_id,
+        status: res.data.status,
+        device_code: res.data.device_code ?? 'CART-DEVICE-001',
+      };
 
-    cartItems.value = (res.data.items ?? []).map((item) => ({
-      cart_item_id: item.cart_item_id,
-      product_id: item.product?.product_id,
+      cartItems.value = (res.data.items ?? []).map((item) => ({
+        cart_item_id: item.cart_item_id,
+        product_id: item.product?.product_id,
 
-      // 프론트 표준 필드
-      product_name: item.product?.name,
-      unit_price: item.unit_price,
-      quantity: item.quantity,
-      image_url: item.product?.image_url,
+        // 프론트 표준 필드
+        product_name: item.product?.name,
+        unit_price: item.unit_price,
+        quantity: item.quantity,
+        image_url: item.product?.image_url,
 
-      // 검증 상태 가공 (임시로 true 처리, 필요시 백엔드 스키마 확장 필요)
-      is_verified: true,
-    }));
+        // 검증 상태 가공 (임시로 true 처리, 필요시 백엔드 스키마 확장 필요)
+        is_verified: true,
+      }));
+    } catch (e) {
+      console.error("Failed to fetch cart session:", e);
+      cartSession.value = null;
+      cartItems.value = [];
+      localStorage.removeItem('cart_session_id');
+    }
   };
+
 
   /**
    * 🔹 카트 세션 생성 (쇼핑 시작)
@@ -164,14 +180,16 @@ const cancelCart = async () => {
   const sessionId = cartSession.value?.cart_session_id;
   if (!sessionId) return;
 
-  await api.post(`/api/carts/${sessionId}/cancel`);
+  try {
+    await api.post(`/api/carts/${sessionId}/cancel`);
+  } catch (e) {
+    console.error("Failed to cancel cart:", e);
+  }
 
+  // 로컬 상태를 명확히 비움
   cartItems.value = [];
-  cartSession.value = {
-    cart_session_id: null,
-    status: "CANCELLED",
-    device_code: "CART-DEVICE-001",
-  };
+  cartSession.value = null;
+  localStorage.removeItem('cart_session_id');
 };
 
 
