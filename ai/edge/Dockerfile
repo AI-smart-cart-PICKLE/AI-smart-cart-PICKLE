@@ -1,28 +1,26 @@
-# Jetson Orin Nano (JetPack 5/6) 및 일반 플랫폼 호환 이미지
-# Jetson: JetPack + CUDA + PyTorch 사전 설치된 베이스 이미지 사용
-# AMD64/ARM64: Ultralytics 공식 이미지 (PyTorch, YOLO 포함)
-FROM ultralytics/ultralytics:latest-jetson
+# JetPack 6.0 (Ubuntu 22.04) 환경에 최적화된 NVIDIA 공식 PyTorch 이미지 사용
+FROM nvcr.io/nvidia/l4t-jetpack:r36.4.0
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 시스템 패키지 설치 (OpenCV 및 PyTorch 연산을 위해 필수)
+# 시스템 패키지 업데이트 및 필수 라이브러리 설치
+# 22.04 기반이므로 libffi.so.8 문제가 발생하지 않습니다.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
     curl \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# 필수 Python 패키지 설치
-# ultralytics, torch, torchvision은 베이스 이미지에 포함되어 있음
-RUN pip install --no-cache-dir \
-    requests \
-    opencv-python-headless
+# Ultralytics 및 필수 패키지 설치
+# (NVIDIA 이미지는 이미 torch가 깔려있으므로 ultralytics만 추가)
+RUN pip3 install --no-cache-dir ultralytics requests opencv-python-headless
 
 # 소스 코드 및 모델 복사
 COPY cart_agent.py .
 COPY best.pt .
 
-# 실행 명령 (환경 변수는 실행 시 주입 권장)
-CMD ["python", "cart_agent.py"]
+# 실행 명령어
+CMD ["python3", "cart_agent.py"]
