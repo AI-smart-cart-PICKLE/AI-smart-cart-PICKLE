@@ -35,7 +35,8 @@ def train(
     project: str = "/data/runs/train",
     name: str = "mlflow_run",
     experiment_name: str = DEFAULT_EXPERIMENT_NAME,
-    model_name: str = "yolov8s.pt"
+    model_name: str = "yolov8s.pt",
+    **kwargs  # 🔥 [NEW] 모든 추가 파라미터를 받음
 ):
     """
     YOLOv8 학습 + MLflow 로깅
@@ -43,6 +44,7 @@ def train(
     Args:
         model_name: 사전학습 모델 (.pt)
         experiment_name: MLflow experiment name
+        **kwargs: model.train()에 전달할 모든 추가 파라미터 (mosaic, mixup, lr0, lrf 등)
     """
 
     # ==============================
@@ -77,47 +79,52 @@ def train(
             device = "cpu"
 
         # ==============================
-        # Log Params
+        # Set Default Hyperparams
         # ==============================
-        mlflow.log_params({
-            "model_name": model_name,
-            "epochs": epochs,
+        # 사용자가 kwargs로 넘기지 않은 경우에만 기본값 적용
+        train_args = {
+            "data": data_yaml,
             "imgsz": imgsz,
+            "epochs": epochs,
             "batch": batch,
             "device": device,
-            "data_yaml": data_yaml
-        })
+            "workers": 0,  # Windows/Linux 호환성 안전값
+            
+            # --- Augmentation Defaults ---
+            "mosaic": 1.0,
+            "mixup": 0.2,
+            "fliplr": 0.5,
+            "hsv_h": 0.015,
+            "hsv_s": 0.7,
+            "hsv_v": 0.4,
+            
+            # --- Stability Defaults ---
+            "amp": True,
+            "deterministic": True,
+            "seed": 0,
+            
+            "project": project,
+            "name": name,
+            "exist_ok": True,
+        }
+        
+        # kwargs로 들어온 값이 있다면 덮어쓰기 (Override)
+        train_args.update(kwargs)
 
-        print("[Training] Start")
+        # ==============================
+        # Log Params
+        # ==============================
+        # 로깅을 위해 model_name도 포함
+        log_params = train_args.copy()
+        log_params["model_name"] = model_name
+        mlflow.log_params(log_params)
+
+        print("[Training] Start with params:", train_args)
 
         # ==============================
         # Train
         # ==============================
-        results = model.train(
-            data=data_yaml,
-            imgsz=imgsz,
-            epochs=epochs,
-            batch=batch,
-            device=device,
-            workers=0,
-
-            # --- Augmentation ---
-            mosaic=1.0,
-            mixup=0.2,
-            fliplr=0.5,
-            hsv_h=0.015,
-            hsv_s=0.7,
-            hsv_v=0.4,
-
-            # --- Stability ---
-            amp=True,
-            deterministic=True,
-            seed=0,
-
-            project=project,
-            name=name,
-            exist_ok=True
-        )
+        results = model.train(**train_args)
 
         # ==============================
         # Metrics
