@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../repository/mock_product_repository.dart';
+import '../repository/http_product_repository.dart';
 import '../repository/product_repository.dart';
 import '../../../domain/models/product.dart';
+import '../../../core/network/dio_provider.dart';
 
 final product_repository_provider = Provider<ProductRepository>((ref) {
-  return MockProductRepository();
+  final dioClient = ref.watch(dioClientProvider);
+  return HttpProductRepository(dio: dioClient.dio);
 });
 
 final search_query_provider = StateProvider<String>((ref) => '');

@@ -14,7 +14,7 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 KAKAO_ADMIN_KEY = os.getenv("KAKAO_ADMIN_KEY")
 
 router = APIRouter(
-    prefix="/api/payments",
+    prefix="/payments",
     tags=["payments"],
     responses={404: {"description": "Not found"}},
 )
@@ -271,7 +271,31 @@ async def get_payment_detail(
     current_user: models.AppUser = Depends(get_current_user) # 👈 로그인 유저
 ):
     # 본인 결제 내역만 조회 가능
-    return get_payment_or_404(payment_id, current_user.user_id, db)
+    payment = get_payment_or_404(payment_id, current_user.user_id, db)
+    
+    # Pydantic 모델로 변환 (기본 필드)
+    response = schemas.PaymentDetailResponse.model_validate(payment)
+    
+    # 아이템 목록 채우기 (CartSession -> items)
+    if payment.session and payment.session.items:
+        items_list = []
+        for item in payment.session.items:
+            # CartItemResponse 구조에 맞게 변환
+            # item.product가 Lazy Loading 될 수 있으므로 접근
+            product_simple = schemas.ProductSimpleResponse.model_validate(item.product)
+            
+            cart_item_res = schemas.CartItemResponse(
+                cart_item_id=item.cart_item_id,
+                product=product_simple,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                total_price=item.unit_price * item.quantity
+            )
+            items_list.append(cart_item_res)
+        
+        response.items = items_list
+        
+    return response
 
 
 # --- 5. 결제 취소(환불) ---

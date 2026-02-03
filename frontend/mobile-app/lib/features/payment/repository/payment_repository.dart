@@ -15,9 +15,17 @@ abstract class PaymentRepository {
     required bool save_card,
   });
 
-  Future<String> start_kakao_pay_checkout({
+  // Step 1: 결제 준비 (Returns PaymentReadyResponse with URL & TID)
+  Future<PaymentReadyResponse> prepare_kakao_pay({
+    required int cart_session_id,
     required int amount,
     required int using_points,
     required String? coupon_id,
+  });
+
+  // Step 2: 결제 승인 (Returns Receipt ID)
+  Future<String> approve_kakao_pay({
+    required String tid,
+    required String pg_token,
   });
 }

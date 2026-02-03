@@ -23,11 +23,13 @@ class CartItem {
 }
 
 class CartSummary {
+  final int cart_session_id;
   final List<CartItem> items;
   final int subtotal;
   final int total;
 
   const CartSummary({
+    required this.cart_session_id,
     required this.items,
     required this.subtotal,
     required this.total,

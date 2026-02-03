@@ -1,14 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../../core/network/dio_provider.dart';
 import '../repository/account_repository.dart';
-import '../repository/mock_account_repository.dart';
+import '../repository/http_account_repository.dart';
 import '../../../domain/models/user_profile.dart';
 import '../../../domain/models/spending.dart';
 
 final Provider<AccountRepository> account_repository_provider =
-Provider<AccountRepository>(
-      (ProviderRef<AccountRepository> ref) => MockAccountRepository(),
-);
+Provider<AccountRepository>((ProviderRef<AccountRepository> ref) {
+  final dioClient = ref.watch(dioClientProvider);
+  return HttpAccountRepository(dio: dioClient.dio);
+});
 
 final FutureProvider<UserProfile> my_profile_provider =
 FutureProvider<UserProfile>(

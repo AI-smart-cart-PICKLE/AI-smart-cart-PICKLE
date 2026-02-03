@@ -15,7 +15,8 @@ final baseUrlProvider = Provider<String>((ref) {
 
   // 2. 웹 브라우저(크롬)에서 실행 시
   if (kIsWeb) {
-    return 'http://localhost:8000';
+    // localhost 대신 127.0.0.1 사용 (일부 윈도우 환경 호환성)
+    return 'http://127.0.0.1:8000';
   }
 
   // 3. 윈도우/맥/리눅스 데스크톱 앱에서 실행 시

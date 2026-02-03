@@ -16,7 +16,7 @@ from calendar import monthrange
 
 
 router = APIRouter(
-    prefix="/api/ledger",
+    prefix="/ledger",
     tags=["ledger"],
 )
 

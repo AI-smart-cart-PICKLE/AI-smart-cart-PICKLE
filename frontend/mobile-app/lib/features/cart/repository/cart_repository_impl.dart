@@ -10,41 +10,42 @@ class CartRepositoryImpl implements CartRepository {
   @override
   Future<CartSummary> fetch_cart_summary() async {
     try {
-      final response = await _dioClient.dio.get('/api/carts/items');
+      // 1. 내 현재 활성 세션 조회
+      final response = await _dioClient.dio.get('/carts/current');
+      final data = response.data;
       
-      // API 응답이 리스트라고 가정 (List<dynamic>)
-      final List<dynamic> data = response.data;
-      
+      final int cartSessionId = data['cart_session_id'];
+      final List<dynamic> itemsData = data['items'] ?? [];
       final List<CartItem> items = [];
       
-      for (var itemJson in data) {
-        // API 필드 매핑 (예상)
-        // product_id, name, price, quantity, weight 등
-        final String productId = itemJson['product_id'].toString();
-        final String name = itemJson['name'] ?? '알 수 없는 상품';
-        final int price = itemJson['price'] ?? 0;
+      for (var itemJson in itemsData) {
+        final product = itemJson['product'];
+        final String productId = product['product_id'].toString();
+        final String name = product['name'] ?? '알 수 없는 상품';
+        final int price = product['price'] ?? 0;
         final int quantity = itemJson['quantity'] ?? 1;
-        final int weight = itemJson['weight'] ?? 0;
         
-        // option_label 구성 (예: "500g")
-        final String optionLabel = weight > 0 ? '${weight}g' : '';
-
-        // 수량만큼 CartItem 생성하여 리스트에 추가 (UI가 개별 아이템 표시 구조이므로)
+        // CartItem Response 구조에 맞게 생성
         for (int i = 0; i < quantity; i++) {
           items.add(CartItem(
             product_id: productId,
             name: name,
-            option_label: optionLabel,
+            option_label: '', // 필요 시 추가 파싱
             price: price,
           ));
         }
       }
 
-      final int subtotal = items.fold<int>(0, (p, c) => p + c.price);
-      // 현재는 할인 등이 없으므로 total = subtotal
-      return CartSummary(items: items, subtotal: subtotal, total: subtotal);
+      final int subtotal = data['total_amount'] ?? 0;
+      return CartSummary(
+        cart_session_id: cartSessionId,
+        items: items, 
+        subtotal: subtotal, 
+        total: subtotal
+      );
       
     } catch (e) {
+      print('fetch_cart_summary error: $e');
       throw Exception('장바구니 정보를 불러오는데 실패했습니다: $e');
     }
   }

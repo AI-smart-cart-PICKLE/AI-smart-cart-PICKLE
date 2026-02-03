@@ -13,7 +13,7 @@ from app.schemas import UserNicknameUpdate, UserPasswordUpdate
 from datetime import datetime
 
 
-router = APIRouter(prefix="/api", tags=["User"])
+router = APIRouter(prefix="", tags=["User"])
 
 
 # 회원가입
