@@ -20,7 +20,7 @@ app = FastAPI(
 
 import os
 
-# CORS 
+# CORS
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 origins = [
     frontend_url,
@@ -28,6 +28,8 @@ origins = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://bapsim.site",
+    "http://bapsim.site",
 ]
 
 app.add_middleware(
@@ -39,8 +41,12 @@ app.add_middleware(
 )
 
 # 라우터 등록 (만들어둔 API 연결)
-app.include_router(user.router)
-app.include_router(auth.router)
+# user.py의 2개 라우터
+app.include_router(user.auth_router)  # /auth/signup, /auth/login, /auth/logout
+app.include_router(user.user_router)  # /users/me, /users/me/nickname, etc.
+
+# 나머지 라우터
+app.include_router(auth.router)       # /auth/refresh, /auth/google, /auth/kakao
 app.include_router(product.router)
 app.include_router(cart.router)
 app.include_router(payment.router)

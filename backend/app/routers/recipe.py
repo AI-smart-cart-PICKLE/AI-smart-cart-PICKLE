@@ -5,7 +5,7 @@ from typing import List
 from .. import models, schemas, database
 
 router = APIRouter(
-    prefix="/api/recipes",
+    prefix="/recipes",
     tags=["recipes"],
 )
 
