@@ -1,12 +1,14 @@
 import 'package:dio/dio.dart';
 import '../../../domain/models/user.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/token_storage.dart';
 import 'auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final DioClient _dioClient;
+  final TokenStorage _tokenStorage;
 
-  AuthRepositoryImpl(this._dioClient);
+  AuthRepositoryImpl(this._dioClient, this._tokenStorage);
 
   @override
   Future<User> login({required String email, required String password}) async {
@@ -23,6 +25,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final accessToken = response.data['access_token'];
       _dioClient.setAccessToken(accessToken);
+      await _tokenStorage.saveToken(accessToken);
 
       // 로그인 성공 후 내 정보 가져오기
       return await getUserMe();
@@ -35,7 +38,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<User> signup({
+  Future<void> signup({
     required String email,
     required String password,
     required String nickname,
@@ -51,8 +54,7 @@ class AuthRepositoryImpl implements AuthRepository {
         },
       );
       
-      // 회원가입 성공 후 바로 로그인 시도
-      return await login(email: email, password: password);
+      // 회원가입 성공 후 바로 로그인 시도하던 로직 제거
     } catch (e) {
       throw Exception('회원가입 실패: $e');
     }
@@ -75,6 +77,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 로그아웃은 보통 프론트에서 토큰만 삭제하면 됨 (서버 호출 선택 사항)
       _dioClient.clearAccessToken();
+      await _tokenStorage.deleteToken();
     } catch (e) {
       // 무시
     }

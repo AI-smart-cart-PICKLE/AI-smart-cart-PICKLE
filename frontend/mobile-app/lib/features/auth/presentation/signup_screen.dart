@@ -74,10 +74,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원가입이 완료되었습니다!'))
+          const SnackBar(content: Text('회원가입이 완료되었습니다! 로그인해주세요.'))
         );
-        // 회원가입 성공 시 authRepo.signup 내부에서 로그인을 수행하므로 바로 홈으로 이동
-        context.go(AppRoutes.home);
+        // 회원가입 성공 시 로그인 화면으로 이동
+        context.go(AppRoutes.login);
       }
     } catch (e) {
       if (mounted) {

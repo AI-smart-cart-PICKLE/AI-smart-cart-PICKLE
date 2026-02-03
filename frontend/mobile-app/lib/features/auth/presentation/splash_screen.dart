@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/storage/token_storage.dart';
+import '../../../core/network/dio_provider.dart';
+import 'auth_providers.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -49,12 +52,42 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     _controller.forward();
 
-    // Navigate after animation
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        context.go(AppRoutes.login);
+    // Check auth status
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    // 최소 2초 대기 (애니메이션 시간 확보)
+    await Future.delayed(const Duration(milliseconds: 2000));
+
+    if (!mounted) return;
+
+    try {
+      final tokenStorage = ref.read(tokenStorageProvider);
+      final token = await tokenStorage.getToken();
+
+      if (token != null) {
+        // 토큰이 있으면 Dio에 설정하고 유저 정보 가져오기 시도
+        ref.read(dioClientProvider).setAccessToken(token);
+        
+        try {
+          // 유저 정보 조회 성공 시 홈으로 이동
+          await ref.read(authRepositoryProvider).getUserMe();
+          if (mounted) context.go(AppRoutes.home);
+          return;
+        } catch (e) {
+          // 토큰 만료 또는 에러 시 로그인 화면으로
+          // (선택 사항: 토큰 삭제)
+          await tokenStorage.deleteToken();
+        }
       }
-    });
+      
+      // 토큰이 없거나 유효하지 않으면 로그인 화면으로
+      if (mounted) context.go(AppRoutes.login);
+      
+    } catch (e) {
+      if (mounted) context.go(AppRoutes.login);
+    }
   }
 
   @override

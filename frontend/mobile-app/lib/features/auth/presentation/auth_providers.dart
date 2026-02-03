@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_provider.dart';
+import '../../../core/storage/token_storage.dart';
 import '../../../domain/models/user.dart';
 import '../repository/auth_repository.dart';
 import '../repository/auth_repository_impl.dart';
@@ -7,7 +8,8 @@ import '../repository/auth_repository_impl.dart';
 // AuthRepository 구현체를 제공하는 Provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final dioClient = ref.watch(dioClientProvider);
-  return AuthRepositoryImpl(dioClient);
+  final tokenStorage = ref.watch(tokenStorageProvider);
+  return AuthRepositoryImpl(dioClient, tokenStorage);
 });
 
 // 현재 로그인한 사용자 정보를 관리하는 StateProvider (예시)

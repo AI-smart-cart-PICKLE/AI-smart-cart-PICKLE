@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../domain/models/cart.dart';
 import 'cart_repository.dart';
@@ -46,11 +45,7 @@ class CartRepositoryImpl implements CartRepository {
       return CartSummary(items: items, subtotal: subtotal, total: subtotal);
       
     } catch (e) {
-      // 에러 처리: 빈 카트 반환하거나 에러 전파
-      // throw Exception('장바구니 정보를 불러오는데 실패했습니다: $e');
-      // 우선 빈 카트 반환으로 처리 (UI 에러 방지) 또는 에러 로그
-      print('Cart fetch error: $e');
-      return const CartSummary(items: [], subtotal: 0, total: 0);
+      throw Exception('장바구니 정보를 불러오는데 실패했습니다: $e');
     }
   }
 }
