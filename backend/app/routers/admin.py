@@ -16,6 +16,7 @@ AI_SERVER_URL = "http://ai_inference:8000"
 class TrainRequest(BaseModel):
     epochs: int = 10
     experiment_name: str = "manual_trigger"
+    model_name: str = "yolo11s.pt"  # yolov8n.pt, yolov8s.pt, yolov8m.pt, yolo11n.pt 등
 
 @router.post("/train")
 def trigger_training(req: TrainRequest):

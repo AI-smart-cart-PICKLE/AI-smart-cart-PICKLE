@@ -12,5 +12,5 @@ requests
 jupyterlab
 matplotlib
 python-multipart
-mlflow>=3.0.0
+mlflow==3.8.1
 boto3
