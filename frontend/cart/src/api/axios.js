@@ -1,4 +1,4 @@
-// axios.js
+// axios.js 
 import axios from 'axios'
 
 const api = axios.create({
@@ -27,7 +27,7 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const res = await axios.post(
+        const res = await api.post(
           '/auth/refresh',
           {},
           { withCredentials: true }

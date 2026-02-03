@@ -39,12 +39,12 @@ function onScanFail() {
       📍 위치 찾기
     </button>
 
-    <!-- ➕ 상품 추가 (카메라) -->
+    <!-- ✚ 상품 추가 (카메라) -->
     <button
-      class="flex-1 py-5 rounded-xl bg-green-400 font-bold text-sm"
+      class="flex-1 py-5 rounded-xl bg-violet-500 text-white font-bold text-sm shadow-lg shadow-violet-500/20"
       @click="showCamera = true"
     >
-      ➕ 상품 추가
+      ✚ 상품 추가
     </button>
 
     <!-- 🔍 위치 찾기 모달 -->

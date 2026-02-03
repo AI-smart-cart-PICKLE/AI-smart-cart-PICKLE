@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 import requests
 import os
 
@@ -17,6 +17,9 @@ class TrainRequest(BaseModel):
     epochs: int = 10
     experiment_name: str = "manual_trigger"
     model_name: str = "yolo11s.pt"  # yolov8n.pt, yolov8s.pt, yolov8m.pt, yolo11n.pt 등
+    
+    # 추가 파라미터 허용 (mosaic, lr0 등)
+    model_config = ConfigDict(extra="allow")
 
 @router.post("/train")
 def trigger_training(req: TrainRequest):
@@ -24,7 +27,7 @@ def trigger_training(req: TrainRequest):
     [Admin] 모델 재학습 요청을 AI 서버(CPU)로 중계합니다.
     """
     url = f"{AI_SERVER_URL}/train"
-    payload = req.dict()
+    payload = req.model_dump() # Pydantic v2 권장
     
     print(f"[Admin] Forwarding training request to {url} with {payload}")
     
