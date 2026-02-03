@@ -165,10 +165,11 @@ deploy:
     - echo "Executing Remote Deployment Commands..."
     - >
       ssh $EC2_USER@$EC2_HOST "
-        cd ~/workspaces/S14P11A202 && 
+        cd ~/workspaces/S14P11A202 &&
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin &&
-        docker compose pull && 
+        docker compose pull &&
         docker compose --profile cpu up -d --remove-orphans &&
+        docker compose restart nginx &&
         docker image prune -f
       "
   rules:
