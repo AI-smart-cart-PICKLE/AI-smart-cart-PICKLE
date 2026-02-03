@@ -441,6 +441,37 @@ def cancel_cart_session(
     }
 
 
+# --- 무게 검증 및 결제 요청 (Checkout) ---
+@router.post("/{session_id}/checkout")
+def checkout_cart_session(
+    session_id: int,
+    db: Session = Depends(database.get_db)
+):
+    """
+    웹 키오스크(카트)에서 '결제하기' 버튼을 눌렀을 때 호출됩니다.
+    세션 상태를 CHECKOUT_REQUESTED로 변경하여 모바일 앱에 알림을 줍니다.
+    """
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == session_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="카트 세션을 찾을 수 없습니다.")
+
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="결제 요청이 가능한 상태가 아닙니다.")
+
+    # 상태 변경
+    session.status = models.CartSessionStatus.CHECKOUT_REQUESTED
+    db.commit()
+
+    return {
+        "message": "결제 요청이 완료되었습니다. 모바일 앱에서 결제를 진행해 주세요.",
+        "cart_session_id": session.cart_session_id,
+        "status": session.status.value
+    }
+
+
 # 카메라 뷰 on
 @router.post("/{cart_session_id}/camera/view/on")
 def camera_view_on(

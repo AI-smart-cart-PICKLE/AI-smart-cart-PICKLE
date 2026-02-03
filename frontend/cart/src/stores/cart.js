@@ -165,27 +165,18 @@ const addItemByBarcode = async (barcode) => {
   };
 
   /**
-   * 🔹 결제 요청 (무게 검증 없이 즉시 결제)
-   * POST /api/payments/subscription/pay
+   * 🔹 결제 요청 (모바일 앱으로 결제 신호 전송)
+   * POST /api/carts/{session_id}/checkout
    */
   const checkout = async () => {
     const sessionId = cartSession.value?.cart_session_id;
-    const amount = estimatedTotal.value;
-
     if (!sessionId) throw new Error("결제할 세션이 없습니다.");
 
-    await api.post("/payments/subscription/pay", null, {
-      params: {
-        cart_session_id: sessionId,
-        amount: amount,
-        item_name: "스마트 장바구니 결제"
-      }
-    });
+    // 백엔드의 세션 상태를 CHECKOUT_REQUESTED로 변경
+    await api.post(`/carts/${sessionId}/checkout`);
 
-    // 결제 성공 후 로컬 상태 초기화
-    cartItems.value = [];
-    cartSession.value = null;
-    localStorage.removeItem('cart_session_id');
+    // 로컬 상태 업데이트 (화면 전환 유도)
+    cartSession.value.status = 'CHECKOUT_REQUESTED';
   };
 
   /**

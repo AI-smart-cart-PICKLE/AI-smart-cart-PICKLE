@@ -15,6 +15,7 @@ class CartRepositoryImpl implements CartRepository {
       final data = response.data;
       
       final int cartSessionId = data['cart_session_id'];
+      final String status = data['status'] ?? 'ACTIVE';
       final List<dynamic> itemsData = data['items'] ?? [];
       final List<CartItem> items = [];
       
@@ -39,6 +40,7 @@ class CartRepositoryImpl implements CartRepository {
       final int subtotal = data['total_amount'] ?? 0;
       return CartSummary(
         cart_session_id: cartSessionId,
+        status: status,
         items: items, 
         subtotal: subtotal, 
         total: subtotal
