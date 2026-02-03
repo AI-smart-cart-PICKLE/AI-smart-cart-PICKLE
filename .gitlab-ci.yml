@@ -103,6 +103,10 @@ build-airflow:
 deploy:
   stage: deploy
   image: alpine:latest
+  needs:
+    - job: build-frontend
+      artifacts: true
+      optional: true
   before_script:
     - apk add --no-cache openssh-client rsync
     - eval $(ssh-agent -s)
@@ -122,8 +126,14 @@ deploy:
     # feat 브랜치의 수정사항: init-db.sh, nginx 설정 포함 업로드
     - scp docker-compose.yml init-db.sh nginx-ssl-prod.conf $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
 
-    - echo "Uploading frontend build files..."
-    - rsync -avz --delete -e "ssh" frontend/web-kiosk/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/web-kiosk/dist/
+    - echo "Uploading frontend build files (if available)..."
+    - |
+      if [ -d "frontend/web-kiosk/dist" ]; then
+        rsync -avz --delete -e "ssh" frontend/web-kiosk/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/web-kiosk/dist/
+        echo "Frontend files uploaded successfully"
+      else
+        echo "No frontend build artifacts found - skipping frontend upload"
+      fi
 
     - echo "Generating .env file on EC2..."
     - |
