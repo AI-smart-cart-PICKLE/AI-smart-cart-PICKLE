@@ -1,7 +1,7 @@
 """add camera_on to cart_session
 
 Revision ID: 3fd7de1c788e
-Revises: 45a09416681f
+Revises: 4e8c53bbb5bf
 Create Date: 2026-01-30 09:57:10.020006
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '3fd7de1c788e'
-down_revision: Union[str, Sequence[str], None] = '45a09416681f'
+down_revision: Union[str, Sequence[str], None] = '4e8c53bbb5bf'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,8 +1,6 @@
 fastapi==0.128.0
 uvicorn[standard]
 numpy==1.26.4
-torch==2.3.1
-torchvision
 torchaudio
 ultralytics==8.4.2
 opencv-python-headless>=4.8
@@ -14,5 +12,5 @@ requests
 jupyterlab
 matplotlib
 python-multipart
-mlflow>=3.0.0
+mlflow==3.8.1
 boto3

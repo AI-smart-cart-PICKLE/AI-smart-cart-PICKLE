@@ -4,6 +4,7 @@ from datetime import datetime, date
 from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType, UserProvider
 import re
 
+
 # =========================================================
 # 💳 Payment Method Schemas (결제 수단)
 # =========================================================
@@ -247,6 +248,15 @@ class GoogleOAuthRequest(BaseModel):
 # 🛒 Cart Schemas (장바구니)
 # =========================================================
 
+# 기기 기반 상품 동기화 (AI 추론 서버용)
+class CartSyncItem(BaseModel):
+    product_name: str
+    quantity: int
+
+class CartSyncRequest(BaseModel):
+    device_code: str
+    items: List[CartSyncItem]
+
 class CartItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(default=1, ge=1)
@@ -350,6 +360,28 @@ class ProductResponse(BaseModel):
     stock_quantity: Optional[int] = 0
     image_url: Optional[str] = None
     product_info: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        from_attributes = True
 
+class RecipeIngredientResponse(BaseModel):
+    product_id: int
+    name: str
+    quantity_info: Optional[str] = None
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class RecipeDetailResponse(BaseModel):
+    recipe_id: int
+    title: str
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+    image_url: Optional[str] = None
+    
+    # 조리 재료
+    ingredients: List[RecipeIngredientResponse] = []
+    
     class Config:
         from_attributes = True
