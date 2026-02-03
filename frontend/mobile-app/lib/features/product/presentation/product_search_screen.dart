@@ -56,6 +56,7 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
                 children: <Widget>[
                   TextField(
                     controller: search_controller,
+                    textInputAction: TextInputAction.search,
                     decoration: const InputDecoration(
                       hintText: "예: '유기농 아보카도' 또는 '우유'",
                       prefixIcon: Icon(Icons.search),

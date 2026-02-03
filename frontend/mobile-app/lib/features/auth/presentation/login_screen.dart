@@ -62,8 +62,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     });
 
     try {
-      // AuthProvider 임포트가 필요할 수 있음 (상단 자동 추가 확인 필요)
-      // 현재 auth_providers.dart 위치: features/auth/presentation/auth_providers.dart
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.login(email: email, password: password);
       
@@ -94,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
         elevation: 0,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: SlideTransition(
             position: _slide_animation,
@@ -114,6 +112,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 const SizedBox(height: 48),
                 TextField(
                   controller: _email_controller,
+                  style: const TextStyle(color: Colors.black),
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: '이메일',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -131,6 +131,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 TextField(
                   controller: _password_controller,
                   obscureText: true,
+                  style: const TextStyle(color: Colors.black),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _handle_login(),
                   decoration: InputDecoration(
                     labelText: '비밀번호',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -149,10 +152,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                   label: _is_loading ? '로그인 중...' : '로그인',
                   on_pressed: _is_loading ? () {} : _handle_login,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        '또는',
+                        style: TextStyle(
+                          color: AppColors.text_secondary.withOpacity(0.5),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _SocialLoginButton(
+                  label: '카카오로 시작하기',
+                  onPressed: () {
+                    // TODO: 카카오 로그인 연동
+                  },
+                  backgroundColor: const Color(0xFFFEE500),
+                  textColor: Colors.black.withOpacity(0.85),
+                  icon: const Icon(Icons.chat_bubble, color: Colors.black, size: 18),
+                ),
+                const SizedBox(height: 12),
+                _SocialLoginButton(
+                  label: 'Google로 시작하기',
+                  onPressed: () {
+                    // TODO: 구글 로그인 연동
+                  },
+                  backgroundColor: Colors.white,
+                  textColor: Colors.black.withOpacity(0.54),
+                  icon: Image.network(
+                    'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
+                    width: 20,
+                    height: 20,
+                    errorBuilder: (context, error, stackTrace) => const Text(
+                      'G',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                const SizedBox(height: 24),
                 Center(
                   child: TextButton(
-                    onPressed: () => context.push(AppRoutes.signup),
+                    onPressed: () {
+                      _email_controller.clear();
+                      _password_controller.clear();
+                      context.push(AppRoutes.signup);
+                    },
                     child: Text(
                       '아직 회원이 아니신가요? 회원가입',
                       style: TextStyle(
@@ -163,7 +221,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
                 Center(
                   child: Text(
                     '로그인에 문제가 있나요?',
@@ -179,6 +237,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialLoginButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final Color backgroundColor;
+  final Color textColor;
+  final Widget icon;
+  final BoxBorder? border;
+
+  const _SocialLoginButton({
+    required this.label,
+    required this.onPressed,
+    required this.backgroundColor,
+    required this.textColor,
+    required this.icon,
+    this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: backgroundColor,
+          side: border != null && border is Border 
+              ? BorderSide(color: (border as Border).top.color) 
+              : BorderSide.none,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: icon,
+              ),
+            ),
+            Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

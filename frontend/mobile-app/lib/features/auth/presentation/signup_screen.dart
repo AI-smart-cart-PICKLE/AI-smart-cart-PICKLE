@@ -102,7 +102,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          onPressed: () => context.pop(),
+          onPressed: () {
+            _nickname_controller.clear();
+            _email_controller.clear();
+            _password_controller.clear();
+            context.pop();
+          },
           icon: Icon(Icons.arrow_back, color: AppColors.text_primary),
         ),
       ),
@@ -127,6 +132,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 const SizedBox(height: 48),
                 TextField(
                   controller: _nickname_controller,
+                  style: const TextStyle(color: Colors.black),
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: '닉네임',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -143,6 +150,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 const SizedBox(height: 16),
                 TextField(
                   controller: _email_controller,
+                  style: const TextStyle(color: Colors.black),
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: '이메일',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -160,6 +169,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 TextField(
                   controller: _password_controller,
                   obscureText: true,
+                  style: const TextStyle(color: Colors.black),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _handle_signup(),
                   decoration: InputDecoration(
                     labelText: '비밀번호',
                     labelStyle: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w700),
@@ -176,12 +188,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                 const SizedBox(height: 32),
                 PrimaryButton(
                   label: _is_loading ? '가입 중...' : '회원가입 완료',
-                  on_pressed: _is_loading ? () {} : _handle_signup,
+                  on_pressed: _is_loading ? () {} : () async {
+                    await _handle_signup();
+                    _nickname_controller.clear();
+                    _email_controller.clear();
+                    _password_controller.clear();
+                  },
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: TextButton(
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      _nickname_controller.clear();
+                      _email_controller.clear();
+                      _password_controller.clear();
+                      context.pop();
+                    },
                     child: Text(
                       '이미 계정이 있으신가요? 로그인',
                       style: TextStyle(

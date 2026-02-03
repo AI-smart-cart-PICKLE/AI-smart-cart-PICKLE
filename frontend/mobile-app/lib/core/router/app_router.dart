@@ -29,7 +29,7 @@ import '../../features/payment/presentation/digital_receipt_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.splash,
+    initialLocation: AppRoutes.login,
     routes: <RouteBase>[
       GoRoute(path: AppRoutes.splash, builder: (c, s) => const SplashScreen()),
       GoRoute(path: AppRoutes.login, builder: (c, s) => const LoginScreen()),
