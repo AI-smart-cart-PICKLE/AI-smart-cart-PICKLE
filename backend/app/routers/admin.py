@@ -10,8 +10,8 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-# AI 서버 주소 (CPU 모드 고정)
-AI_SERVER_URL = "http://ai_inference:8000"
+# AI 서버 주소 (환경변수 처리)
+AI_SERVER_URL = os.getenv("AI_INFERENCE_URL", "http://ai_inference:8000")
 
 class TrainRequest(BaseModel):
     epochs: int = 10

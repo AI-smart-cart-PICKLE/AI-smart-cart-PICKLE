@@ -104,3 +104,32 @@ def get_product_location(
         "zone_code": category.zone_code,
         "aisle": category.zone_code.split("-")[0],  # A / B / C
     }
+
+# 바코드로 상품 조회
+@router.get("/barcode/{barcode}")
+def get_product_by_barcode(
+    barcode: str,
+    db: Session = Depends(get_db)
+):
+    clean_barcode = barcode.strip()
+
+    product = (
+        db.query(Product)
+        .filter(Product.barcode == clean_barcode)
+        .first()
+    )
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="상품을 찾을 수 없습니다."
+        )
+
+    return {
+        "product_id": product.product_id,
+        "name": product.name,
+        "price": product.price,
+        "stock_quantity": product.stock_quantity,
+        "image_url": product.image_url,
+        "barcode": product.barcode,
+    }

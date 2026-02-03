@@ -45,7 +45,7 @@ def req(method, endpoint, payload=None, auth=False, expected_status=[200, 201]):
         elif method == "PATCH":
             response = requests.patch(url, headers=headers, cookies=COOKIES, json=payload, verify=False, timeout=5)
         elif method == "DELETE":
-            response = requests.delete(url, headers=headers, cookies=COOKIES, verify=False, timeout=5)
+            response = requests.delete(url, headers=headers, cookies=COOKIES, json=payload, verify=False, timeout=5)
         elif method == "PUT":
             response = requests.put(url, headers=headers, cookies=COOKIES, json=payload, verify=False, timeout=5)
         
@@ -99,14 +99,15 @@ def main():
             sys.exit(1)
 
     # 내 정보 조회
-    me = req("GET", "/users/me", auth=True)
+    user_info = req("GET", "/users/me", auth=True)
+    user_id = user_info["user_id"] if user_info else 1
     
     # 닉네임 변경
     req("PATCH", "/users/me/nickname", {"nickname": "NewTester"}, auth=True)
     
     # 3. Product Flow
     print("\n--- [Product Flow] ---")
-    products = req("GET", "/products/", auth=True) # Auth not required but sending anyway
+    products = req("GET", "/products/", auth=True) 
     
     if products and isinstance(products, list) and len(products) > 0:
         GLOBAL_STATE["product_id"] = products[0]["product_id"]
@@ -116,8 +117,10 @@ def main():
         req("GET", f"/products/{GLOBAL_STATE['product_id']}", auth=True)
         # 위치 조회
         req("GET", f"/products/{GLOBAL_STATE['product_id']}/location", auth=True)
-        # AI 추천
+        # AI 추천 (pgvector)
         req("GET", f"/recommendations/by-product/{GLOBAL_STATE['product_id']}", auth=True)
+        # Barcode 조회 (스팸 바코드)
+        req("GET", "/products/barcode/8801000000001", auth=True)
     else:
         log("Product Check", "No products found in DB. Skipping dependent tests.", "WARN")
 
@@ -162,22 +165,44 @@ def main():
         # 카트 취소
         req("POST", f"/carts/{sid}/cancel", auth=True)
 
-    # 5. Payment & Ledger Flow (Read-Only)
+    # 5. AI & Admin Flow (NEW)
+    print("\n--- [AI & Admin Flow] ---")
+    
+    # 5-1. AI Training Trigger (Admin)
+    # AI 서버 연결 실패(503)도 성공으로 간주 (Test 목적: 라우터 도달 여부)
+    req("POST", "/admin/train", {
+        "epochs": 1,
+        "experiment_name": "smoke_test",
+        "model_name": "yolo11n.pt"
+    }, auth=True, expected_status=[200, 503, 500])
+
+    # 5-2. AI Edge Sync (Cart)
+    # 실제 디바이스가 보내는 요청 시뮬레이션
+    req("POST", "/carts/sync-by-device", {
+        "device_code": "CART-DEVICE-001",
+        "items": [
+            {"product_name": "신라면", "quantity": 1},
+            {"product_name": "스팸 200g", "quantity": 2}
+        ]
+    }, expected_status=[200])
+
+
+    # 6. Payment & Ledger Flow (Read-Only)
     print("\n--- [Payment & Ledger Flow] ---")
     req("GET", "/payments/methods", auth=True)
     
-    # 가계부 (데이터 없어도 200 OK)
-    req("GET", "/ledger", auth=True)
+    # 가계부 (수정: user_id 쿼리 추가)
+    req("GET", f"/ledger?user_id={user_id}", auth=True)
     req("GET", "/ledger/calendar?year=2026&month=2", auth=True)
     req("GET", "/ledger/summary/monthly?year=2026&month=2", auth=True)
     req("GET", "/ledger/top-categories?year=2026&month=2", auth=True)
 
-    # 6. Recipe Flow (Read-Only)
+    # 7. Recipe Flow (Read-Only)
     print("\n--- [Recipe Flow] ---")
     # 레시피 ID 1번 조회 시도 (없으면 404)
     req("GET", "/recipes/1", auth=True, expected_status=[200, 404])
 
-    # 7. Cleanup (Withdraw)
+    # 8. Cleanup (Withdraw)
     print("\n--- [Cleanup] ---")
     req("DELETE", "/users/me", auth=True, payload={"password": GLOBAL_STATE["user_password"]})
     req("POST", "/auth/logout", auth=True)
