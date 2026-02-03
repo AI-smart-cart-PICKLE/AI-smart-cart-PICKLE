@@ -38,7 +38,7 @@ const handleCheckoutSuccess = () => {
         <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
           Total Amount
         </p>
-        <p class="text-2xl font-black text-green-400">
+        <p class="text-2xl font-black text-white">
           {{ cartStore.estimatedTotal.toLocaleString() }}원
         </p>
       </div>
@@ -60,10 +60,10 @@ const handleCheckoutSuccess = () => {
       @click="openCheckoutModal"
       class="
         px-8 py-2.5
-        bg-green-400 text-slate-900
+        bg-violet-500 text-white
         rounded-xl
         font-bold text-base
-        hover:bg-green-300
+        hover:bg-violet-600
         active:scale-95
         transition-all
         shadow-md
