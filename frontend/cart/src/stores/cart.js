@@ -38,35 +38,51 @@ export const useCartStore = defineStore("cart", () => {
    * GET /api/carts/{session_id}
    */
   const fetchCartSession = async (cartSessionId) => {
-    const res = await api.get(`/api/carts/${cartSessionId}`);
+    try {
+      const res = await api.get(`/carts/${cartSessionId}`);
+      
+      // ACTIVE가 아니면 세션이 없는 것으로 간주
+      if (res.data.status !== 'ACTIVE') {
+        cartSession.value = null;
+        cartItems.value = [];
+        localStorage.removeItem('cart_session_id');
+        return;
+      }
 
-    cartSession.value = {
-      cart_session_id: res.data.cart_session_id,
-      status: res.data.status,
-      device_code: res.data.device_code ?? 'CART-DEVICE-001',
-    };
+      cartSession.value = {
+        cart_session_id: res.data.cart_session_id,
+        status: res.data.status,
+        device_code: res.data.device_code ?? 'CART-DEVICE-001',
+      };
 
-    cartItems.value = (res.data.items ?? []).map((item) => ({
-      cart_item_id: item.cart_item_id,
-      product_id: item.product?.product_id,
+      cartItems.value = (res.data.items ?? []).map((item) => ({
+        cart_item_id: item.cart_item_id,
+        product_id: item.product?.product_id,
 
-      // 프론트 표준 필드
-      product_name: item.product?.name,
-      unit_price: item.unit_price,
-      quantity: item.quantity,
-      image_url: item.product?.image_url,
+        // 프론트 표준 필드
+        product_name: item.product?.name,
+        unit_price: item.unit_price,
+        quantity: item.quantity,
+        image_url: item.product?.image_url,
 
-      // 검증 상태 가공 (임시로 true 처리, 필요시 백엔드 스키마 확장 필요)
-      is_verified: true,
-    }));
+        // 검증 상태 가공 (임시로 true 처리, 필요시 백엔드 스키마 확장 필요)
+        is_verified: true,
+      }));
+    } catch (e) {
+      console.error("Failed to fetch cart session:", e);
+      cartSession.value = null;
+      cartItems.value = [];
+      localStorage.removeItem('cart_session_id');
+    }
   };
+
 
   /**
    * 🔹 카트 세션 생성 (쇼핑 시작)
    * POST /api/carts/
    */
   const createCartSession = async () => {
-    const res = await api.post('/api/carts/')
+    const res = await api.post('/carts/')
     
     cartSession.value = {
       cart_session_id: res.data.cart_session_id,
@@ -88,7 +104,7 @@ export const useCartStore = defineStore("cart", () => {
   const updateQuantity = async (cartItemId, newQuantity) => {
     if (newQuantity < 1) return;
 
-    await api.patch(`/api/carts/items/${cartItemId}`, {
+    await api.patch(`/carts/items/${cartItemId}`, {
       quantity: newQuantity,
     });
 
@@ -103,7 +119,7 @@ export const useCartStore = defineStore("cart", () => {
    * DELETE /api/carts/items/{cart_item_id}
    */
   const removeItem = async (cartItemId) => {
-    await api.delete(`/api/carts/items/${cartItemId}`);
+    await api.delete(`/carts/items/${cartItemId}`);
 
     cartItems.value = cartItems.value.filter(
       (i) => i.cart_item_id !== cartItemId
@@ -120,12 +136,12 @@ const addItemByBarcode = async (barcode) => {
   }
 
   // 1️ 바코드 → 상품 조회
-  const productRes = await api.get(`/api/products/barcode/${barcode}`)
+  const productRes = await api.get(`/products/barcode/${barcode}`)
   const product = productRes.data
 
   // 2️ 장바구니에 추가
   await api.post(
-    `/api/carts/${cartSession.value.cart_session_id}/items`,
+    `/carts/${cartSession.value.cart_session_id}/items`,
     {
       product_id: product.product_id,
       quantity: 1,
@@ -142,18 +158,34 @@ const addItemByBarcode = async (barcode) => {
    * POST /api/carts/weight/validate
    */
   const validateWeight = async (measuredWeight) => {
-    const res = await api.post("/api/carts/weight/validate", {
+    const res = await api.post("/carts/weight/validate", {
       measured_weight: measuredWeight,
     });
     return res.data; // { is_valid, diff_weight, ... }
   };
 
   /**
-   * 🔹 결제 요청
-   * POST /api/carts/checkout
+   * 🔹 결제 요청 (무게 검증 없이 즉시 결제)
+   * POST /api/payments/subscription/pay
    */
   const checkout = async () => {
-    await api.post("/api/carts/checkout");
+    const sessionId = cartSession.value?.cart_session_id;
+    const amount = estimatedTotal.value;
+
+    if (!sessionId) throw new Error("결제할 세션이 없습니다.");
+
+    await api.post("/payments/subscription/pay", null, {
+      params: {
+        cart_session_id: sessionId,
+        amount: amount,
+        item_name: "스마트 장바구니 결제"
+      }
+    });
+
+    // 결제 성공 후 로컬 상태 초기화
+    cartItems.value = [];
+    cartSession.value = null;
+    localStorage.removeItem('cart_session_id');
   };
 
   /**
@@ -164,14 +196,16 @@ const cancelCart = async () => {
   const sessionId = cartSession.value?.cart_session_id;
   if (!sessionId) return;
 
-  await api.post(`/api/carts/${sessionId}/cancel`);
+  try {
+    await api.post(`/carts/${sessionId}/cancel`);
+  } catch (e) {
+    console.error("Failed to cancel cart:", e);
+  }
 
+  // 로컬 상태를 명확히 비움
   cartItems.value = [];
-  cartSession.value = {
-    cart_session_id: null,
-    status: "CANCELLED",
-    device_code: "CART-DEVICE-001",
-  };
+  cartSession.value = null;
+  localStorage.removeItem('cart_session_id');
 };
 
 
