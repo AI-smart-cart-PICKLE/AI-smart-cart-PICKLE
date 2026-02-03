@@ -1,12 +1,14 @@
 """
-[결제 전체 프로세스 테스트 스크립트 - Part 1]
-이 스크립트는 회원가입 -> 로그인 -> 장바구니 생성 -> 상품 담기 -> 결제 준비(Ready)까지의 흐름을 검증합니다.
+[결제 로직 통합 테스트 스크립트 - 수정본]
+이 스크립트는 새로운 '/api/payments/request' 엔드포인트를 중심으로
+장바구니 무게 검증 및 결제 분기 처리를 테스트합니다.
 
 기능:
-1. 랜덤 유저 생성 및 로그인 (토큰 발급)
-2. 테스트용 상품 생성 (DB에 없을 경우)
-3. 장바구니 세션 생성 및 상품 담기
-4. 카카오페이 결제 준비 API 호출 -> 결제 URL(TID) 발급
+1. 유저 생성 및 로그인
+2. 테스트 상품(무게 100g) 생성
+3. 장바구니에 상품 담기 (2개 -> 예상 무게 200g)
+4. [테스트 1] 무게 불일치 시나리오 (150g 전송) -> 409 Conflict 예상
+5. [테스트 2] 무게 일치 시나리오 (200g 전송) -> 200 OK 예상
 
 실행 방법:
 $ cd backend
@@ -15,7 +17,6 @@ $ python -m tests.manual.test_payment_flow
 import requests
 import random
 import string
-import time
 import sys
 import os
 
@@ -23,8 +24,7 @@ import os
 BASE_URL = "http://localhost:8000"
 API_AUTH_SIGNUP = f"{BASE_URL}/api/auth/signup"
 API_AUTH_LOGIN = f"{BASE_URL}/api/auth/login"
-API_CART_CREATE = f"{BASE_URL}/api/carts/"
-API_PAYMENT_READY = f"{BASE_URL}/api/payments/ready"
+API_PAYMENT_REQUEST = f"{BASE_URL}/api/payments/request"
 
 # --- 유틸리티 ---
 def random_string(length=8):
@@ -33,138 +33,154 @@ def random_string(length=8):
 def create_random_user():
     email = f"test_{random_string()}@example.com"
     password = "TestPassword123!"
-    # 닉네임은 숫자 제외 (정규식 규칙 준수)
-    letters = string.ascii_lowercase
-    nick_rand = ''.join(random.choices(letters, k=4))
+    nick_rand = ''.join(random.choices(string.ascii_lowercase, k=4))
     nickname = f"User{nick_rand}"
     
-    print(f"🆕 회원가입 시도: {email} / {nickname}")
-    res = requests.post(API_AUTH_SIGNUP, json={
+    print(f"🆕 회원가입 시도: {email}")
+    requests.post(API_AUTH_SIGNUP, json={
         "email": email,
         "password": password,
         "nickname": nickname
     })
-    
-    if res.status_code != 200 and res.status_code != 201:
-        print(f"❌ 회원가입 실패: {res.text}")
-        sys.exit(1)
-        
     return email, password
 
 def login(email, password):
-    print(f"🔑 로그인 시도...")
-    res = requests.post(API_AUTH_LOGIN, json={
-        "email": email,
-        "password": password
-    })
-    
+    res = requests.post(API_AUTH_LOGIN, json={"email": email, "password": password})
     if res.status_code != 200:
         print(f"❌ 로그인 실패: {res.text}")
         sys.exit(1)
-        
-    token = res.json()["access_token"]
-    print(f"✅ 로그인 성공! Token 획득 완료.")
-    return token
+    return res.json()["access_token"]
 
 def ensure_test_product_exists():
-    """
-    상품이 하나도 없으면 테스트 진행이 불가능하므로,
-    DB에 직접 접근해서 상품을 하나 넣습니다.
-    (서버가 실행 중인 상태여야 함)
-    """
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    """테스트용 상품(100g, 1500원) 생성/조회"""
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     from app.database import SessionLocal
     from app import models
     
     db = SessionLocal()
     try:
-        product = db.query(models.Product).first()
-        if not product:
-            print("📦 상품이 없어 테스트용 상품을 생성합니다...")
-            category = models.ProductCategory(name="테스트카테고리", zone_code="A-1")
+        # 테스트 카테고리 확인
+        category = db.query(models.ProductCategory).filter_by(name="테스트카테고리").first()
+        if not category:
+            category = models.ProductCategory(name="테스트카테고리", zone_code="T-1")
             db.add(category)
             db.commit()
-            
+
+        # 테스트 상품 확인
+        product_name = "테스트용 과자(100g)"
+        product = db.query(models.Product).filter_by(name=product_name).first()
+        
+        if not product:
+            print("📦 테스트 상품 생성 중...")
             new_product = models.Product(
                 category_id=category.category_id,
-                name="맛있는 테스트 우유",
+                name=product_name,
                 price=1500,
-                unit_weight_g=1000,
-                barcode="8801111222233"
+                unit_weight_g=100,  # 100g
+                barcode=f"TEST{random.randint(1000,9999)}"
             )
             db.add(new_product)
             db.commit()
             db.refresh(new_product)
-            print(f"✅ 테스트 상품 생성 완료: ID {new_product.product_id}")
             return new_product.product_id
-        else:
-            print(f"ℹ️ 기존 상품 사용: ID {product.product_id} ({product.name})")
-            return product.product_id
+        
+        return product.product_id
     except Exception as e:
-        print(f"⚠️ DB 연결 실패 또는 상품 확인 중 오류: {e}")
-        print("상품 담기 단계에서 오류가 날 수 있습니다.")
-        return 1
+        print(f"⚠️ DB 오류: {e}")
+        sys.exit(1)
     finally:
         db.close()
 
 def main():
-    print("🚀 [결제 테스트 스크립트] 시작합니다...")
+    print("🚀 [결제/무게 검증 테스트] 시작합니다...")
     
-    # 0. 상품 준비
-    product_id = ensure_test_product_exists()
-
-    # 1. 유저 생성 및 로그인
+    # 0. 준비
+    product_id = ensure_test_product_exists() 
     email, password = create_random_user()
     token = login(email, password)
     headers = {"Authorization": f"Bearer {token}"}
 
-    # 2. 장바구니 세션 생성
-    print("🛒 장바구니 세션 생성 중...")
-    res = requests.post(API_CART_CREATE, headers=headers)
-    if res.status_code != 200:
-        print(f"❌ 장바구니 생성 실패: {res.text}")
-        sys.exit(1)
+    # 1. 카트 세션 준비
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from app.database import SessionLocal
+    from app import models
+    db = SessionLocal()
     
-    cart_session = res.json()
-    cart_id = cart_session["cart_session_id"]
-    print(f"✅ 장바구니 생성 완료: ID {cart_id}")
+    device_code = "TEST_DEVICE_001"
+    device = db.query(models.CartDevice).filter_by(device_code=device_code).first()
+    if not device:
+        device = models.CartDevice(device_code=device_code)
+        db.add(device)
+        db.commit()
+        db.refresh(device)
+    
+    user_id = db.query(models.AppUser).filter_by(email=email).first().user_id
+    
+    # 기존 활성 세션 정리
+    db.query(models.CartSession).filter_by(user_id=user_id, status=models.CartSessionStatus.ACTIVE).update({"status": models.CartSessionStatus.CANCELLED})
+    db.commit()
+    
+    new_session = models.CartSession(
+        cart_device_id=device.cart_device_id,
+        user_id=user_id,
+        status=models.CartSessionStatus.ACTIVE
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    cart_session_id = new_session.cart_session_id
+    db.close()
+    
+    print(f"✅ 세션 준비 완료: ID {cart_session_id}")
 
-    # 3. 상품 담기
-    print(f"➕ 상품 담기 (ID: {product_id}, 가격: 1500원)...")
-    add_item_url = f"{BASE_URL}/api/carts/{cart_id}/items"
-    res = requests.post(add_item_url, headers=headers, json={
+    # 2. 상품 담기 (100g * 2개 = 200g, 3000원)
+    # 수정된 경로: /api/carts/{session_id}/items
+    print(f"➕ 상품 담기 (ID: {product_id}, 2개)...")
+    API_CART_ADD_ITEM = f"{BASE_URL}/api/carts/{cart_session_id}/items"
+    res = requests.post(API_CART_ADD_ITEM, headers=headers, json={
         "product_id": product_id,
-        "quantity": 2  # 2개 담기 (총 3000원)
+        "quantity": 2
     })
-    
     if res.status_code != 200:
-        print(f"❌ 상품 담기 실패: {res.text}")
+        print(f"❌ 상품 담기 실패: {res.status_code} - {res.text}")
         sys.exit(1)
     print("✅ 상품 담기 성공")
 
-    # 4. 결제 준비 요청 (Ready)
-    print("💳 결제 준비(Ready) 요청 중...")
-    res = requests.post(API_PAYMENT_READY, headers=headers, json={
-        "cart_session_id": cart_id,
-        "total_amount": 3000, # 1500 * 2
-        "method_id": None
-    })
+    # 3. [TEST CASE 1] 무게 불일치 테스트
+    print("\n⚖️  [CASE 1] 무게 불일치 테스트 (예상 200g vs 측정 150g)")
+    payload_fail = {
+        "cart_session_id": cart_session_id,
+        "measured_weight_g": 150,  
+        "amount": 3000,
+        "use_subscription": False
+    }
+    res = requests.post(API_PAYMENT_REQUEST, headers=headers, json=payload_fail)
+    
+    if res.status_code == 409:
+        print("✅ 성공: 409 Conflict 응답 받음")
+        print(f"   메시지: {res.json().get('message')}")
+    else:
+        print(f"❌ 실패: {res.status_code} (예상: 409)")
+        print(f"   응답: {res.text}")
 
-    if res.status_code != 200:
-        print(f"❌ 결제 준비 실패: {res.text}")
-        sys.exit(1)
+    # 4. [TEST CASE 2] 무게 일치 테스트
+    print("\n⚖️  [CASE 2] 무게 일치 테스트 (예상 200g vs 측정 200g)")
+    payload_success = {
+        "cart_session_id": cart_session_id,
+        "measured_weight_g": 200, 
+        "amount": 3000,
+        "use_subscription": False
+    }
+    res = requests.post(API_PAYMENT_REQUEST, headers=headers, json=payload_success)
     
-    payment_data = res.json()
-    tid = payment_data['tid']
-    pc_url = payment_data.get('next_redirect_pc_url')
-    
-    print("\n" + "="*50)
-    print(f"🎉 결제 준비 성공! TID: {tid}")
-    print(f"👉 아래 URL을 클릭해서 [카카오페이 결제]를 진행하세요:")
-    print(f"\n{pc_url}\n")
-    print("="*50)
-    print("ℹ️ 결제를 완료하면 서버 콘솔에 '승인' 로그가 찍힐 것입니다.")
-    print("ℹ️ 결제 승인 API 호출 테스트는 브라우저 결제 완료 후 진행되어야 하므로 여기서는 URL 발급까지만 검증합니다.")
+    if res.status_code == 200:
+        print("✅ 성공: 200 OK 응답 받음")
+        print(f"   결과: {res.json()}")
+    else:
+        print(f"❌ 실패: {res.status_code} (예상: 200)")
+        print(f"   응답: {res.text}")
+
+    print("\n🏁 테스트 완료")
 
 if __name__ == "__main__":
     main()

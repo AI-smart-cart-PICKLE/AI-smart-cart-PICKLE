@@ -69,11 +69,19 @@ def recommend_recipes_ai(
             models.RecipeIngredient.recipe_id == recipe.recipe_id
         ).all()
         
+        all_ingredients = []
         missing_list = []
         for ri in recipe_ingredients:
             # 주재료(Product) 정보 가져오기
             ing_product = ri.product 
             is_owned = ing_product.product_id in my_owned_product_ids
+            
+            # 전체 재료 리스트
+            all_ingredients.append({
+                "product_id": ing_product.product_id,
+                "name": ing_product.name,
+                "is_owned": is_owned
+            })
             
             if not is_owned:
                 missing_list.append({
@@ -90,6 +98,7 @@ def recommend_recipes_ai(
             "image_url": recipe.image_url,
             # AI 유사도 점수가 있으면 넣고 아니면 0 (embedding이 없을 수도 있으므로)
             "similarity_score": 0.0, # 계산하려면 쿼리에서 distance 컬럼을 select 해야 함 (복잡도 때문에 생략하거나 추후 고도화)
+            "ingredients": all_ingredients,  
             "missing_ingredients": missing_list
         })
 

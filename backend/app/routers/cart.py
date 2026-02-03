@@ -2,12 +2,73 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas, database
 from ..dependencies import get_current_user 
+from sqlalchemy.sql import func 
+import requests
+from app.core.config import settings
+from datetime import datetime
+import uuid
+
+from app.schemas import (
+    CartWeightValidateRequest,
+    CartWeightValidateResponse
+)
+from app.utils.check_data import validate_cart_weight
 
 router = APIRouter(
     prefix="/carts",
     tags=["carts"],
     responses={404: {"description": "Not found"}},
 )
+
+# QR pair
+@router.post("/pair/qr")
+def pair_cart_by_qr(
+    device_code: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    # 1. 디바이스 조회 (QR 기반)
+    device = (
+        db.query(models.CartDevice)
+        .filter(models.CartDevice.device_code == device_code)
+        .first()
+    )
+
+    if not device:
+        raise HTTPException(status_code=404, detail="카트 디바이스를 찾을 수 없습니다.")
+
+    # 2. 해당 디바이스의 ACTIVE 세션 조회
+    session = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_device_id == device.cart_device_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .order_by(models.CartSession.started_at.desc())
+        .first()
+    )
+
+    # 3. 없으면 새 세션 생성
+    if not session:
+        session = models.CartSession(
+            cart_device_id=device.cart_device_id,
+            user_id=current_user.user_id,
+            status=models.CartSessionStatus.ACTIVE,
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+    else:
+        # 4. 있으면 사용자만 연결
+        session.user_id = current_user.user_id
+        db.commit()
+
+    return {
+        "cart_session_id": session.cart_session_id,
+        "cart_device_id": device.cart_device_id,
+        "message": "카트가 앱과 연결되었습니다.",
+    }
+
 
 # --- 1. 장바구니 생성 (쇼핑 시작) ---
 @router.post("/", response_model=schemas.CartSessionResponse)
@@ -177,6 +238,46 @@ def add_cart_item(
     return {"message": "장바구니에 상품을 담았습니다."}
 
 
+# --- AI 추론기 전용: 카트 상태 동기화 (Snapshot Sync) ---
+@router.post("/sync-by-device")
+def sync_cart_by_device(
+    req: schemas.CartSyncRequest,
+    db: Session = Depends(database.get_db)
+):
+    # 1. 기기 및 세션 조회
+    device = db.query(models.CartDevice).filter(models.CartDevice.device_code == req.device_code).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Unknown Device")
+
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_device_id == device.cart_device_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="No Active Session")
+
+    # 2. 기존 품목 싹 비우기 (동기화를 위해)
+    db.query(models.CartItem).filter(models.CartItem.cart_session_id == session.cart_session_id).delete()
+
+    # 3. 새로운 Snapshot으로 채우기
+    synced_count = 0
+    for item in req.items:
+        product = db.query(models.Product).filter(models.Product.name == item.product_name).first()
+        if product:
+            db.add(models.CartItem(
+                cart_session_id=session.cart_session_id,
+                product_id=product.product_id,
+                quantity=item.quantity,
+                unit_price=product.price
+            ))
+            synced_count += 1
+    
+    db.flush()
+    recalc_expected_weight(session)
+    db.commit()
+    return {"status": "synced", "item_count": synced_count}
+
+
 # --- 요리 선택 ---
 @router.post("/{session_id}/select-recipe")
 def select_recipe(session_id: int, recipe_id: int, db: Session = Depends(database.get_db)):
@@ -234,6 +335,7 @@ def delete_cart_item(
         "expected_total_g": session.expected_total_g
     }
 
+
 # 상품 수량 변경
 @router.patch("/items/{cart_item_id}")
 def update_cart_item_quantity(
@@ -278,4 +380,121 @@ def update_cart_item_quantity(
         "cart_item_id": cart_item.cart_item_id,
         "quantity": cart_item.quantity,
         "expected_total_g": session.expected_total_g
+    }
+
+
+# 무게 검증
+@router.post("/weight/validate", response_model=CartWeightValidateResponse)
+def validate_weight(
+    request: CartWeightValidateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == request.cart_session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="장바구니 세션을 찾을 수 없습니다.")
+
+    result = validate_cart_weight(
+        db=db,
+        cart_session_id=request.cart_session_id,
+        measured_weight_g=request.measured_weight_g
+    )
+
+    db.commit()
+    return result
+
+
+# --- 카트 세션 취소 ---
+@router.post("/{session_id}/cancel")
+def cancel_cart_session(
+    session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user)
+):
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_session_id == session_id,
+        models.CartSession.user_id == current_user.user_id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="카트 세션을 찾을 수 없습니다.")
+
+    if session.status != models.CartSessionStatus.ACTIVE:
+        raise HTTPException(
+            status_code=400,
+            detail="취소 가능한 카트 상태가 아닙니다."
+        )
+
+    session.status = models.CartSessionStatus.CANCELLED
+    session.ended_at = func.now()
+
+    db.commit()
+
+    return {
+        "message": "카트 세션이 취소되었습니다.",
+        "cart_session_id": session.cart_session_id,
+        "status": session.status.value
+    }
+
+
+# 카메라 뷰 on
+@router.post("/{cart_session_id}/camera/view/on")
+def camera_view_on(
+    cart_session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    cart = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_session_id == cart_session_id,
+            models.CartSession.user_id == current_user.user_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .first()
+    )
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Active cart not found")
+
+    cart.camera_view_on = True
+    db.commit()
+
+    return {
+        "cart_session_id": cart_session_id,
+        "camera_view_on": True,
+        "stream_url": settings.JETSON_STREAM_URL
+    }
+
+
+# camera view close
+@router.post("/{cart_session_id}/camera/view/off")
+def camera_view_off(
+    cart_session_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.AppUser = Depends(get_current_user),
+):
+    cart = (
+        db.query(models.CartSession)
+        .filter(
+            models.CartSession.cart_session_id == cart_session_id,
+            models.CartSession.user_id == current_user.user_id,
+            models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        )
+        .first()
+    )
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Active cart not found")
+
+    cart.camera_view_on = False
+    db.commit()
+
+    return {
+        "cart_session_id": cart_session_id,
+        "camera_view_on": False
     }

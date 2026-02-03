@@ -13,11 +13,15 @@ from app.schemas import UserNicknameUpdate, UserPasswordUpdate
 from datetime import datetime
 
 
-router = APIRouter(prefix="", tags=["User"])
+# Auth 관련 라우터 (회원가입, 로그인, 로그아웃)
+auth_router = APIRouter(prefix="/auth", tags=["Auth"])
+
+# User 관련 라우터 (내 정보, 프로필 관리)
+user_router = APIRouter(prefix="/users", tags=["User"])
 
 
 # 회원가입
-@router.post("/auth/signup", response_model=schemas.UserMeResponse)
+@auth_router.post("/signup", response_model=schemas.UserMeResponse)
 def signup(
     request: schemas.UserCreate,
     db: Session = Depends(get_db)
@@ -51,7 +55,7 @@ def signup(
         )
 
 # 로그인
-@router.post("/auth/login")
+@auth_router.post("/login")
 def login(
     request: schemas.UserLogin,
     response: Response,             
@@ -95,7 +99,7 @@ def login(
     }
 
 # 로그아웃
-@router.post("/auth/logout")
+@auth_router.post("/logout")
 def logout(response: Response):
     response.delete_cookie(
         key="refresh_token",
@@ -105,14 +109,14 @@ def logout(response: Response):
 
 
 # 내 정보 조회
-@router.get("/users/me", response_model=schemas.UserMeResponse)
+@user_router.get("/me", response_model=schemas.UserMeResponse)
 def read_me(
     current_user: AppUser = Depends(get_current_user)
 ):
     return current_user
 
 # 닉네임 변경
-@router.patch("/users/me/nickname", response_model=schemas.UserMeResponse)
+@user_router.patch("/me/nickname", response_model=schemas.UserMeResponse)
 def update_nickname(
     req: schemas.UserNicknameUpdate,
     db: Session = Depends(get_db),
@@ -125,7 +129,7 @@ def update_nickname(
 
 
 # 비밀번호 변경
-@router.patch("/users/me/password")
+@user_router.patch("/me/password")
 def update_password(
     req: schemas.UserPasswordUpdate,
     db: Session = Depends(get_db),
@@ -152,7 +156,7 @@ def update_password(
 
 
 # 회원탈퇴
-@router.delete("/users/me")
+@user_router.delete("/me")
 def withdraw_user(
     req: schemas.UserWithdraw,
     response: Response,

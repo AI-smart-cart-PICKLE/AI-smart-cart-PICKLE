@@ -6,6 +6,15 @@
 코드는 객체 지향적으로 유지, 보수, 재사용성이 쉽도록 작성한다.
 backend 디렉토리에 있는 app 폴더 안에 db와 mobile_app 디렉토리 안에 UI를 보고 UI와 DB가 연동이 잘 됐는지 검증한다.
 내부 통신 규걱은 http이고, 외부 통신 규격은 https이다.
+
+1. 너가 하는 말들 한글로 번역해서 보여줘.
+2. 분석결과/ERD 등 기술적 내용은 반드시 한글로 설명해.
+3. 아래의 api 명세서 .csv 파일을 반드시 참고하여 개발해.
+4. 변수명은 snake case를 사용해.
+5. 코드는 객체 지향적이고 유지보수가 용이하도록 작성해.
+6. backend/app/db 구조와 mobile_app UI 연동 상태를 주기적으로 검증해.
+7. 내부 통신은 http, 외부 통신은 https 규격을 준수해.
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -252,139 +261,51 @@ CREATE TABLE ledger_entry (
 ```
 
 ```api 명세 csv파일
-ID,백 구현,구분,method,URI,API,설명,담당,상태
-API 상세,No,회원,POST,api/auth/signup,회원가입,"이메일
-• 이메일 형식: xxx@xxx.xxx
-• 중복 이메일 사용 불가
-비밀번호
-• 영문 + 숫자 혼합 필수
-• 최소 8자 이상
-• 공백 사용 불가
-• 암호화(Hash) 후 저장됨
-닉네임
-• 한글, 영문만 사용 가능
-• 최소 2자 이상, 최대 8자 이하
-• 중복 닉네임 허용 
-처리 흐름
-1. 입력값 유효성 검사
-2. 사용자 정보 저장
-3. 회원가입 성공 시 사용자 ID 반환
-예외 처리
-• 이메일 중복: 400 Conflict
-• 인증 코드 오류 또는 만료: 400 Bad Request
-• 입력값 형식 오류: 400 Bad Request",", 전기정보공학과 전주연",시작 전
-API 상세,No,회원,GET,api/auth/check-email,이메일 중복 검사,해당 이메일이 사용 가능한지 확인합니다.,", 전기정보공학과 전주연",시작 전
-API 상세,No,회원,POST,api/auth/login,로그인,"• 이메일과 비밀번호로 사용자 인증
-• 인증 성공 시 JWT Access/Refresh Token 발급",", 전기정보공학과 전주연",시작 전
-API 상세,No,회원,POST,api/auth/refresh,토큰 갱신,Access Token 재발급,", 전기정보공학과 전주연",시작 전
-API 상세,No,회원,GET,api/users/me,내 정보 조회,마이페이지 기본 정보 로딩,", 전기정보공학과 전주연",시작 전
-API 상세,No,회원,PUT,api/users/me,내 정보 수정,"로그인된 사용자의 기본 정보를 수정한다.
-마이페이지에서 닉네임 등 개인정보 변경 시 사용된다.
-JWT Access Token 인증이 필요하다.",", 전기정보공학과 전주연",시작 전
-,No,상품,GET,api/products/search,상품 검색,상품명을 입력받아 검색합니다. pg_trgm을 활용한 오타 허용(Fuzzy) 검색이 적용됩니다.,Jeonghui Hong,시작 전
-API 상세,No,상품,GET,api/products/{id},상품 상세 조회,특정 상품의 상세 정보를 조회합니다. (영양 정보 등 JSONB 데이터 포함),Jeonghui Hong,시작 전
-,No,상품,GET,api/products/{product_id}/location,상품 위치 안내,해당 상품이 매장 내 어느 구역(Zone)에 있는지 좌표와 함께 반환합니다.,Jeonghui Hong,시작 전
-API 상세,No,회원,GET,api/carts/current-recipe,현재 레시피 확인,"Logic: 내 카트 세션에 selected_recipe_id가 있는지 확인하고, 있으면 레시피 상세 정보를 줍니다.
 
-",", 전기정보공학과 전주연",시작 전
-,No,카트,POST,api/carts/login/qr,카트 QR 로그인,"카트에 부착된 QR 코드를 사용자가 스캔하면, 해당 카트 디바이스와 앱에 로그인된 사용자 계정을 연결하여 카트 세션을 활성화한다.",", 전기정보공학과 전주연",시작 전
-,No,카트,GET,api/carts/session,카트 세션 조회,"- 현재 카트에 연결된 사용자 정보와 카트 세션의 상태를 조회한다.
-- 카트 사용 시작 시, 카트가 활성 상태인지, 결제 대기 상태인지, 취소 상태인지, 종료되었는지를 판단하는 기준 API.",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,GET,api/carts/items,상품 목록 조회,"- 현재 카트 세션에 담긴 모든 상품 목록을 조회한다.
-- 각 상품의 수량, 가격, 무게 정보를 포함한다. ",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,POST,api/carts/items,카트 내의 상품 추가,"- 센서 감지 또는 AI 카메라 인식을 통해 확인된 상품을 카트 세션에 새로운 상품 항목으로 추가한다. 
-- 서버는 상품의 기준 무게와 실제 측정 무게를 비교하여 (정상 추가/ 경고 상태 추가/ 사용자 확인 필요 상태) 중 하나로 처리한다. 
-- 상품 추가 후 카트 요약 정보 및 무게 검증 결과를 함께 반환한다. ",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,DELETE,api/carts/items/{cart_item_id},"카트에서 상품 제거 ","- 카트에 담긴 특정 상품을 제거한다.
-- 상품 제거 이후에는 카트의 예상 무게와 실제 무게를 다시 비교하여 무게 검증 상태를 갱신한다.",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,PATCH,api/carts/items/{cart_item_id},상품 수량 변경,"- 카트에 담긴 특정 상품의 수량을 직접 수정한다.
-- 수량 변경 시 서버는 자동으로 : 
-                                                       - 총 가격
-                                                       - 총 예상 무게
-                                                      - 무게 검증 상태
-를 다시 계산하여 반환한다. ",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,POST,api/carts/weight/validate,무게 검증,- 카트에 담긴 상품 목록의 예상 총 무게와 센서로 측정된 실제 무게를 비교하여 일치 여부를 검증한다.,", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,GET,api/carts/location,위치 조회,"상품 또는 카테고리 기준으로 매장 내 대략적인 위치 정보를 제공한다.
+ID,백 구현,구분,method,URI,API,설명
+회원,Yes,회원 정보 조회(User Router),,/api/users/me
+회원,Yes,닉네임 변경(User Router),,/api/users/me/nickname
+회원,Yes,비밀번호 변경(User Router),,/api/users/me/password
+인증,Yes,토큰 갱신(Auth Router),,/api/auth/refresh
+인증,Yes,구글 로그인(Auth Router),,/api/auth/google
+인증,Yes,구글 콜백(Auth Router),,/api/auth/google/callback
+인증,Yes,카카오 로그인(Auth Router),,/api/auth/kakao
+인증,Yes,카카오 콜백(Auth Router),,/api/auth/kakao/callback
+상품,Yes,상품 목록 조회,/api/products/
+상품,Yes,상품 검색,/api/products/search
+상품,Yes,상품 상세,/api/products/{product_id}
+상품,Yes,상품 위치,/api/products/{product_id}/location
+카트,Yes,카트 QR 로그인,/api/carts/pair/qr
+카트,Yes,카트 세션 생성,/api/carts/
+카트,Yes,카트 세션 조회,/api/carts/{session_id}
+카트,Yes,상품 추가,/api/carts/{session_id}/items
+카트,Yes,상품 제거,/api/carts/items/{cart_item_id}
+카트,Yes,상품 수량 변경,/api/carts/items/{cart_item_id}
+카트,Yes,요리 선택,/api/carts/{session_id}/select-recipe
+카트,Yes,무게 검증,/api/carts/weight/validate
+카트,Yes,카트 세션 취소,/api/carts/{session_id}/cancel
+카트,Yes,카메라 뷰 켜기,/api/carts/{cart_session_id}/camera/view/on
+카트,Yes,카메라 뷰 끄기,/api/carts/{cart_session_id}/camera/view/off
+추천,Yes,재료 기반 레시피 추천,/api/recommendations/by-product/{product_id}
+결제,Yes,결제 요청,/api/payments/request
+결제,Yes,자동결제 등록 준비,/api/payments/subscription/register/ready
+결제,Yes,자동결제 등록 승인,/api/payments/subscription/register/approve
+결제,Yes,자동결제 실행,/api/payments/subscription/pay
+결제,Yes,결제 준비,/api/payments/ready
+결제,Yes,결제 승인,/api/payments/approve
+결제,Yes,결제 상세 조회,/api/payments/{payment_id}
+결제,Yes,결제 수단 목록,/api/payments/methods
+결제,Yes,결제 수단 등록,/api/payments/methods
+결제,Yes,결제 수단 삭제,/api/payments/methods/{method_id}
+가계부,Yes,가계부 내역 조회,/api/ledger
+가계부,Yes,가계부 캘린더,/api/ledger/calendar
+가계부,Yes,가계부 월별 요약,/api/ledger/summary/monthly
+가계부,Yes,가계부 상위 카테고리,/api/ledger/top-categories
+가계부,Yes,가계부 상위 상품,/api/ledger/top-items
+가계부,Yes,최근 지출 내역,/api/ledger/recent
+가계부,Yes,가계부 단건 상세,/api/ledger/{ledger_entry_id}
+가계부,Yes,가계부 정보 수정,/api/ledger/{ledger_entry_id}
 
-다음과 같은 상황에서 사용된다.
-• 음성(STT) 검색: “우유 어디 있어?”
-• 추천 상품 하단의 “위치 보기” 버튼 클릭
-• 카테고리 기반 탐색 (유제품 코너 등)
-서버는 상품의 카테고리 또는 사전 정의된 존(zone) 정보를 기반으로
-
-매장 지도에 표시 가능한 위치 데이터를 반환한다.",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,POST,api/carts/checkout,결제 요청,"무게 검증이 완료된 카트 세션을
-결제 요청 상태(CHECKOUT_REQUESTED) 로 전환한다.
-• 무게 불일치 상태에서는 호출할 수 없다.
-• 실제 결제(PG 승인)는 이후 결제 API에서 처리된다.
-• 이 API는 “결제 버튼 클릭” 행위에 대응한다.",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,POST,api/carts/cancel,카트 세션 취소,"결제를 진행하지 않고 카트 사용을 종료한다.
-
-카트 세션을 명시적으로 종료하고,
-
-카트는 다음 사용자를 위해 초기화 상태로 돌아간다.
-• 쇼핑 도중 중단
-• 결제 포기
-• 시스템 오류 발생 시 안전 종료 용도",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,POST,api/carts/camera/open,카메라 뷰 열기,"카트에 장착된 AI 카메라 스트림을 활성화한다. ",", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,POST,api/carts/camera/close,카메라 뷰 종료,AI 카메라 스트림을 종료하고 카메라 세션을 정리한다.,", 전기정보공학과 전주연",시작 전
-API 상세,No,카트,GET,api/carts/recommend/products,레시피 기반 연관 레시피 추천,"현재 카트에 담긴 최근 상품을 기준으로
-
-레시피 기반의 연관 상품을 추천한다.
-• 예: 우유 → 시리얼, 요거트
-• 예: 파스타 → 소스, 치즈
-추천 결과는 추가 구매 유도 UX를 위한 보조 기능이며,
-
-상품 상세 정보와 함께 “위치 조회” 기능과 연동될 수 있다.",양수명,시작 전
-API 상세,No,카트,GET,api/carts/recommendations,재료 기반 레시피 추천,"• Input: product_id (양파)
-• Logic: importance_score 높은 순 정렬",양수명,시작 전
-API 상세,No,카트,POST,api/carts/select-recipe,요리 선택 (동기화),"• ""나 이 요리 할래""라고 서버에 알림
-• Input: recipe_id",양수명,시작 전
-API 상세,No,결제,POST,api/payments/ready,결제 요청,"
-앱에서 '결제하기' 버튼을 눌렀을 때 호출합니다. PG사(카카오페이)로부터 **결제 고유 번호(TID)**와 결제창 URL을 발급받습니다.
-
-",양수명,시작 전
-API 상세,No,결제,POST,api/payments/approve,결제 승인,"
-사용자가 카카오톡에서 비밀번호 입력을 마치면, 앱이 **pg_token**을 받아옵니다. 이 토큰과 아까 받은 **tid**를 서버로 보내 최종 결제를 확정합니다.
-
-",양수명,시작 전
-API 상세,No,결제,GET,"/api/payments/{payment_id}
-",결제 결과 조회,"특정 결제 건의 결과 상태를 조회한다.
-결제 완료 여부, 결제 금액, 결제 시각 등을 확인한다.
-결제 완료 화면 또는 주문 내역 조회 시 사용된다.
-JWT Access Token 인증이 필요하다.",양수명,시작 전
-API 상세,No,결제,POST,"/api/payments/{payment_id}/cancel
-",결제 취소,"완료된 결제를 취소(환불) 요청한다.
-결제 완료(COMPLETED) 상태인 경우에만 취소 가능하다.
-JWT Access Token 인증이 필요하다.",양수명,시작 전
-API 상세,No,결제,GET,/api/payments/methods,결제 수단 목록 조회,현재 사용자가 등록한 모든 결제 수단 리스트를 불러옵니다.,양수명,시작 전
-API 상세,No,결제,POST,/api/payments/methods,결제 수단 등록 (카드/빌링키),새로운 결제 수단을 등록합니다. (실제 카드 정보는 보안상 PG사를 통해 빌링키 형태로 저장됩니다.),양수명,시작 전
-API 상세,No,결제,DELETE,/api/payments/methods/{mehod_id},결제 수단 삭제,등록된 결제 수단을 삭제합니다.,양수명,시작 전
-API 상세,No,결제,POST,/api/payments/ready,결제 준비 요청,"1. 앱에서 '결제하기' 버튼을 누르면 호출됩니다.
-2. 서버는 PG사(카카오페이)에 결제 정보를 보내고 리다이렉트 URL과 **TID(거래고유번호)**를 받아옵니다.",양수명,시작 전
-API 상세,No,결제,POST,/api/payments/approve,결제 승인 요청,"1. 사용자가 카카오톡에서 비밀번호 입력을 완료하면, 앱이 pg_token을 획득합니다.
-2. 앱은 이 토큰과 아까 받은 tid를 서버로 보내 최종 승인을 요청합니다.",양수명,시작 전
-API 상세,No,결제,POST,/api/payments/{payment_id},결제 내역 상세,특정 결제 건의 상세 내역(품목 리스트 포함)을 조회합니다.,양수명,시작 전
-,No,가계부,GET,/api/ledger,가계부 내역 조회,"- 로그인한 사용자의 가계부 항목 목록을 조회한다.
-- ledger_entry 테이블을 기준으로 조회한다.
-- 기간 및 카테고리 필터링이 가능하다.",Jeonghui Hong,시작 전
-,No,가계부,GET,/api/ledger/{ledger_entry_id},가계부 단건 상세 조회,특정 가계부 항목의 상세 정보를 조회한다.,Jeonghui Hong,시작 전
-,No,가계부,PUT,/api/ledger/{ledger_entry_id},가계부 카테고리/ 메모 수정,"- 가계부 항목의 분류 정보(카테고리, 메모)를 수정한다.
-- 결제 기반 데이터의 무결성을 위해 금액 및 날짜는 수정할 수 없다.",Jeonghui Hong,시작 전
-,No,가계부,GET,/api/ledger/summary/monthly,가계부 월별 요약,"- 특정 월의 가계부 지출을 카테고리별로 요약 조회한다.
-- 월간 소비 분석 및 통계 화면에 사용된다.",Jeonghui Hong,시작 전
-,No,가계부,GET,/api/ledger/top-items,Top Item 조회,"- 특정 기간 동안 가장 많이 구매된 상품 상위 목록을 조회한다.
-- 결제 완료된 건(payment.status = APPROVED)만 집계 대상이다
-- 구매 횟수 기준으로 정렬한다.",Jeonghui Hong,시작 전
-,No,가계부,GET,/api/ledger/top-categories,Top Category 조회,"- 특정 기간 동안 사용자의 카테고리별 지출 금액을 집계한다.
-- 가계부 분석 화면의 TOP Category/Spending Breakdown 영역에 사용된다.
-- 지출 금액 기준으로 정렬된다.",Jeonghui Hong,시작 전
-,No,가계부,GET,/api/ledger/recent,최근 지출 내역 조회,"- 사용자의 최근 결제/지출 내역을 시간순으로 조회한다.
-- 결제 완료(payment.status = APPROVED)된 내역만 조회 대상이다.
-- 가계부(ledger_entry)와 결제(payment) 정보를 함께 제공한다.",Jeonghui Hong,시작 전
-,No,가계부,GET,/api/ledger/calendar,캘린더,"- 특정 월의 일자별 지출 합계를 조회한다.
-- 가계부 캘린더 UI에 사용된다.
-- 하루에 여러 지출이 있어도 일 단위로 집계된다.",Jeonghui Hong,시작 전
 ```
 
 ```commit 컨벤션
@@ -392,8 +313,7 @@ API 상세,No,결제,POST,/api/payments/{payment_id},결제 내역 상세,특정
 
 ## **1. 목적 (Purpose)**
 
-본 문서는 팀 내 Git 커밋 메시지 규칙(Commit Convention)을 정의하여,
- 일관된 변경 이력 관리와 명확한 변경 의도 전달을 목표로 한다.
+본 문서는 팀 내 Git 커밋 메시지 규칙(Commit Convention)을 정의하여, 일관된 변경 이력 관리와 명확한 변경 의도 전달을 목표로 한다.
 
 ## **2. 기본 구조 (Structure)**
 

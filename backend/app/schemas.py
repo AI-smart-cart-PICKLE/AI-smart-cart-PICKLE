@@ -1,10 +1,13 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 from .models import PaymentMethodType, PgProviderType, PaymentStatus, LedgerCategory, DetectionActionType, UserProvider
 import re
 
-# --- Payment Method Schemas ---
+
+# =========================================================
+# 💳 Payment Method Schemas (결제 수단)
+# =========================================================
 
 class PaymentMethodBase(BaseModel):
     method_type: PaymentMethodType
@@ -24,13 +27,24 @@ class PaymentMethodResponse(PaymentMethodBase):
     class Config:
         from_attributes = True
 
-# --- Payment Schemas ---
 
+# =========================================================
+# 💰 Payment Schemas (결제)
+# =========================================================
+
+# 1. 결제 준비 (Ready)
 class PaymentReadyRequest(BaseModel):
     cart_session_id: int
-    # 0보다 커야 한다는 제약조건 추가 (해킹 방지)
     total_amount: int = Field(..., gt=0, description="결제 금액은 0원 이상이어야 합니다.") 
     method_id: Optional[int] = None
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 12,
+            "total_amount": 15000,
+            "method_id": None
+        }
+    })
 
 class PaymentReadyResponse(BaseModel):
     tid: str
@@ -38,13 +52,16 @@ class PaymentReadyResponse(BaseModel):
     next_redirect_mobile_url: Optional[str] = None
     next_redirect_pc_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
+    partner_order_id: Optional[str] = None
 
+# 2. 결제 승인 (Approve)
 class PaymentApproveRequest(BaseModel):
     tid: str
     pg_token: str
-    partner_order_id: str  # cart_session_id (문자열 변환)
-    partner_user_id: str   # user_id (문자열 변환)
+    partner_order_id: str
+    partner_user_id: str
 
+# 3. 결제 내역 응답
 class PaymentResponse(BaseModel):
     payment_id: int
     cart_session_id: Optional[int]
@@ -58,16 +75,62 @@ class PaymentResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        
-# 결제 취소 요청
+
+# 4. 결제 취소
 class PaymentCancelRequest(BaseModel):
     reason: str = "사용자 요청에 의한 취소"
 
-# 결제 상세 조회 응답
 class PaymentDetailResponse(PaymentResponse):
     items: List[CartItemResponse] = []
 
-# --- Ledger Schemas (가계부 연동을 위해 미리 정의) ---
+# --- ✨ [NEW] 결제 요청 및 무게 검증 (Checkout) ---
+
+class PaymentRequest(BaseModel):
+    """웹에서 결제하기 버튼 클릭 시 전송하는 데이터"""
+    cart_session_id: int
+    amount: int
+    measured_weight_g: int = Field(..., description="Jetson/센서로부터 측정한 현재 무게")
+    use_subscription: bool = True  # 기본적으로 자동결제 사용
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 5,
+            "amount": 25000,
+            "measured_weight_g": 1500,
+            "use_subscription": True
+        }
+    })
+
+class PaymentWarningResponse(BaseModel):
+    """무게 불일치 시 반환하는 경고 데이터 (409 Conflict)"""
+    status: str = "WARNING"
+    message: str
+    difference: int
+    expected_weight: int
+    measured_weight: int
+    action_required: str = "CHECK_CART_ITEMS"  # 프론트엔드 식별용
+
+
+# =========================================================
+# 🔑 Billing Key Schemas (카드 등록)
+# =========================================================
+
+class CardRegisterResponse(BaseModel):
+    next_redirect_mobile_url: str
+    next_redirect_pc_url: str
+    tid: str
+    created_at: datetime
+
+class CardRegisterResult(BaseModel):
+    method_id: int
+    card_name: str
+    billing_key: str
+    message: str = "카드 등록이 완료되었습니다."
+
+
+# =========================================================
+# 📒 Ledger Schemas (가계부)
+# =========================================================
 
 class LedgerEntryResponse(BaseModel):
     ledger_entry_id: int
@@ -85,70 +148,72 @@ class LedgerUpdateRequest(BaseModel):
     category: Optional[LedgerCategory] = None
     memo: Optional[str] = None
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "category": "SNACK",
+            "memo": "편의점 간식 구매"
+        }
+    })
 
-# --- user schemas ---
+
+# =========================================================
+# 👤 User Schemas (회원)
+# =========================================================
 
 NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣]{2,20}$")
 
 class UserBase(BaseModel):
     email: EmailStr
-    nickname: str = Field(min_length=2, max_length=8)
-
+    nickname: str = Field(min_length=2, max_length=20)
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     nickname: str
 
-    # 비밀번호 검증
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
-        """
-        비밀번호 정책:
-        - 최소 8자
-        - 영문 + 숫자 조합
-        """
         if len(value) < 8:
             raise ValueError("Password must be at least 8 characters long")
-
         if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
             raise ValueError("Password must contain both letters and numbers")
-
         return value
 
-    # 닉네임 검증
     @field_validator("nickname")
     @classmethod
     def validate_nickname(cls, value: str) -> str:
-        """
-        닉네임 정책:
-        - 한글 또는 영어만 허용
-        - 최소 2자, 최대 20자
-        - 중복 허용 (DB에서 UNIQUE 제약 없음)
-        """
         if not NICKNAME_REGEX.fullmatch(value):
-            raise ValueError(
-                "Nickname must be 2–20 characters long and contain only Korean or English letters"
-            )
+            raise ValueError("Nickname must be 2–20 characters long and contain only Korean or English letters")
         return value
-
+    
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "email": "user@example.com",
+            "password": "Password123!",
+            "nickname": "행복한쇼핑"
+        }
+    })
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "email": "user@example.com",
+            "password": "Password123!"
+        }
+    })
 
 class UserMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
     user_id: int
     email: EmailStr
     provider: UserProvider
     nickname: str
     created_at: datetime
     updated_at: Optional[datetime]
-
 
 class UserNicknameUpdate(BaseModel):
     nickname: str = Field(min_length=2, max_length=20)
@@ -169,26 +234,40 @@ class TokenResponse(BaseModel):
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
 
-
 class EmailCheckResponse(BaseModel):
     is_available: bool
 
 class UserWithdraw(BaseModel):
     password: Optional[str] = None
 
-# 구글 로그인
 class GoogleOAuthRequest(BaseModel):
     code: str
 
 
-# --- Cart Schemas ---
+# =========================================================
+# 🛒 Cart Schemas (장바구니)
+# =========================================================
 
-# 1. 상품 담기 요청
+# 기기 기반 상품 동기화 (AI 추론 서버용)
+class CartSyncItem(BaseModel):
+    product_name: str
+    quantity: int
+
+class CartSyncRequest(BaseModel):
+    device_code: str
+    items: List[CartSyncItem]
+
 class CartItemCreate(BaseModel):
     product_id: int
-    quantity: int = Field(default=1, ge=1) # 1개 이상 필수
+    quantity: int = Field(default=1, ge=1)
 
-# 2. 상품 간단 정보 (CartItemResponse 내부용)
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "product_id": 101,
+            "quantity": 2
+        }
+    })
+
 class ProductSimpleResponse(BaseModel):
     product_id: int
     name: str
@@ -198,41 +277,60 @@ class ProductSimpleResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# 3. 장바구니 아이템 응답
 class CartItemResponse(BaseModel):
     cart_item_id: int
-    product: ProductSimpleResponse  # 상품 정보 중첩
+    product: ProductSimpleResponse
     quantity: int
     unit_price: int
-    total_price: int  # @property 대신 일반 필드로 변경 (확실한 직렬화 위해)
+    total_price: int
     
     class Config:
         from_attributes = True
 
-# 4. 장바구니 세션 응답 (최종 응답)
 class CartSessionResponse(BaseModel):
     cart_session_id: int
     status: str
     total_amount: int
-    total_items: int = 0      # 상품 종수(또는 개수)
-    expected_total_g: int = 0 # 예상 무게 (기본값 추가)
-    
-    # 장바구니 아이템 목록
+    total_items: int = 0
+    expected_total_g: int = 0
     items: List[CartItemResponse] = Field(default_factory=list)
     
     class Config:
         from_attributes = True
 
-# 상품 수량 변경
 class CartItemUpdate(BaseModel):
     quantity: int = Field(..., ge=1)
 
-# --- 레시피 추천 Schemas ---
+# --- Cart Weight Validation ---
+class CartWeightValidateRequest(BaseModel):
+    cart_session_id: int
+    measured_weight_g: int = Field(..., gt=0)
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "cart_session_id": 5,
+            "measured_weight_g": 520
+        }
+    })
+
+class CartWeightValidateResponse(BaseModel):
+    is_valid: bool
+    status: str  # MATCH | OVER_WEIGHT | UNDER_WEIGHT
+    expected_weight: int
+    measured_weight: int
+    difference: int
+    tolerance: int
+    message: str
+
+
+# =========================================================
+# 🍳 Recipe & Product Schemas (추천 및 상품)
+# =========================================================
 
 class IngredientSimpleResponse(BaseModel):
     product_id: int
     name: str
-    is_owned: bool  # 장바구니에 이미 있나?
+    is_owned: bool
     
     class Config:
         from_attributes = True
@@ -242,41 +340,103 @@ class RecipeRecommendResponse(BaseModel):
     title: str
     description: Optional[str] = None
     image_url: Optional[str] = None
-    difficulty: str = "NORMAL" # DB에 컬럼이 없다면 기본값 or models.py 확인 필요 (현재 models.py엔 없음, 필요시 추가)
-    cooking_time_min: int = 30 # 상동
     
-    # AI 추천 점수 (거리 기반: 0에 가까울수록 유사함)
+    # AI 추천 점수
     similarity_score: Optional[float] = None
     
-    # 재료 분석
+    # 전체 재료
+    ingredients: List[IngredientSimpleResponse] = [] 
+    
+    # 부족한 재료
     missing_ingredients: List[IngredientSimpleResponse] = []
     
     class Config:
         from_attributes = True
 
-
 # --- Product Schemas ---
 
+
+
 class ProductResponse(BaseModel):
+
     product_id: int
+
     category_id: Optional[int]
+
     barcode: Optional[str]
+
     name: str
+
     price: int
+
     unit_weight_g: int
+
     stock_quantity: int
+
     image_url: Optional[str]
+
     product_info: Optional[dict] = None  # JSONB
+
     
+
     # 추가 필드 (위치 정보 등)
+
     zone_code: Optional[str] = None # Category 조인 결과
+
     category_name: Optional[str] = None
 
+
+
+    class Config:
+
+        from_attributes = True
+
+
+
+class ProductLocationResponse(BaseModel):
+
+    product_id: int
+
+    name: str
+
+    zone_code: Optional[str]
+
+    map_image_url: Optional[str] = None # 매장 지도 이미지 URL 등
+
+
+
+class RecipeIngredientResponse(BaseModel):
+
+    product_id: int
+
+    name: str
+
+    quantity_info: Optional[str] = None
+
+    image_url: Optional[str] = None
+
+    
+
+    class Config:
+
+        from_attributes = True
+
+
+
+class RecipeDetailResponse(BaseModel):
+    recipe_id: int
+    title: str
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+    image_url: Optional[str] = None
+    prep_time_min: int = 30
+    difficulty_label: str = "보통"
+    calories: int = 500
+    
+    # 조리 재료
+    ingredients: List[RecipeIngredientResponse] = []
+    
     class Config:
         from_attributes = True
 
-class ProductLocationResponse(BaseModel):
-    product_id: int
-    name: str
-    zone_code: Optional[str]
-    map_image_url: Optional[str] = None # 매장 지도 이미지 URL 등
+

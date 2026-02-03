@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, or_
 from typing import List, Optional
 
-from app.db.database import get_db
+from app.database import get_db
 from app.models import Product, ProductCategory
 from app.schemas import ProductResponse, ProductLocationResponse
 
@@ -13,79 +13,72 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+# 상품 목록 조회
+@router.get("/", response_model=List[ProductResponse])
+def read_products(db: Session = Depends(get_db)):
+    products = db.query(Product).all()
+    return products
+
+# 상품 검색 (웹 / pg_trgm 기반) 
 @router.get("/search", response_model=List[ProductResponse])
-async def search_products(
-    q: str = Query(..., description="검색어 (상품명)"),
-    category_key: Optional[str] = Query(None, description="카테고리 필터 (예: on_sale, best - 현재 미구현)"),
-    db: Session = Depends(get_db)
+def search_products(
+    q: str = Query(..., min_length=1, description="검색어"),
+    db: Session = Depends(get_db),
 ):
     """
-    상품명으로 상품을 검색합니다.
-    - 대소문자 구분 없이 검색 (ilike)
-    - 카테고리 정보와 위치 정보(zone_code)를 포함하여 반환합니다.
+    상품명으로 상품을 검색합니다. pg_trgm을 활용한 오타 허용(Fuzzy) 검색이 적용됩니다.
     """
-    if not q:
-        return []
+    products = (
+        db.query(Product)
+        .filter(func.similarity(Product.name, q) > 0.2)
+        .order_by(func.similarity(Product.name, q).desc())
+        .limit(20)
+        .all()
+    )
+    return products
 
-    # 기본 검색: 이름에 검색어 포함
-    query = db.query(Product, ProductCategory).outerjoin(Product.category)
-    query = query.filter(Product.name.ilike(f"%{q}%"))
-    
-    # 결과 조회
-    results = query.all()
-    
-    response = []
-    for product, category in results:
-        p_dict = product.__dict__
-        if category:
-            p_dict['zone_code'] = category.zone_code
-            p_dict['category_name'] = category.name
-        else:
-            p_dict['zone_code'] = None
-            p_dict['category_name'] = None
-            
-        response.append(ProductResponse(**p_dict))
-        
-    return response
-
-
+# 상품 상세 조회
 @router.get("/{product_id}", response_model=ProductResponse)
 async def read_product(product_id: int, db: Session = Depends(get_db)):
     """
     상품 상세 정보를 조회합니다.
     """
-    result = db.query(Product, ProductCategory).outerjoin(Product.category).filter(Product.product_id == product_id).first()
-    
-    if not result:
+    product = (
+        db.query(Product)
+        .options(joinedload(Product.category))
+        .filter(Product.product_id == product_id)
+        .first()
+    )
+
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-        
-    product, category = result
     
-    p_dict = product.__dict__
-    if category:
-        p_dict['zone_code'] = category.zone_code
-        p_dict['category_name'] = category.name
-    else:
-        p_dict['zone_code'] = None
-        p_dict['category_name'] = None
+    # 조인된 카테고리 정보가 있으면 추가 필드 설정 (ProductResponse 스키마 대응)
+    if product.category:
+        setattr(product, 'zone_code', product.category.zone_code)
+        setattr(product, 'category_name', product.category.name)
         
-    return ProductResponse(**p_dict)
+    return product
 
-
+# 상품 위치 안내
 @router.get("/{product_id}/location", response_model=ProductLocationResponse)
-async def get_product_location(product_id: int, db: Session = Depends(get_db)):
-    """
-    상품의 위치(Zone) 정보를 조회합니다.
-    """
-    result = db.query(Product, ProductCategory).outerjoin(Product.category).filter(Product.product_id == product_id).first()
-    
-    if not result:
+def get_product_location(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    product = (
+        db.query(Product)
+        .options(joinedload(Product.category))
+        .filter(Product.product_id == product_id)
+        .first()
+    )
+
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-        
-    product, category = result
-    
+
+    category = product.category
     zone_code = category.zone_code if category else "Unknown"
-    
+
     return ProductLocationResponse(
         product_id=product.product_id,
         name=product.name,
@@ -93,3 +86,26 @@ async def get_product_location(product_id: int, db: Session = Depends(get_db)):
         # TODO: 실제 맵 이미지 URL 로직 필요 시 추가
         map_image_url=f"https://example.com/maps/{zone_code}.png" if zone_code else None
     )
+
+# 바코드로 상품 조회
+@router.get("/barcode/{barcode}", response_model=ProductResponse)
+def get_product_by_barcode(
+    barcode: str,
+    db: Session = Depends(get_db)
+):
+    clean_barcode = barcode.strip()
+
+    product = (
+        db.query(Product)
+        .filter(Product.barcode == clean_barcode)
+        .first()
+    )
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="상품을 찾을 수 없습니다."
+        )
+
+    return product
+
