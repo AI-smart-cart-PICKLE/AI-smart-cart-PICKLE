@@ -1,20 +1,37 @@
+<!-- App.vue -->
 <script setup>
 import { RouterView } from 'vue-router'
-import { onMounted } from 'vue'    
+import { onMounted } from 'vue'
 import TheHeader from './components/TheHeader.vue'
+import LoginModal from './components/modals/LoginModal.vue'
+
 import { useAuthStore } from '@/stores/auth'
+import { useUIStore } from '@/stores/ui'
 
 const authStore = useAuthStore()
+const uiStore = useUIStore()
 
-onMounted(() => {
-  authStore.fetchMe()
+onMounted(async () => {
+  await authStore.fetchMe()
+
+  if (!authStore.isAuthenticated) {
+    uiStore.openLoginModal()
+  }
 })
 </script>
 
 <template>
-  <div class="bg-background-light text-slate-900 antialiased w-[1280px] h-[600px] relative border-x border-slate-100 mx-auto overflow-hidden font-display">
+  <div
+    class="bg-background-light text-slate-900 antialiased w-[1280px] h-[600px] relative border-x border-slate-100 mx-auto overflow-hidden font-display"
+  >
     <TheHeader />
     <RouterView />
+
+    <LoginModal
+      v-if="uiStore.showLoginModal"
+      @close="uiStore.closeLoginModal"
+    />
+
   </div>
 </template>
 

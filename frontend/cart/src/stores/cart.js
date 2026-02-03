@@ -61,6 +61,25 @@ export const useCartStore = defineStore("cart", () => {
     }));
   };
 
+  /**
+   * 🔹 카트 세션 생성 (쇼핑 시작)
+   * POST /api/carts/
+   */
+  const createCartSession = async () => {
+    const res = await api.post('/api/carts/')
+    
+    cartSession.value = {
+      cart_session_id: res.data.cart_session_id,
+      status: res.data.status,
+      device_code: 'CART-DEVICE-001'
+    }
+    
+    // 초기화
+    cartItems.value = []
+    
+    return res.data
+  }
+
 
   /**
    * 🔹 상품 수량 변경
@@ -174,5 +193,6 @@ const cancelCart = async () => {
     checkout,
     cancelCart,
     addItemByBarcode,
+    createCartSession,
   };
 });
