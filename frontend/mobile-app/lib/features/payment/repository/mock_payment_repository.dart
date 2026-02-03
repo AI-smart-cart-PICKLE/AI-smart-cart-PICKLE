@@ -77,12 +77,30 @@ class MockPaymentRepository implements PaymentRepository {
   }
 
   @override
-  Future<String> start_kakao_pay_checkout({
+  Future<PaymentReadyResponse> prepare_kakao_pay({
     required int amount,
+    required int cart_session_id,
     required int using_points,
     required String? coupon_id,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    return 'r_1';
+    // Mock response that simulates a ready state
+    // Note: The URLs here are fake. In a real mock flow, we can't really open a WebView to these.
+    // So this Mock is mainly for unit testing logic around the call, not the actual flow.
+    return const PaymentReadyResponse(
+      tid: 'mock_tid_123',
+      next_redirect_app_url: 'https://mock.kakao.com/app',
+      next_redirect_mobile_url: 'https://mock.kakao.com/mobile',
+      next_redirect_pc_url: 'https://mock.kakao.com/pc',
+    );
+  }
+
+  @override
+  Future<String> approve_kakao_pay({
+    required String tid,
+    required String pg_token,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    return 'r_mock_receipt_id';
   }
 }

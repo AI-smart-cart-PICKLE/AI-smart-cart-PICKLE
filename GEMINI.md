@@ -1,4 +1,11 @@
 너가 하는 말들 한글로 번역해서 보여줘.
+로그,분석결과 이런것들 한국어로 말해.
+
+아래의 api 명세서 .csv 파일을 반드시 보고 작성한다.
+변수명은 snake case로 한다.
+코드는 객체 지향적으로 유지, 보수, 재사용성이 쉽도록 작성한다.
+backend 디렉토리에 있는 app 폴더 안에 db와 mobile_app 디렉토리 안에 UI를 보고 UI와 DB가 연동이 잘 됐는지 검증한다.
+내부 통신 규걱은 http이고, 외부 통신 규격은 https이다.
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS vector;

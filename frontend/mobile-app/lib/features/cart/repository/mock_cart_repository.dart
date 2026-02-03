@@ -14,6 +14,6 @@ class MockCartRepository implements CartRepository {
     ];
 
     final int subtotal = items.fold<int>(0, (p, c) => p + c.price);
-    return CartSummary(items: items, subtotal: subtotal, total: subtotal);
+    return CartSummary(cart_session_id: 0, items: items, subtotal: subtotal, total: subtotal);
   }
 }

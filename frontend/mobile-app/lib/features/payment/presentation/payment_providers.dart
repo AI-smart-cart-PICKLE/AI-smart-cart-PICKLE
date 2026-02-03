@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/dio_provider.dart';
 import '../repository/payment_repository.dart';
-import '../repository/mock_payment_repository.dart';
+import '../repository/payment_repository_impl.dart';
 import '../../../domain/models/payment.dart';
 
 final payment_repository_provider = Provider<PaymentRepository>((ref) {
-  return MockPaymentRepository();
+  final dioClient = ref.watch(dioClientProvider);
+  return PaymentRepositoryImpl(dioClient);
 });
 
 final payment_month_provider = StateProvider<DateTime>((ref) {

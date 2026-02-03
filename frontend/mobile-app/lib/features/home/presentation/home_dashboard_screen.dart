@@ -56,17 +56,35 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                                 style: TextStyle(color: AppColors.brand_primary, fontSize: 24, fontWeight: FontWeight.w900),
                               ),
                               const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () => context.push(AppRoutes.qr_scanner),
-                                icon: const Icon(Icons.qr_code_scanner, size: 18),
-                                label: const Text('QR 스캔하기', style: TextStyle(fontWeight: FontWeight.w900)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.brand_primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 0,
-                                ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () => context.push(AppRoutes.qr_scanner),
+                                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                                    label: const Text('QR 스캔', style: TextStyle(fontWeight: FontWeight.w900)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.brand_primary,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                  ElevatedButton.icon(
+                                    onPressed: () => context.push(AppRoutes.review_and_cook),
+                                    icon: const Icon(Icons.shopping_cart, size: 18),
+                                    label: const Text('장바구니(Test)', style: TextStyle(fontWeight: FontWeight.w900)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey[700],
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

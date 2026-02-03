@@ -65,7 +65,7 @@ class PaymentCancelRequest(BaseModel):
 
 # 결제 상세 조회 응답
 class PaymentDetailResponse(PaymentResponse):
-    pass
+    items: List[CartItemResponse] = []
 
 # --- Ledger Schemas (가계부 연동을 위해 미리 정의) ---
 
@@ -253,3 +253,30 @@ class RecipeRecommendResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# --- Product Schemas ---
+
+class ProductResponse(BaseModel):
+    product_id: int
+    category_id: Optional[int]
+    barcode: Optional[str]
+    name: str
+    price: int
+    unit_weight_g: int
+    stock_quantity: int
+    image_url: Optional[str]
+    product_info: Optional[dict] = None  # JSONB
+    
+    # 추가 필드 (위치 정보 등)
+    zone_code: Optional[str] = None # Category 조인 결과
+    category_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class ProductLocationResponse(BaseModel):
+    product_id: int
+    name: str
+    zone_code: Optional[str]
+    map_image_url: Optional[str] = None # 매장 지도 이미지 URL 등

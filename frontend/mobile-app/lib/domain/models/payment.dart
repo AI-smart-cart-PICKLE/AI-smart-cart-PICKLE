@@ -81,3 +81,26 @@ class WalletModel {
     required this.status_label,
   });
 }
+
+class PaymentReadyResponse {
+  final String tid;
+  final String next_redirect_app_url;
+  final String next_redirect_mobile_url;
+  final String next_redirect_pc_url;
+
+  const PaymentReadyResponse({
+    required this.tid,
+    required this.next_redirect_app_url,
+    required this.next_redirect_mobile_url,
+    required this.next_redirect_pc_url,
+  });
+
+  factory PaymentReadyResponse.fromJson(Map<String, dynamic> json) {
+    return PaymentReadyResponse(
+      tid: json['tid'] ?? '',
+      next_redirect_app_url: json['next_redirect_app_url'] ?? '',
+      next_redirect_mobile_url: json['next_redirect_mobile_url'] ?? '',
+      next_redirect_pc_url: json['next_redirect_pc_url'] ?? '',
+    );
+  }
+}
