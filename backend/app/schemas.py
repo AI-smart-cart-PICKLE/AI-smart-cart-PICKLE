@@ -81,7 +81,7 @@ class PaymentCancelRequest(BaseModel):
     reason: str = "사용자 요청에 의한 취소"
 
 class PaymentDetailResponse(PaymentResponse):
-    items: List[CartItemResponse] = []
+    items: List["CartItemResponse"] = []
 
 # --- ✨ [NEW] 결제 요청 및 무게 검증 (Checkout) ---
 
