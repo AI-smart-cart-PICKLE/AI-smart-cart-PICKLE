@@ -75,6 +75,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       pip install psycopg2-binary &&
+      mlflow db upgrade postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@db:5432/mlflow &&
       mlflow server 
       --backend-store-uri postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@db:5432/mlflow 
       --default-artifact-root s3://mlflow/ 

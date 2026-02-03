@@ -43,10 +43,10 @@ def get_payment_or_404(payment_id: int, user_id: int, db: Session):
     return payment
 
 async def process_subscription_payment(
-    db: Session, 
-    user: models.AppUser, 
-    cart_session_id: int, 
-    amount: int, 
+    db: Session,
+    user: models.AppUser,
+    cart_session_id: int,
+    amount: int,
     item_name: str
 ):
     """
@@ -58,7 +58,7 @@ async def process_subscription_payment(
         models.PaymentMethod.user_id == user.user_id,
         models.PaymentMethod.billing_key.isnot(None)
     ).order_by(models.PaymentMethod.is_default.desc()).first()
-    
+
     if not my_card:
         raise HTTPException(status_code=404, detail="등록된 자동결제 수단이 없습니다. 카드를 먼저 등록해주세요.")
 
@@ -68,7 +68,7 @@ async def process_subscription_payment(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
-    
+
     partner_order_id = f"sub_{cart_session_id}_{int(datetime.now().timestamp())}"
 
     pay_data = {
@@ -81,11 +81,11 @@ async def process_subscription_payment(
         "total_amount": amount,
         "tax_free_amount": 0,
     }
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, data=pay_data)
         res_data = response.json()
-        
+
     if "tid" not in res_data:
         raise HTTPException(status_code=400, detail=f"결제 승인 실패: {res_data}")
 
@@ -101,20 +101,20 @@ async def process_subscription_payment(
         approved_at=datetime.now()
     )
     db.add(new_payment)
-    
+
     # 4. 장바구니 상태 업데이트 (ACTIVE -> PAID)
     # session 객체를 다시 조회해서 업데이트 (안전성 확보)
     cart_session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == cart_session_id
     ).first()
-    
+
     if cart_session:
         cart_session.status = models.CartSessionStatus.PAID
         cart_session.ended_at = datetime.now()
-    
+
     db.commit()
     db.refresh(new_payment)
-    
+
     # 5. 가계부 자동 등록
     try:
         create_ledger_from_payment(payment_id=new_payment.payment_id, db=db)
@@ -155,7 +155,7 @@ async def request_payment(
 
     # 2. 무게 업데이트 및 검증
     cart_session.measured_total_g = req.measured_weight_g
-    db.commit() 
+    db.commit()
 
     weight_check = validate_cart_weight(
         db=db,
@@ -165,14 +165,14 @@ async def request_payment(
 
     if not weight_check["is_valid"]:
         return JSONResponse(
-            status_code=409, 
+            status_code=409,
             content={
                 "status": "WARNING",
                 "message": weight_check["message"],
                 "difference": weight_check["difference"],
                 "expected_weight": weight_check["expected_weight"],
                 "measured_weight": weight_check["measured_weight"],
-                "action_required": "CHECK_CART_ITEMS" 
+                "action_required": "CHECK_CART_ITEMS"
             }
         )
 
@@ -209,9 +209,9 @@ async def register_card_ready(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
-    
+
     order_id = f"reg_{current_user.user_id}_{int(datetime.now().timestamp())}"
-    
+
     data = {
         "cid": CID_SUBSCRIPTION,
         "partner_order_id": order_id,
@@ -255,7 +255,7 @@ async def register_card_approve(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
-    
+
     data = {
         "cid": CID_SUBSCRIPTION,
         "tid": tid,
@@ -263,7 +263,7 @@ async def register_card_approve(
         "partner_user_id": str(current_user.user_id),
         "pg_token": pg_token
     }
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, data=data)
         res_data = response.json()
@@ -273,16 +273,16 @@ async def register_card_approve(
 
     sid = res_data["sid"]
     card_info = res_data.get("card_info", {})
-    
+
     new_method = models.PaymentMethod(
         user_id=current_user.user_id,
         method_type=models.PaymentMethodType.KAKAO_PAY,
         billing_key=sid,
         card_brand=card_info.get("kakaopay_purchase_corp", "KAKAO"),
-        card_last4=card_info.get("bin", "0000")[:4], 
-        is_default=True 
+        card_last4=card_info.get("bin", "0000")[:4],
+        is_default=True
     )
-    
+
     db.add(new_method)
     db.commit()
     db.refresh(new_method)
@@ -545,36 +545,7 @@ async def get_payment_detail(
     db: Session = Depends(get_db),
     current_user: models.AppUser = Depends(get_current_user)
 ):
-    """
-    결제 상세 내역 조회
-    - 결제 정보 및 해당 장바구니 세션의 아이템 목록을 포함합니다.
-    """
-    # 1. 본인 결제 내역인지 확인하며 조회
-    payment = get_payment_or_404(payment_id, current_user.user_id, db)
-    
-    # 2. 응답 데이터 생성 (Pydantic 모델 변환)
-    response = schemas.PaymentDetailResponse.model_validate(payment)
-    
-    # 3. 장바구니 품목 목록 추가 (CartSession -> items)
-    if payment.session and payment.session.items:
-        items_list = []
-        for item in payment.session.items:
-            # item.product는 lazy loading 되므로 명시적으로 변환
-            product_simple = schemas.ProductSimpleResponse.model_validate(item.product)
-
-            cart_item_res = schemas.CartItemResponse(
-                cart_item_id=item.cart_item_id,
-                product=product_simple,
-                quantity=item.quantity,
-                unit_price=item.unit_price,
-                total_price=item.unit_price * item.quantity
-            )
-            items_list.append(cart_item_res)
-
-        response.items = items_list
-
-    return response
-
+    return get_payment_or_404(payment_id, current_user.user_id, db)
 
 @router.post("/{payment_id}/cancel", response_model=schemas.PaymentResponse)
 async def cancel_payment(
@@ -593,11 +564,11 @@ async def cancel_payment(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
-    
+
     cid_to_use = CID_ONETIME if payment.method_id is None else CID_SUBSCRIPTION
-    
+
     data = {
-        "cid": cid_to_use, 
+        "cid": cid_to_use,
         "tid": payment.pg_tid,
         "cancel_amount": payment.total_amount,
         "cancel_tax_free_amount": 0,

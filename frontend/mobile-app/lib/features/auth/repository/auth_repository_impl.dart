@@ -24,10 +24,10 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       final accessToken = response.data['access_token'];
-      _dioClient.setAccessToken(accessToken);
-      await _tokenStorage.saveToken(accessToken);
+      // DioClient를 통해 토큰을 저장 (내부에서 TokenStorage 사용)
+      await _dioClient.setAccessToken(accessToken);
 
-      // 로그인 성공 후 내 정보 가져오기
+      // 로그인 성공 후 내 정보 가져오기 (이제 인터셉터가 최신 토큰을 사용함)
       return await getUserMe();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
@@ -75,9 +75,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> logout() async {
     try {
-      // 로그아웃은 보통 프론트에서 토큰만 삭제하면 됨 (서버 호출 선택 사항)
-      _dioClient.clearAccessToken();
-      await _tokenStorage.deleteToken();
+      await _dioClient.clearAccessToken();
     } catch (e) {
       // 무시
     }

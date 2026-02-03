@@ -101,18 +101,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                                   ),
                                   Text(profile.email, style: TextStyle(color: AppColors.text_secondary)),
                                   const SizedBox(height: 6),
-                                  if (profile.is_premium)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.brand_primary.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(999),
-                                      ),
-                                      child: const Text(
-                                        '프리미엄 회원',
-                                        style: TextStyle(color: AppColors.brand_primary, fontWeight: FontWeight.w800, fontSize: 12),
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),
@@ -156,9 +144,21 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                       const SizedBox(height: 14),
                       Center(
                         child: TextButton(
-                          onPressed: () {
-                            // Implement logout
-                            context.go(AppRoutes.login);
+                          onPressed: () async {
+                            // 1. 로그아웃 로직 수행 (토큰 삭제 등)
+                            await ref.read(account_repository_provider).logout();
+                            
+                            // 2. 캐시된 모든 계정 관련 정보 초기화
+                            ref.invalidate(my_profile_provider);
+                            ref.invalidate(month_summary_provider);
+                            ref.invalidate(recent_transactions_provider);
+                            ref.invalidate(top_items_provider);
+                            ref.invalidate(category_breakdown_provider);
+                            
+                            // 3. 로그인 화면으로 이동 (기존 상태를 완전히 버리고 새로 시작)
+                            if (context.mounted) {
+                              context.go(AppRoutes.login);
+                            }
                           },
                           child: const Text('로그아웃', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
                         ),

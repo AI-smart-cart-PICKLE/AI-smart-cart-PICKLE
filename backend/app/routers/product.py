@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_
-from typing import List, Optional
+from sqlalchemy import func
 
 from app.database import get_db
 from app.models import Product, ProductCategory
-from app.schemas import ProductResponse, ProductLocationResponse
 
 router = APIRouter(
     prefix="/products",
@@ -14,20 +12,27 @@ router = APIRouter(
 )
 
 # 상품 목록 조회
-@router.get("/", response_model=List[ProductResponse])
+@router.get("/")
 def read_products(db: Session = Depends(get_db)):
     products = db.query(Product).all()
-    return products
+    return [
+        {
+            "product_id": p.product_id,
+            "name": p.name,
+            "price": p.price,
+            "stock_quantity": p.stock_quantity,
+            "image_url": p.image_url,
+            "product_info": p.product_info,
+        }
+        for p in products
+    ]
 
-# 상품 검색 (웹 / pg_trgm 기반) 
-@router.get("/search", response_model=List[ProductResponse])
+# 상품 검색 (웹 / pg_trgm 기반)
+@router.get("/search")
 def search_products(
     q: str = Query(..., min_length=1, description="검색어"),
     db: Session = Depends(get_db),
 ):
-    """
-    상품명으로 상품을 검색합니다. pg_trgm을 활용한 오타 허용(Fuzzy) 검색이 적용됩니다.
-    """
     products = (
         db.query(Product)
         .filter(func.similarity(Product.name, q) > 0.2)
@@ -35,40 +40,55 @@ def search_products(
         .limit(20)
         .all()
     )
-    return products
+
+    return [
+        {
+            "product_id": p.product_id,
+            "name": p.name,
+            "price": p.price,
+            "stock_quantity": p.stock_quantity,
+            "in_stock": p.stock_quantity > 0,
+            "image_url": p.image_url,
+        }
+        for p in products
+    ]
 
 # 상품 상세 조회
-@router.get("/{product_id}", response_model=ProductResponse)
-async def read_product(product_id: int, db: Session = Depends(get_db)):
-    """
-    상품 상세 정보를 조회합니다.
-    """
+@router.get("/{product_id}")
+def read_product_detail(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
     product = (
         db.query(Product)
-        .options(joinedload(Product.category))
         .filter(Product.product_id == product_id)
         .first()
     )
 
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    # 조인된 카테고리 정보가 있으면 추가 필드 설정 (ProductResponse 스키마 대응)
-    if product.category:
-        setattr(product, 'zone_code', product.category.zone_code)
-        setattr(product, 'category_name', product.category.name)
-        
-    return product
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found"
+        )
+
+    return {
+        "product_id": product.product_id,
+        "name": product.name,
+        "price": product.price,
+        "stock_quantity": product.stock_quantity,
+        "image_url": product.image_url,
+        "product_info": product.product_info,
+    }
 
 # 상품 위치 안내
-@router.get("/{product_id}/location", response_model=ProductLocationResponse)
+@router.get("/{product_id}/location")
 def get_product_location(
     product_id: int,
     db: Session = Depends(get_db),
 ):
     product = (
         db.query(Product)
-        .options(joinedload(Product.category))
+        .join(ProductCategory)
         .filter(Product.product_id == product_id)
         .first()
     )
@@ -76,19 +96,17 @@ def get_product_location(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    category = product.category
-    zone_code = category.zone_code if category else "Unknown"
+    category = product.category  # relationship 기준
 
-    return ProductLocationResponse(
-        product_id=product.product_id,
-        name=product.name,
-        zone_code=zone_code,
-        # TODO: 실제 맵 이미지 URL 로직 필요 시 추가
-        map_image_url=f"https://example.com/maps/{zone_code}.png" if zone_code else None
-    )
+    return {
+        "product_id": product.product_id,
+        "category": category.name,
+        "zone_code": category.zone_code,
+        "aisle": category.zone_code.split("-")[0],  # A / B / C
+    }
 
 # 바코드로 상품 조회
-@router.get("/barcode/{barcode}", response_model=ProductResponse)
+@router.get("/barcode/{barcode}")
 def get_product_by_barcode(
     barcode: str,
     db: Session = Depends(get_db)
@@ -107,5 +125,11 @@ def get_product_by_barcode(
             detail="상품을 찾을 수 없습니다."
         )
 
-    return product
-
+    return {
+        "product_id": product.product_id,
+        "name": product.name,
+        "price": product.price,
+        "stock_quantity": product.stock_quantity,
+        "image_url": product.image_url,
+        "barcode": product.barcode,
+    }
