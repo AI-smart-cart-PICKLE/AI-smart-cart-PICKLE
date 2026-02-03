@@ -46,7 +46,7 @@ const loading = ref(true)
 onMounted(async () => {
   try {
     const res = await axios.get(
-      `/api/products/${props.productId}/location`
+      `/products/${props.productId}/location`
     )
     location.value = res.data
   } catch (error) {

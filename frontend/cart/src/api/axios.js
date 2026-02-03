@@ -2,7 +2,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: '/api',
   withCredentials: true,
 })
 
@@ -28,7 +28,7 @@ api.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          '/api/auth/refresh',
+          '/auth/refresh',
           {},
           { withCredentials: true }
         )
