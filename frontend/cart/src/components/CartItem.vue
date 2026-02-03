@@ -56,8 +56,8 @@ const remove = () => {
         <span
           class="text-[10px] px-2 py-0.5 rounded-full"
           :class="item.is_verified
-            ? 'bg-green-100 text-green-700'
-            : 'bg-yellow-100 text-yellow-600'"
+            ? 'bg-indigo-50 text-indigo-600 font-bold'
+            : 'bg-yellow-100 text-yellow-600 font-bold'"
         >
           {{ item.is_verified ? 'VERIFIED' : 'PENDING' }}
         </span>
