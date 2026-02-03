@@ -33,7 +33,7 @@ function onScanFail() {
 
     <!-- 📍 위치 찾기 -->
     <button
-      class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-sm"
+      class="flex-1 py-5 rounded-xl bg-slate-100 font-bold text-sm"
       @click="showFindProduct = true"
     >
       📍 위치 찾기
@@ -41,7 +41,7 @@ function onScanFail() {
 
     <!-- ➕ 상품 추가 (카메라) -->
     <button
-      class="flex-1 py-3 rounded-xl bg-green-400 font-bold text-sm"
+      class="flex-1 py-5 rounded-xl bg-green-400 font-bold text-sm"
       @click="showCamera = true"
     >
       ➕ 상품 추가

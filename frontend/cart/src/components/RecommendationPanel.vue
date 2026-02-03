@@ -42,7 +42,7 @@ const closeRecipe = () => {
 
 <template>
   <section
-    class="bg-white rounded-3xl border p-5
+    class="bg-white rounded-3xl border p-6
           flex flex-col
           max-h-[300px]"
   >

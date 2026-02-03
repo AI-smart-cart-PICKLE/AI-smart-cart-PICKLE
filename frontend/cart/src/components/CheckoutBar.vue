@@ -1,17 +1,34 @@
 <script setup>
+import { ref } from 'vue'
 import { useCartStore } from '@/stores/cart'
+import CheckoutModal from '@/components/modals/CheckoutModal.vue'
+
 const cartStore = useCartStore()
+const showCheckoutModal = ref(false)
+
+const openCheckoutModal = () => {
+  showCheckoutModal.value = true
+}
+
+const handleCheckoutSuccess = () => {
+  // TODO: 이후 실제 결제 완료 페이지로 이동하거나,
+  // 결제 대기 상태 화면(QR 등)을 띄워야 함.
+  // 우선은 간단히 알림만.
+  alert('결제 요청이 정상적으로 처리되었습니다.')
+}
 </script>
 
 <template>
   <!-- ✅ 결제 바 -->
   <div
     class="
-      h-[65px] w-full
+      w-full
+      max-w-[900px]
+      mx-auto
       bg-slate-900
-      px-8
-      rounded-3xl
-      shadow-2xl
+      px-6 py-4
+      rounded-2xl
+      shadow-lg
       flex items-center justify-between
     "
   >
@@ -40,6 +57,7 @@ const cartStore = useCartStore()
 
     <!-- RIGHT : 결제 버튼 -->
     <button
+      @click="openCheckoutModal"
       class="
         px-8 py-2.5
         bg-green-400 text-slate-900
@@ -53,5 +71,12 @@ const cartStore = useCartStore()
     >
       결제하기
     </button>
+
+    <!-- 결제 확인 모달 -->
+    <CheckoutModal
+      v-if="showCheckoutModal"
+      @close="showCheckoutModal = false"
+      @success="handleCheckoutSuccess"
+    />
   </div>
 </template>
