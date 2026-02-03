@@ -129,6 +129,8 @@ deploy:
     - echo "Uploading frontend build files (if available)..."
     - |
       if [ -d "frontend/web-kiosk/dist" ]; then
+        echo "Cleaning old frontend files..."
+        ssh $EC2_USER@$EC2_HOST "rm -rf ~/workspaces/S14P11A202/frontend/web-kiosk/dist && mkdir -p ~/workspaces/S14P11A202/frontend/web-kiosk/dist"
         rsync -avz --delete -e "ssh" frontend/web-kiosk/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/web-kiosk/dist/
         echo "Frontend files uploaded successfully"
       else
