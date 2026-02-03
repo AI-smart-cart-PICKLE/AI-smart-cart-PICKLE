@@ -360,6 +360,28 @@ class ProductResponse(BaseModel):
     stock_quantity: Optional[int] = 0
     image_url: Optional[str] = None
     product_info: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        from_attributes = True
 
+class RecipeIngredientResponse(BaseModel):
+    product_id: int
+    name: str
+    quantity_info: Optional[str] = None
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class RecipeDetailResponse(BaseModel):
+    recipe_id: int
+    title: str
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+    image_url: Optional[str] = None
+    
+    # 조리 재료
+    ingredients: List[RecipeIngredientResponse] = []
+    
     class Config:
         from_attributes = True
