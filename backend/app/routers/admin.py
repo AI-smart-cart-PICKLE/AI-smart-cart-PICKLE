@@ -5,7 +5,7 @@ import os
 
 # 필요하다면 관리자 인증 의존성(Depends) 추가 가능
 router = APIRouter(
-    prefix="/api/admin",
+    prefix="/admin",
     tags=["admin"],
     responses={404: {"description": "Not found"}},
 )
@@ -16,6 +16,7 @@ AI_SERVER_URL = "http://ai_inference:8000"
 class TrainRequest(BaseModel):
     epochs: int = 10
     experiment_name: str = "manual_trigger"
+    model_name: str = "yolo11s.pt"  # yolov8n.pt, yolov8s.pt, yolov8m.pt, yolo11n.pt 등
 
 @router.post("/train")
 def trigger_training(req: TrainRequest):
