@@ -50,6 +50,12 @@ onMounted(init)
 
           <!-- 액션 버튼 (아래) -->
           <ActionButtons />
+
+          <!-- 결제 영역 -->
+          <CheckoutBar
+            v-if="cartStore.cartSession"
+            class="flex-none"
+          />
         </div>
       </template>
       <template v-else>
@@ -58,12 +64,6 @@ onMounted(init)
         </div>
       </template>
     </div>
-
-    <!-- =========================
-         결제 바 (84px)
-         👉 위로 끌어올림
-    ========================== -->
-    <CheckoutBar v-if="cartStore.cartSession" class="h-[65px]" />
   </main>
 </template>
 

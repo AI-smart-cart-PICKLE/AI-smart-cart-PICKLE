@@ -7,11 +7,13 @@ const cartStore = useCartStore()
   <!-- ✅ 결제 바 -->
   <div
     class="
-      h-[65px] w-full
+      w-full
+      max-w-[900px]
+      mx-auto
       bg-slate-900
-      px-8
-      rounded-3xl
-      shadow-2xl
+      px-6 py-4
+      rounded-2xl
+      shadow-lg
       flex items-center justify-between
     "
   >
