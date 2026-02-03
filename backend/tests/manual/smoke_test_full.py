@@ -172,8 +172,10 @@ def main():
     # AI 서버 연결 실패(503)도 성공으로 간주 (Test 목적: 라우터 도달 여부)
     req("POST", "/admin/train", {
         "epochs": 1,
-        "experiment_name": "smoke_test",
-        "model_name": "yolo11n.pt"
+        "experiment_name": "smoke_test_augmented",
+        "model_name": "yolo11n.pt",
+        "mosaic": 0.5,
+        "mixup": 0.1
     }, auth=True, expected_status=[200, 503, 500])
 
     # 5-2. AI Edge Sync (Cart)

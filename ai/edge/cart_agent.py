@@ -5,16 +5,30 @@ import os
 from collections import Counter, deque
 from ultralytics import YOLO
 
+# =========================================================
+# 🛒 Smart Cart Edge Agent
+# =========================================================
+# [실행 가이드]
+# 1. 환경 변수 설정 (또는 .env 파일):
+#    export BACKEND_URL="https://bapsim.site"
+#    export DEVICE_CODE="CART-DEVICE-001"
+#    export MODEL_PATH="best.pt"
+# 2. 실행:
+#    python cart_agent.py
+# =========================================================
+
 # 설정
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000") 
-DEVICE_CODE = os.getenv("DEVICE_CODE", "cart_001")
-MODEL_PATH = os.getenv("MODEL_PATH", "models/best.pt")
+# 엣지 디바이스에서 백엔드 서버 주소 (localhost는 사용 불가)
+BACKEND_URL = os.getenv("BACKEND_URL", "https://bapsim.site") 
+DEVICE_CODE = os.getenv("DEVICE_CODE", "CART-DEVICE-001")
+MODEL_PATH = os.getenv("MODEL_PATH", "best.pt") # 같은 폴더에 두는 것을 권장
 CONF_THRESHOLD = 0.5
 CAMERA_INDEX = 0
 
 # 안정화 설정 (Global Stability)
-WINDOW_SIZE = 100 
-STABILIZATION_THRESHOLD = 0.9  # 5초 중 4.5초 동안 '전체 목록'이 토씨 하나 안 틀리고 같아야 함
+# 30FPS 기준, 30프레임(약 1초) 동안 90% 이상 일치하면 전송
+WINDOW_SIZE = 30 
+STABILIZATION_THRESHOLD = 0.9
 
 def get_global_stabilized_state(buffer):
     """
