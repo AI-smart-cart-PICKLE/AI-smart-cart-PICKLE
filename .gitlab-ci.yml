@@ -10,8 +10,6 @@ variables:
   DOCKER_BUILDKIT: 1
   DOCKER_HOST: "unix:///var/run/docker.sock"
 
-# services: docker:dind 제거 (Host Docker Socket 사용 - DOOD)
-
 # =========================================================
 # 1. Backend Build Job
 # =========================================================
@@ -67,7 +65,7 @@ build-frontend:
     - npm run build
   artifacts:
     paths:
-      - frontend/web-kiosk/dist/
+      - frontend/cart/dist/  # [수정] 빌드 경로와 아티팩트 저장 경로 일치
     expire_in: 1 hour
   rules:
     - changes:
@@ -104,8 +102,14 @@ deploy:
   stage: deploy
   image: alpine:latest
   needs:
+    - job: build-backend
+      optional: true
+    - job: build-ai
+      optional: true
     - job: build-frontend
       artifacts: true
+      optional: true
+    - job: build-airflow
       optional: true
   before_script:
     - apk add --no-cache openssh-client rsync
@@ -115,26 +119,19 @@ deploy:
     - chmod 700 ~/.ssh
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   script:
-    - echo "Creating full directory structure on EC2..."
-    - >
-      ssh $EC2_USER@$EC2_HOST "mkdir -p
-      ~/workspaces/S14P11A202/backend
-      ~/workspaces/S14P11A202/ai
-      ~/workspaces/S14P11A202/mlops/airflow
-      ~/workspaces/S14P11A202/frontend/web-kiosk/dist"
+    - echo "Creating directory structure on EC2..."
+    - ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202/frontend/dist"
 
     - echo "Uploading deployment files..."
     - scp docker-compose.yml init-db.sh nginx-ssl-prod.conf $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
 
-    - echo "Uploading frontend build files (if available)..."
+    - echo "Uploading frontend build files..."
     - |
-      if [ -d "frontend/web-kiosk/dist" ]; then
-        echo "Cleaning old frontend files..."
-        ssh $EC2_USER@$EC2_HOST "rm -rf ~/workspaces/S14P11A202/frontend/web-kiosk/dist && mkdir -p ~/workspaces/S14P11A202/frontend/web-kiosk/dist"
-        rsync -avz --delete -e "ssh" frontend/web-kiosk/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/web-kiosk/dist/
-        echo "Frontend files uploaded successfully"
+      if [ -d "frontend/cart/dist" ]; then
+        echo "Syncing frontend files..."
+        rsync -avz --delete -e "ssh" frontend/cart/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/dist/
       else
-        echo "No frontend build artifacts found - skipping frontend upload"
+        echo "No frontend artifacts found - skipping rsync"
       fi
 
     - echo "Generating .env file on EC2..."
@@ -163,16 +160,16 @@ SSL_CERT_PATH=$SSL_CERT_PATH
 EOF"
 
     - echo "Executing Remote Deployment Commands..."
-    - >
-      ssh $EC2_USER@$EC2_HOST "
-        cd ~/workspaces/S14P11A202 &&
-        echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin &&
-        docker compose pull &&
-        docker compose --profile cpu up -d --remove-orphans &&
-        echo 'Running Alembic Migrations...' &&
-        docker compose exec -T backend alembic upgrade head &&
-        docker compose restart nginx &&
+    - |
+      ssh $EC2_USER@$EC2_HOST << 'REMOTECMD'
+        cd ~/workspaces/S14P11A202
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        docker compose pull
+        docker compose --profile cpu up -d --remove-orphans
+        echo "Running Alembic Migrations..."
+        docker compose exec -T backend alembic upgrade head
+        docker compose restart nginx
         docker image prune -f
-      "
+      REMOTECMD
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
