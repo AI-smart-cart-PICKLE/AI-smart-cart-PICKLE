@@ -1,3 +1,13 @@
+import logging
+import os
+
+# 전역 로깅 설정 (로거 선언 전 최상단)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 from dotenv import load_dotenv
 load_dotenv() # .env 파일을 찾아서 환경변수로 로드함
 # 앱 실행 진입점
