@@ -20,6 +20,7 @@ class Settings:
     JETSON_STREAM_URL = os.getenv("JETSON_STREAM_URL")
 
     BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key_change_me_in_production")
 
 settings = Settings()
 
