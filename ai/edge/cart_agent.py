@@ -2,8 +2,14 @@ import time
 import requests
 import cv2
 import os
+import json
+import uuid
+import numpy as np
 from collections import Counter, deque
+from datetime import datetime
+from threading import Thread
 from ultralytics import YOLO
+import boto3
 
 BACKEND_URL = os.getenv("BACKEND_URL", "https://bapsim.site") 
 DEVICE_CODE = os.getenv("DEVICE_CODE", "CART-DEVICE-001")
