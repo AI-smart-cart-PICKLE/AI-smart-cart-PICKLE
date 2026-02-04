@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // 추가
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/primary_button.dart';
-import '../../account/presentation/account_providers.dart'; // 추가
+import '../../account/presentation/account_providers.dart';
 import 'auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -66,15 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.login(email: email, password: password);
       
-      // 로그인 성공 후 계정 관련 캐시 강제 무효화 (프로필 및 가계부)
-      // account_providers.dart에 정의된 것들
-      ref.invalidate(my_profile_provider);
-      ref.invalidate(month_summary_provider);
-      ref.invalidate(recent_transactions_provider);
-      
-      if (mounted) {
-        context.go(AppRoutes.home);
-      }
+      _on_login_success();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -87,6 +80,84 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
           _is_loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _handle_oauth_login(String provider) async {
+    if (provider == 'google') {
+      // 네이티브 구글 로그인
+      setState(() {
+        _is_loading = true;
+      });
+      try {
+        final authRepo = ref.read(authRepositoryProvider);
+        await authRepo.loginWithGoogle();
+        _on_login_success();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('구글 로그인 실패: ${e.toString().replaceAll("Exception: ", "")}')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _is_loading = false;
+          });
+        }
+      }
+      return;
+    }
+
+    // 카카오 (기존 웹뷰 방식 유지)
+    final baseUrl = dotenv.env['API_URL']?.replaceAll('/api', '') ?? 'https://bapsim.site';
+    String url = '';
+    String title = '';
+
+    if (provider == 'kakao') {
+      url = '$baseUrl/api/auth/kakao/login';
+      title = '카카오 로그인';
+    } 
+    // ... 기존 코드 ...
+
+    final token = await context.push<String>(
+      AppRoutes.oauth_webview,
+      extra: {'url': url, 'title': title},
+    );
+
+    if (token != null) {
+      setState(() {
+        _is_loading = true;
+      });
+
+      try {
+        final authRepo = ref.read(authRepositoryProvider);
+        await authRepo.loginWithToken(token);
+        _on_login_success();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('OAuth 로그인 처리 실패: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _is_loading = false;
+          });
+        }
+      }
+    }
+  }
+
+  void _on_login_success() {
+    // 로그인 성공 후 계정 관련 캐시 강제 무효화
+    ref.invalidate(my_profile_provider);
+    ref.invalidate(month_summary_provider);
+    ref.invalidate(recent_transactions_provider);
+    
+    if (mounted) {
+      context.go(AppRoutes.home);
     }
   }
 
@@ -180,9 +251,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 const SizedBox(height: 24),
                 _SocialLoginButton(
                   label: '카카오로 시작하기',
-                  onPressed: () {
-                    // TODO: 카카오 로그인 연동
-                  },
+                  onPressed: () => _handle_oauth_login('kakao'),
                   backgroundColor: const Color(0xFFFEE500),
                   textColor: Colors.black.withOpacity(0.85),
                   icon: const Icon(Icons.chat_bubble, color: Colors.black, size: 18),
@@ -190,9 +259,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 const SizedBox(height: 12),
                 _SocialLoginButton(
                   label: 'Google로 시작하기',
-                  onPressed: () {
-                    // TODO: 구글 로그인 연동
-                  },
+                  onPressed: () => _handle_oauth_login('google'),
                   backgroundColor: Colors.white,
                   textColor: Colors.black.withOpacity(0.54),
                   icon: Image.network(

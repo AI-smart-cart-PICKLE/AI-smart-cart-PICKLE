@@ -27,15 +27,23 @@ def pair_cart_by_qr(
     db: Session = Depends(database.get_db),
     current_user: models.AppUser = Depends(get_current_user),
 ):
-    # 1. 디바이스 조회 (QR 기반)
+    # 1. 입력값 정제 (하이픈을 언더바로 변경하여 DB 매칭 확률 높임)
+    clean_code = device_code.strip().replace('-', '_')
+    
+    # 2. 디바이스 조회
     device = (
         db.query(models.CartDevice)
-        .filter(models.CartDevice.device_code == device_code)
+        .filter((models.CartDevice.device_code == device_code) | (models.CartDevice.device_code == clean_code))
         .first()
     )
 
     if not device:
-        raise HTTPException(status_code=404, detail="카트 디바이스를 찾을 수 없습니다.")
+        # 디버깅을 위해 가능한 모든 디바이스 출력 (로그)
+        all_devices = db.query(models.CartDevice.device_code).all()
+        raise HTTPException(
+            status_code=404, 
+            detail=f"카트 디바이스를 찾을 수 없습니다. (입력: {device_code}, 정제: {clean_code}, 가용: {[d[0] for d in all_devices]})"
+        )
 
     # 2. 해당 디바이스의 ACTIVE 세션 조회
     session = (
@@ -68,6 +76,33 @@ def pair_cart_by_qr(
         "cart_device_id": device.cart_device_id,
         "message": "카트가 앱과 연결되었습니다.",
     }
+
+# --- 카트 연동 상태 확인 (웹 키오스크 폴링용) ---
+@router.get("/pair/status/{device_code}")
+def check_pairing_status(
+    device_code: str,
+    db: Session = Depends(database.get_db)
+):
+    # 1. 디바이스 조회
+    device = db.query(models.CartDevice).filter(models.CartDevice.device_code == device_code).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Unknown Device")
+
+    # 2. 해당 디바이스의 ACTIVE 세션 중 유저가 할당된 세션 찾기
+    session = db.query(models.CartSession).filter(
+        models.CartSession.cart_device_id == device.cart_device_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE,
+        models.CartSession.user_id.isnot(None)
+    ).first()
+
+    if session:
+        return {
+            "paired": True,
+            "cart_session_id": session.cart_session_id,
+            "user_id": session.user_id
+        }
+    
+    return {"paired": False}
 
 
 # --- 1. 장바구니 생성 (쇼핑 시작) ---
@@ -142,7 +177,8 @@ def get_current_cart_session(
         "total_amount": total_amount,
         "total_items": total_quantity,
         "items": response_items,        
-        "expected_total_g": session.expected_total_g
+        "expected_total_g": session.expected_total_g,
+        "device_code": session.device.device_code if session.device else None
     }
 
 
@@ -190,7 +226,8 @@ def get_cart_session(
         "total_amount": total_amount,
         "total_items": total_quantity,
         "items": response_items,        
-        "expected_total_g": session.expected_total_g
+        "expected_total_g": session.expected_total_g,
+        "device_code": session.device.device_code if session.device else None
     }
 
 

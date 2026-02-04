@@ -43,12 +43,26 @@ class CartRepositoryImpl implements CartRepository {
         status: status,
         items: items, 
         subtotal: subtotal, 
-        total: subtotal
+        total: subtotal,
+        device_code: data['device_code'],
       );
-      
     } catch (e) {
       print('fetch_cart_summary error: $e');
       throw Exception('장바구니 정보를 불러오는데 실패했습니다: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> pair_cart_by_qr({required String device_code}) async {
+    try {
+      final response = await _dioClient.dio.post(
+        'carts/pair/qr',
+        queryParameters: {'device_code': device_code},
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('pair_cart_by_qr error: $e');
+      throw Exception('카트 연동에 실패했습니다: $e');
     }
   }
 }

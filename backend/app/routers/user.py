@@ -100,12 +100,27 @@ def login(
 
 # 로그아웃
 @auth_router.post("/logout")
-def logout(response: Response):
+def logout(
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user)
+):
+    # 1. 사용자의 모든 활성 카트 세션 종료
+    db.query(AppUser).filter(AppUser.user_id == current_user.user_id).update({"updated_at": datetime.now()}) # dummy update to ensure session
+    from app.models import CartSession, CartSessionStatus
+    db.query(CartSession).filter(
+        CartSession.user_id == current_user.user_id,
+        CartSession.status == CartSessionStatus.ACTIVE
+    ).update({"status": CartSessionStatus.CANCELLED, "ended_at": datetime.now()})
+    
+    db.commit()
+
+    # 2. 쿠키 삭제
     response.delete_cookie(
         key="refresh_token",
         path="/",
     )
-    return {"message": "Logged out successfully"}
+    return {"message": "Logged out successfully and cart sessions closed"}
 
 
 # 내 정보 조회

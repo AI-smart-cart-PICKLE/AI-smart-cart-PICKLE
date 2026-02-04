@@ -9,7 +9,7 @@ final cart_repository_provider = Provider<CartRepository>((ref) {
   return CartRepositoryImpl(dioClient);
 });
 
-final cart_summary_provider = FutureProvider<CartSummary>((ref) async {
+final cart_summary_provider = FutureProvider.autoDispose<CartSummary>((ref) async {
   final CartRepository repo = ref.read(cart_repository_provider);
   return repo.fetch_cart_summary();
 });

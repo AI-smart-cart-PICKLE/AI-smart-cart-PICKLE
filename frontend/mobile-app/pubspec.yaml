@@ -45,6 +45,8 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   flutter_dotenv: ^6.0.0
   webview_flutter: ^4.13.1
+  google_sign_in: ^6.2.1
+  app_links: ^7.0.0
 
 dev_dependencies:
   flutter_test:

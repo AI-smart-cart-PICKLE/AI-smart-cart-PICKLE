@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/router/app_routes.dart';
+import 'cart_providers.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -72,15 +73,20 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         children: [
           MobileScanner(
             controller: controller,
-            scanWindow: scan_window,
+            // scanWindow: scan_window, // 인식 문제 해결을 위해 일시적으로 영역 제한 해제
             onDetect: (capture) {
               if (is_scanned) return;
+              
               final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final String? code = barcodes.first.rawValue;
+              for (final barcode in barcodes) {
+                final String? code = barcode.rawValue;
                 if (code != null) {
+                  debugPrint('QR Code detected: $code');
                   setState(() => is_scanned = true);
+                  
+                  // 인식 성공 시 짧은 진동 대신 가벼운 피드백 (SnackBar는 BuildContext 필요하므로 내부에서 처리)
                   _handleScannedCode(code);
+                  break; 
                 }
               }
             },
@@ -148,7 +154,24 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   }
 
   Future<void> _handleScannedCode(String code) async {
-    // Show success dialog or navigate
+    // 1. 만약 스캔된 코드가 URL이라면 (결제 요청)
+    if (code.startsWith('http://') || code.startsWith('https://')) {
+      final Uri url = Uri.parse(code);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        if (mounted) context.pop(); // 스캐너 닫기
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('유효하지 않은 결제 URL입니다.')),
+          );
+          setState(() => is_scanned = false);
+        }
+      }
+      return;
+    }
+
+    // 2. 일반 텍스트 코드라면 (카트 연동)
     if (!mounted) return;
     
     showDialog(
@@ -168,21 +191,24 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              if (code.startsWith('http')) {
-                final Uri url = Uri.parse(code);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('URL을 열 수 없습니다.')),
-                    );
-                  }
-                }
-              } else {
-                // For other codes, navigate to the cart review screen
+              
+              try {
+                // 1. 카트 연동 API 호출
+                final result = await ref.read(cart_repository_provider).pair_cart_by_qr(device_code: code);
+                
                 if (mounted) {
-                  context.pushReplacement(AppRoutes.review_and_cook);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('카트와 성공적으로 연동되었습니다!')), 
+                  );
+                  // 2. 연동 성공 후 홈 또는 리뷰 화면으로 이동
+                  context.pushReplacement(AppRoutes.home);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('연동 실패: ${e.toString().replaceAll('Exception: ', '')}')),
+                  );
+                  setState(() => is_scanned = false);
                 }
               }
             },
