@@ -37,12 +37,18 @@ class PaymentReadyRequest(BaseModel):
     cart_session_id: int
     total_amount: int = Field(..., gt=0, description="결제 금액은 0원 이상이어야 합니다.") 
     method_id: Optional[int] = None
+    
+    # Optional Custom Callback URLs (For Mobile App Deep Links)
+    approval_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+    fail_url: Optional[str] = None
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "cart_session_id": 12,
             "total_amount": 15000,
-            "method_id": None
+            "method_id": None,
+            "approval_url": "pickle://payment/success"
         }
     })
 

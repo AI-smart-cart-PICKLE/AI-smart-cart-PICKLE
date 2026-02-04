@@ -1,0 +1,237 @@
+-- ==========================================
+-- 1. 기존 테이블 및 타입 삭제 (Drop everything)
+-- ==========================================
+DROP TABLE IF EXISTS ledger_entry CASCADE;
+DROP TABLE IF EXISTS payment CASCADE;
+DROP TABLE IF EXISTS payment_method CASCADE;
+DROP TABLE IF EXISTS cart_detection_log CASCADE;
+DROP TABLE IF EXISTS cart_item CASCADE;
+DROP TABLE IF EXISTS cart_session CASCADE;
+DROP TABLE IF EXISTS cart_device CASCADE;
+DROP TABLE IF EXISTS saved_recipe CASCADE;
+DROP TABLE IF EXISTS recipe_ingredient CASCADE;
+DROP TABLE IF EXISTS recipe CASCADE;
+DROP TABLE IF EXISTS product CASCADE;
+DROP TABLE IF EXISTS product_category CASCADE;
+DROP TABLE IF EXISTS password_reset_token CASCADE;
+DROP TABLE IF EXISTS app_user CASCADE;
+
+-- Enum 타입 삭제 (의존성 문제로 테이블 삭제 후 실행)
+DROP TYPE IF EXISTS ledger_category;
+DROP TYPE IF EXISTS payment_status;
+DROP TYPE IF EXISTS pg_provider_type;
+DROP TYPE IF EXISTS payment_method_type;
+DROP TYPE IF EXISTS detection_action_type;
+DROP TYPE IF EXISTS cart_session_status;
+DROP TYPE IF EXISTS user_provider;
+
+-- ==========================================
+-- 2. 확장 모듈 설치 (Extensions)
+-- ==========================================
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- ==========================================
+-- 3. ENUM 타입 정의 (Define Enums)
+-- ==========================================
+CREATE TYPE user_provider AS ENUM ('LOCAL', 'GOOGLE', 'KAKAO');
+CREATE TYPE cart_session_status AS ENUM ('ACTIVE', 'CHECKOUT_REQUESTED', 'PAID', 'CANCELLED');
+CREATE TYPE detection_action_type AS ENUM ('ADD', 'REMOVE');
+CREATE TYPE payment_method_type AS ENUM ('CARD', 'KAKAO_PAY');
+CREATE TYPE pg_provider_type AS ENUM ('KAKAO_PAY', 'CARD_PG');
+CREATE TYPE payment_status AS ENUM ('PENDING', 'APPROVED', 'FAILED', 'CANCELLED');
+CREATE TYPE ledger_category AS ENUM ('GROCERY', 'MEAT', 'DAIRY', 'BEVERAGE', 'SNACK', 'HOUSEHOLD', 'ETC');
+
+-- ==========================================
+-- 4. 테이블 생성 (Create Tables)
+-- ==========================================
+
+-- (1) 유저 (User)
+CREATE TABLE app_user (
+    user_id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    provider user_provider NOT NULL DEFAULT 'LOCAL',
+    nickname VARCHAR(40) NOT NULL,
+    password_hash VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+-- (2) 비밀번호 재설정 토큰 (Password Reset)
+CREATE TABLE password_reset_token (
+    token VARCHAR PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+-- (3) 상품 카테고리 (Category)
+CREATE TABLE product_category (
+    category_id SERIAL PRIMARY KEY,
+    name VARCHAR(60) NOT NULL UNIQUE,
+    zone_code VARCHAR(30) NOT NULL
+);
+
+-- (4) 상품 (Product)
+CREATE TABLE product (
+    product_id SERIAL PRIMARY KEY,
+    category_id INTEGER NOT NULL REFERENCES product_category(category_id),
+    barcode VARCHAR(64) UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    price INTEGER NOT NULL,
+    unit_weight_g INTEGER NOT NULL,
+    stock_quantity INTEGER DEFAULT 0,
+    image_url TEXT,
+    product_info JSONB,
+    embedding vector(1536),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 인덱스: 상품 검색 및 벡터 검색용
+CREATE INDEX idx_product_name_trgm ON product USING gin (name gin_trgm_ops);
+CREATE INDEX idx_product_embedding ON product USING ivfflat (embedding vector_cosine_ops);
+
+-- (5) 레시피 (Recipe)
+CREATE TABLE recipe (
+    recipe_id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    instructions TEXT,
+    image_url TEXT,
+    embedding vector(1536),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_recipe_embedding ON recipe USING ivfflat (embedding vector_cosine_ops);
+
+-- (6) 레시피 재료 (Recipe Ingredient)
+CREATE TABLE recipe_ingredient (
+    recipe_id INTEGER NOT NULL REFERENCES recipe(recipe_id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES product(product_id),
+    quantity_info VARCHAR(50),
+    importance_score INTEGER DEFAULT 1,
+    PRIMARY KEY (recipe_id, product_id)
+);
+
+-- (7) 저장된 레시피 (Saved Recipe)
+CREATE TABLE saved_recipe (
+    user_id INTEGER NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+    recipe_id INTEGER NOT NULL REFERENCES recipe(recipe_id) ON DELETE CASCADE,
+    saved_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, recipe_id)
+);
+
+-- (8) 카트 디바이스 (IoT Device)
+CREATE TABLE cart_device (
+    cart_device_id SERIAL PRIMARY KEY,
+    device_code VARCHAR(64) NOT NULL UNIQUE
+);
+
+-- (9) 카트 세션 (Shopping Session)
+CREATE TABLE cart_session (
+    cart_session_id SERIAL PRIMARY KEY,
+    cart_device_id INTEGER NOT NULL REFERENCES cart_device(cart_device_id),
+    user_id INTEGER REFERENCES app_user(user_id),
+    status cart_session_status NOT NULL DEFAULT 'ACTIVE',
+    budget_limit INTEGER DEFAULT 0,
+    expected_total_g INTEGER DEFAULT 0,
+    measured_total_g INTEGER DEFAULT 0,
+    camera_view_on BOOLEAN NOT NULL DEFAULT FALSE,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ended_at TIMESTAMPTZ
+);
+
+-- (10) 카트 아이템 (Cart Items)
+CREATE TABLE cart_item (
+    cart_item_id SERIAL PRIMARY KEY,
+    cart_session_id INTEGER NOT NULL REFERENCES cart_session(cart_session_id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES product(product_id),
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price INTEGER NOT NULL,
+    added_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- (11) 카트 감지 로그 (AI Detection Logs)
+CREATE TABLE cart_detection_log (
+    log_id SERIAL PRIMARY KEY,
+    cart_session_id INTEGER NOT NULL REFERENCES cart_session(cart_session_id) ON DELETE CASCADE,
+    cart_device_id INTEGER NOT NULL REFERENCES cart_device(cart_device_id),
+    product_id INTEGER REFERENCES product(product_id),
+    action_type detection_action_type NOT NULL,
+    confidence_score NUMERIC(5,2),
+    detected_weight_g INTEGER,
+    is_applied BOOLEAN DEFAULT FALSE,
+    detected_at TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- (12) 결제 수단 (Payment Method)
+CREATE TABLE payment_method (
+    method_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+    method_type payment_method_type NOT NULL,
+    billing_key VARCHAR(255),
+    card_brand VARCHAR(30),
+    card_last4 VARCHAR(4),
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE UNIQUE INDEX uq_payment_method_user_billing_key 
+    ON payment_method (user_id, billing_key) WHERE billing_key IS NOT NULL;
+
+-- (13) 결제 (Payment)
+CREATE TABLE payment (
+    payment_id SERIAL PRIMARY KEY,
+    cart_session_id INTEGER UNIQUE REFERENCES cart_session(cart_session_id),
+    user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+    method_id INTEGER REFERENCES payment_method(method_id),
+    pg_provider pg_provider_type NOT NULL,
+    pg_tid VARCHAR(255),
+    status payment_status NOT NULL DEFAULT 'PENDING',
+    total_amount INTEGER NOT NULL,
+    approved_at TIMESTAMPTZ
+);
+
+-- (14) 가계부 (Ledger)
+CREATE TABLE ledger_entry (
+    ledger_entry_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+    payment_id INTEGER REFERENCES payment(payment_id) ON DELETE SET NULL,
+    spend_date DATE NOT NULL,
+    category ledger_category NOT NULL DEFAULT 'ETC',
+    amount INTEGER NOT NULL,
+    memo TEXT
+);
+
+-- ==========================================
+-- 5. 더미 데이터 삽입 (Seed Data)
+-- ==========================================
+
+-- 유저 생성 (비밀번호: 1234)
+INSERT INTO app_user (email, nickname, password_hash, is_active, provider) 
+VALUES (
+    'test@test.com', 
+    '테스터', 
+    '$argon2id$v=19$m=65536,t=3,p=4$vpcyRoiRslYqJUTI2Zvz/g$uPwOlQs8DwRnFO+ExdKJ4yCbV5RVr/70hDWAHg4Z6XE', 
+    TRUE,
+    'LOCAL'
+);
+
+-- 카테고리 생성
+INSERT INTO product_category (name, zone_code) VALUES 
+('음료', 'Z01'), 
+('과자', 'Z02'), 
+('유제품', 'Z03');
+
+-- 상품 생성 (테스트용)
+INSERT INTO product (category_id, name, price, unit_weight_g, barcode, stock_quantity) VALUES
+(1, '코카콜라 500ml', 2000, 500, '8801094017200', 100),
+(2, '포카칩 오리지널', 1500, 66, '8801117953606', 50),
+(3, '서울우유 1L', 3000, 1000, '8801111111111', 30);
+
+-- 카트 디바이스 생성 (테스트용)
+INSERT INTO cart_device (device_code) VALUES ('DEV_TEST_001');

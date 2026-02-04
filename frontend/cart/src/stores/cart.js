@@ -166,17 +166,29 @@ const addItemByBarcode = async (barcode) => {
 
   /**
    * 🔹 결제 요청 (모바일 앱으로 결제 신호 전송)
-   * POST /api/carts/{session_id}/checkout
+   * POST /api/payments/ready
    */
   const checkout = async () => {
     const sessionId = cartSession.value?.cart_session_id;
     if (!sessionId) throw new Error("결제할 세션이 없습니다.");
 
-    // 백엔드의 세션 상태를 CHECKOUT_REQUESTED로 변경
-    await api.post(`carts/${sessionId}/checkout`);
+    // 1. 결제 준비 요청 (모바일 딥링크 포함)
+    const res = await api.post(`payments/ready`, {
+      cart_session_id: sessionId,
+      total_amount: estimatedTotal.value,
+      // 앱에서 가로챌 딥링크 주소. 
+      // 앱이 pg_token과 함께 tid를 알 수 있도록 쿼리에 포함 요청
+      approval_url: "pickle://payment/success", 
+      cancel_url: "pickle://payment/cancel",
+      fail_url: "pickle://payment/fail"
+    });
 
-    // 로컬 상태 업데이트 (화면 전환 유도)
-    cartSession.value.status = 'CHECKOUT_REQUESTED';
+    // 백엔드에서 tid를 approval_url에 붙여주지 않으므로, 
+    // 실제로는 앱이 ready 시점의 tid를 기억하거나 
+    // 여기서 보낼 때 approval_url에 tid를 직접 붙일 수 없으므로(tid는 응답으로 옴)
+    // 백엔드 payment/ready 로직에서 approval_url에 tid를 붙여주도록 수정하는 것이 가장 좋습니다.
+    
+    return res.data; // { tid, next_redirect_mobile_url, ... }
   };
 
   /**
