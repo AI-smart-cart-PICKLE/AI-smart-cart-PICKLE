@@ -1,5 +1,6 @@
 name: smart-cart-project
 
+
 services:
   # --- [Storage Layer] ---
   db:
