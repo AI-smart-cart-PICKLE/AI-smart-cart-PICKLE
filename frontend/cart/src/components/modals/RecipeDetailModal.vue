@@ -32,13 +32,13 @@ const openLocationModal = (ingredient) => {
           v-for="ing in recipe.ingredients"
           :key="ing.product_id"
           class="border rounded-xl p-2 flex flex-col items-center justify-between h-[160px]"
-          :class="ing.is_owned ? 'bg-green-50' : 'bg-white'"
+          :class="ing.is_owned ? 'bg-violet-50 border-violet-200' : 'bg-white'"
         >
           <!-- 상태 아이콘 -->
           <div
             class="w-8 h-8 rounded-full flex items-center justify-center
                    text-white text-sm font-bold"
-            :class="ing.is_owned ? 'bg-green-400' : 'bg-slate-300'"
+            :class="ing.is_owned ? 'bg-violet-500' : 'bg-slate-300'"
           >
             ✓
           </div>
@@ -51,19 +51,23 @@ const openLocationModal = (ingredient) => {
           <!-- 보유 상태 -->
           <span
             class="text-[10px]"
-            :class="ing.is_owned ? 'text-green-600' : 'text-red-400'"
+            :class="ing.is_owned ? 'text-violet-600 font-bold' : 'text-red-400'"
           >
             {{ ing.is_owned ? '담김' : '미보유' }}
           </span>
 
           <!-- 📍 위치 찾기 버튼 -->
           <button
-            class="w-full py-1 mt-1 text-[11px] font-bold
-                   rounded-lg bg-slate-100 hover:bg-slate-200"
+            class="w-full py-1 mt-1 text-[11px] text-black
+                  rounded-lg
+                  bg-violet-400 hover:bg-violet-300
+                  transition-colors"
             @click="openLocationModal(ing)"
           >
             📍 위치 찾기
           </button>
+
+
         </div>
       </div>
 

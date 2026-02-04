@@ -23,8 +23,8 @@ build-backend:
   script:
     - echo "Building Backend using Host Cache..."
     - >
-      docker build 
-      --build-arg BUILDKIT_INLINE_CACHE=1 
+      docker build
+      --build-arg BUILDKIT_INLINE_CACHE=1
       -t $IMAGE_BACKEND ./backend
     - docker push $IMAGE_BACKEND
   rules:
@@ -44,8 +44,8 @@ build-ai:
   script:
     - echo "Building AI using Host Cache..."
     - >
-      docker build 
-      --build-arg BUILDKIT_INLINE_CACHE=1 
+      docker build
+      --build-arg BUILDKIT_INLINE_CACHE=1
       -t $IMAGE_AI ./ai
     - docker push $IMAGE_AI
   rules:
@@ -86,9 +86,9 @@ build-airflow:
   script:
     - echo "Building Airflow using Host Cache..."
     - >
-      docker build 
-      --build-arg BUILDKIT_INLINE_CACHE=1 
-      -f mlops/airflow/Dockerfile 
+      docker build
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      -f mlops/airflow/Dockerfile
       -t $IMAGE_AIRFLOW ./mlops
     - docker push $IMAGE_AIRFLOW
   rules:
@@ -98,7 +98,7 @@ build-airflow:
       when: always
 
 # =========================================================
-# 4. Deploy (EC2)
+# 5. Deploy (EC2)
 # =========================================================
 deploy:
   stage: deploy
@@ -117,18 +117,20 @@ deploy:
   script:
     - echo "Creating full directory structure on EC2..."
     - >
-      ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202/backend
+      ssh $EC2_USER@$EC2_HOST "mkdir -p
+      ~/workspaces/S14P11A202/backend
       ~/workspaces/S14P11A202/ai
       ~/workspaces/S14P11A202/mlops/airflow
       ~/workspaces/S14P11A202/frontend/web-kiosk/dist"
 
     - echo "Uploading deployment files..."
-    # feat 브랜치의 수정사항: init-db.sh, nginx 설정 포함 업로드
     - scp docker-compose.yml init-db.sh nginx-ssl-prod.conf $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
 
     - echo "Uploading frontend build files (if available)..."
     - |
       if [ -d "frontend/web-kiosk/dist" ]; then
+        echo "Cleaning old frontend files..."
+        ssh $EC2_USER@$EC2_HOST "rm -rf ~/workspaces/S14P11A202/frontend/web-kiosk/dist && mkdir -p ~/workspaces/S14P11A202/frontend/web-kiosk/dist"
         rsync -avz --delete -e "ssh" frontend/web-kiosk/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/web-kiosk/dist/
         echo "Frontend files uploaded successfully"
       else
@@ -138,37 +140,38 @@ deploy:
     - echo "Generating .env file on EC2..."
     - |
       ssh $EC2_USER@$EC2_HOST "cat <<EOF > ~/workspaces/S14P11A202/.env
-      DOCKER_USERNAME=$DOCKER_USERNAME
-      DB_USER=$DB_USER
-      DB_PASSWORD=$DB_PASSWORD
-      DB_NAME=$DB_NAME
-      MINIO_ROOT_USER=$MINIO_ROOT_USER
-      MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
-      MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
-      KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
-      KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
-      KAKAO_REDIRECT_URI=$KAKAO_REDIRECT_URI
-      GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-      GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-      GOOGLE_REDIRECT_URI=$GOOGLE_REDIRECT_URI
-      SMTP_HOST=$SMTP_HOST
-      SMTP_PORT=$SMTP_PORT
-      SMTP_USER=$SMTP_USER
-      SMTP_PASSWORD=$SMTP_PASSWORD
-      FRONTEND_URL=$FRONTEND_URL
-      AIRFLOW_BASE_URL=$AIRFLOW_BASE_URL
-      SSL_CERT_PATH=$SSL_CERT_PATH
-      EOF"
-    
+DOCKER_USERNAME=$DOCKER_USERNAME
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+DB_NAME=$DB_NAME
+MINIO_ROOT_USER=$MINIO_ROOT_USER
+MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
+MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
+KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
+KAKAO_REDIRECT_URI=$KAKAO_REDIRECT_URI
+GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI=$GOOGLE_REDIRECT_URI
+SMTP_HOST=$SMTP_HOST
+SMTP_PORT=$SMTP_PORT
+SMTP_USER=$SMTP_USER
+SMTP_PASSWORD=$SMTP_PASSWORD
+FRONTEND_URL=$FRONTEND_URL
+AIRFLOW_BASE_URL=$AIRFLOW_BASE_URL
+SSL_CERT_PATH=$SSL_CERT_PATH
+EOF"
+
     - echo "Executing Remote Deployment Commands..."
     - >
       ssh $EC2_USER@$EC2_HOST "
-        cd ~/workspaces/S14P11A202 && 
+        cd ~/workspaces/S14P11A202 &&
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin &&
-        docker compose pull && 
+        docker compose pull &&
         docker compose --profile cpu up -d --remove-orphans &&
         echo 'Running Alembic Migrations...' &&
         docker compose exec -T backend alembic upgrade head &&
+        docker compose restart nginx &&
         docker image prune -f
       "
   rules:
