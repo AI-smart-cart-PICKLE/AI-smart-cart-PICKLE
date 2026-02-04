@@ -8,7 +8,7 @@ class HttpProductRepository implements ProductRepository {
   final Dio _dio;
 
   HttpProductRepository({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(
-    baseUrl: dotenv.env['API_URL'] ?? 'http://localhost:8000',
+    baseUrl: dotenv.env['API_URL'] ?? 'http://localhost:8000/api',
     connectTimeout: const Duration(seconds: 5),
     receiveTimeout: const Duration(seconds: 3),
   ));

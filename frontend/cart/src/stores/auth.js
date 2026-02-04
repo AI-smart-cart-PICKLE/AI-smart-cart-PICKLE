@@ -14,7 +14,7 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(email, password) {
-      const res = await api.post('/auth/login', { email, password })
+      const res = await api.post('auth/login', { email, password })
       
       const token = res.data.access_token
       this.accessToken = token
@@ -38,7 +38,7 @@ export const useAuthStore = defineStore('auth', {
     async fetchMe() {
       if (!this.accessToken) return
       try {
-        const res = await api.get('/users/me')
+        const res = await api.get('users/me')
         this.user = res.data
       } catch (e) {
         console.error("Failed to fetch user info:", e)

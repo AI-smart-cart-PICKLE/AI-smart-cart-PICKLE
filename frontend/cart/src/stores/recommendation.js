@@ -15,7 +15,7 @@ export const useRecommendationStore = defineStore('recommendation', {
 
       try {
         const res = await api.get(
-          `/recommendations/by-product/${productId}`,
+          `recommendations/by-product/${productId}`,
           {
             params: cartSessionId
               ? { cart_session_id: cartSessionId }

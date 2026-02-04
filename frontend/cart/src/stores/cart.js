@@ -39,7 +39,7 @@ export const useCartStore = defineStore("cart", () => {
    */
   const fetchCartSession = async (cartSessionId) => {
     try {
-      const res = await api.get(`/carts/${cartSessionId}`);
+      const res = await api.get(`carts/${cartSessionId}`);
       
       // ACTIVE가 아니면 세션이 없는 것으로 간주
       if (res.data.status !== 'ACTIVE') {
@@ -82,7 +82,7 @@ export const useCartStore = defineStore("cart", () => {
    * POST /api/carts/
    */
   const createCartSession = async () => {
-    const res = await api.post('/carts/')
+    const res = await api.post('carts/')
     
     cartSession.value = {
       cart_session_id: res.data.cart_session_id,
@@ -104,7 +104,7 @@ export const useCartStore = defineStore("cart", () => {
   const updateQuantity = async (cartItemId, newQuantity) => {
     if (newQuantity < 1) return;
 
-    await api.patch(`/carts/items/${cartItemId}`, {
+    await api.patch(`carts/items/${cartItemId}`, {
       quantity: newQuantity,
     });
 
@@ -119,7 +119,7 @@ export const useCartStore = defineStore("cart", () => {
    * DELETE /api/carts/items/{cart_item_id}
    */
   const removeItem = async (cartItemId) => {
-    await api.delete(`/carts/items/${cartItemId}`);
+    await api.delete(`carts/items/${cartItemId}`);
 
     cartItems.value = cartItems.value.filter(
       (i) => i.cart_item_id !== cartItemId
@@ -136,12 +136,12 @@ const addItemByBarcode = async (barcode) => {
   }
 
   // 1️ 바코드 → 상품 조회
-  const productRes = await api.get(`/products/barcode/${barcode}`)
+  const productRes = await api.get(`products/barcode/${barcode}`)
   const product = productRes.data
 
   // 2️ 장바구니에 추가
   await api.post(
-    `/carts/${cartSession.value.cart_session_id}/items`,
+    `carts/${cartSession.value.cart_session_id}/items`,
     {
       product_id: product.product_id,
       quantity: 1,
@@ -158,7 +158,7 @@ const addItemByBarcode = async (barcode) => {
    * POST /api/carts/weight/validate
    */
   const validateWeight = async (measuredWeight) => {
-    const res = await api.post("/carts/weight/validate", {
+    const res = await api.post("carts/weight/validate", {
       measured_weight: measuredWeight,
     });
     return res.data; // { is_valid, diff_weight, ... }
@@ -173,7 +173,7 @@ const addItemByBarcode = async (barcode) => {
     if (!sessionId) throw new Error("결제할 세션이 없습니다.");
 
     // 백엔드의 세션 상태를 CHECKOUT_REQUESTED로 변경
-    await api.post(`/carts/${sessionId}/checkout`);
+    await api.post(`carts/${sessionId}/checkout`);
 
     // 로컬 상태 업데이트 (화면 전환 유도)
     cartSession.value.status = 'CHECKOUT_REQUESTED';
@@ -188,7 +188,7 @@ const cancelCart = async () => {
   if (!sessionId) return;
 
   try {
-    await api.post(`/carts/${sessionId}/cancel`);
+    await api.post(`carts/${sessionId}/cancel`);
   } catch (e) {
     console.error("Failed to cancel cart:", e);
   }

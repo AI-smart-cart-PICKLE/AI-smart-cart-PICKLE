@@ -20,7 +20,7 @@ class HttpRecipeRepository implements RecipeRepository {
     }
     
     try {
-      final response = await _dio.get('/api/recommendations/by-product/$basedOnProductId');
+      final response = await _dio.get('recommendations/by-product/$basedOnProductId');
       final List<dynamic> data = response.data;
       
       return data.map((item) {
@@ -52,7 +52,7 @@ class HttpRecipeRepository implements RecipeRepository {
   @override
   Future<RecipeDetailModel> fetch_recipe_detail({required String recipe_id}) async {
     try {
-      final response = await _dio.get('/api/recipes/$recipe_id');
+      final response = await _dio.get('recipes/$recipe_id');
       final data = response.data;
       
       return RecipeDetailModel(

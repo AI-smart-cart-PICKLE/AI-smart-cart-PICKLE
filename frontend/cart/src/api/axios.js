@@ -28,7 +28,7 @@ api.interceptors.response.use(
 
       try {
         const res = await api.post(
-          '/auth/refresh',
+          'auth/refresh',
           {},
           { withCredentials: true }
         )

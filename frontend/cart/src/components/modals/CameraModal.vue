@@ -86,7 +86,7 @@ async function onDetected(result) {
 
   // 🔍 상품 이름 조회
   try {
-    const res = await api.get(`/products/barcode/${detectedCode.value}`)
+    const res = await api.get(`products/barcode/${detectedCode.value}`)
     productName.value = res.data.name
   } catch {
     productName.value = "알 수 없는 상품"

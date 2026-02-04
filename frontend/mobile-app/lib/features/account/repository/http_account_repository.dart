@@ -30,7 +30,7 @@ class HttpAccountRepository implements AccountRepository {
   Future<void> update_nickname({required String new_nickname}) async {
     try {
       // 백엔드가 patch를 사용하므로 수정
-      await _dio.patch('/users/me/nickname', data: {'nickname': new_nickname});
+      await _dio.patch('users/me/nickname', data: {'nickname': new_nickname});
     } catch (e) {
       throw Exception('Failed to update nickname: $e');
     }
@@ -40,7 +40,7 @@ class HttpAccountRepository implements AccountRepository {
   Future<void> change_password({required String current_password, required String new_password}) async {
     try {
       // 백엔드가 patch를 사용하므로 수정
-      await _dio.patch('/users/me/password', data: {
+      await _dio.patch('users/me/password', data: {
         'current_password': current_password,
         'new_password': new_password,
       });
@@ -52,7 +52,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<SpendingSummary> fetch_month_summary({required DateTime month}) async {
     try {
-      final response = await _dio.get('/ledger/summary/monthly', queryParameters: {
+      final response = await _dio.get('ledger/summary/monthly', queryParameters: {
         'year': month.year,
         'month': month.month,
       });
@@ -73,7 +73,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<List<SpendingDay>> fetch_month_days({required DateTime month}) async {
     try {
-      final response = await _dio.get('/ledger/calendar', queryParameters: {
+      final response = await _dio.get('ledger/calendar', queryParameters: {
         'year': month.year,
         'month': month.month,
       });
@@ -100,7 +100,7 @@ class HttpAccountRepository implements AccountRepository {
     // 여기서는 화면 요구사항에 맞춰 /recent를 호출하거나, /ledger (목록 조회)를 호출해야 함.
     // 일단 /recent API 활용
     try {
-      final response = await _dio.get('/ledger/recent', queryParameters: {'limit': 10});
+      final response = await _dio.get('ledger/recent', queryParameters: {'limit': 10});
       final List<dynamic> items = response.data['items'] ?? [];
 
       return items.map((item) {
@@ -121,7 +121,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<List<TopItem>> fetch_top_items({required DateTime month}) async {
     try {
-      final response = await _dio.get('/ledger/top-items', queryParameters: {
+      final response = await _dio.get('ledger/top-items', queryParameters: {
         'year': month.year,
         'month': month.month,
         'limit': 5,
@@ -147,7 +147,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<List<CategorySpend>> fetch_category_breakdown({required DateTime month}) async {
     try {
-      final response = await _dio.get('/ledger/top-categories', queryParameters: {
+      final response = await _dio.get('ledger/top-categories', queryParameters: {
         'year': month.year,
         'month': month.month,
         'limit': 10,
