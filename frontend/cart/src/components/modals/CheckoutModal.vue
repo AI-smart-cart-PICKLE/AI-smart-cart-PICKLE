@@ -40,8 +40,8 @@ const confirmCheckout = async () => {
              flex flex-col items-center text-center animate-in fade-in zoom-in duration-200"
     >
       <!-- 아이콘 -->
-      <div class="mb-6 w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-        <span class="material-icons-round text-4xl text-green-500">
+      <div class="mb-6 w-20 h-20 rounded-full bg-violet-100 flex items-center justify-center">
+        <span class="material-icons-round text-4xl text-violet-500">
           payments
         </span>
       </div>
@@ -76,8 +76,8 @@ const confirmCheckout = async () => {
         <button
           @click="confirmCheckout"
           :disabled="loading"
-          class="flex-1 py-4 rounded-2xl bg-green-400 text-slate-900 font-bold text-lg
-                 hover:bg-green-300 transition-colors shadow-lg shadow-green-400/30
+          class="flex-1 py-4 rounded-2xl bg-violet-500 text-white font-bold text-lg
+                 hover:bg-violet-400 transition-colors shadow-lg shadow-violet-500/30
                  disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <span v-if="loading" class="material-icons-round animate-spin">sync</span>

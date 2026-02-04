@@ -8,7 +8,7 @@ import boto3
 
 BACKEND_URL = os.getenv("BACKEND_URL", "https://bapsim.site")
 DEVICE_CODE = os.getenv("DEVICE_CODE", "CART-DEVICE-001")
-MODEL_PATH = os.getenv("MODEL_PATH", "best.pt") # 같은 폴더에 두는 것을 권장
+MODEL_PATH = os.getenv("MODEL_PATH", "best.pt")
 CONF_THRESHOLD = 0.5
 CAMERA_INDEX = 0
 WINDOW_SIZE = 30
@@ -36,26 +36,15 @@ except Exception as e:
     s3_client = None
 
 def get_global_stabilized_state(buffer):
-    """
-    버퍼 전체를 분석하여, 전체 상태(Snapshot)가 안정적인지 판단합니다.
-    불안정하면 None을 반환합니다.
-    """
-    # 1. 딕셔너리 리스트를 해시 가능한 튜플 형태로 변환 (Counter 사용을 위해)
-    # 예: {'apple': 1, 'spam': 2} -> (('apple', 1), ('spam', 2))
     state_history = []
     for frame_data in buffer:
-        # 키(상품명) 순으로 정렬하여 튜플 생성
         items_tuple = tuple(sorted(frame_data.items()))
         state_history.append(items_tuple)
 
     most_common_state, count = Counter(state_history).most_common(1)[0]
-    
-    # 3. 그 상태의 점유율 확인
     stability_score = count / len(buffer)
 
     if stability_score >= STABILIZATION_THRESHOLD:
-        # 튜플 -> 다시 API 전송용 리스트로 변환
-        # most_common_state: (('apple', 1), ('spam', 2))
         inventory = [{"product_name": k, "quantity": v} for k, v in most_common_state]
         return inventory
 
@@ -117,16 +106,13 @@ def upload_to_s3_async(image_bytes, metadata, device_code):
         print("[S3] Upload skipped - S3 client not initialized")
 
 def run_inference():
-    print(f"Loading model: {MODEL_PATH}")
     try:
         model = YOLO(MODEL_PATH)
     except:
-        print("Fallback to yolov8n.pt")
         model = YOLO("yolov8n.pt")
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
-        print("Camera Error")
         return
 
     detection_buffer = deque(maxlen=WINDOW_SIZE)
@@ -144,7 +130,6 @@ def run_inference():
                 time.sleep(0.1)
                 continue
 
-            # 1. 추론
             results = model(frame, conf=CONF_THRESHOLD, verbose=False)
 
             current_frame_counts = Counter()
@@ -200,8 +185,6 @@ def run_inference():
                 stabilized_inventory = get_global_stabilized_state(detection_buffer)
 
                 if stabilized_inventory is not None:
-                    
-                    # 5. 상태 변화가 있거나 하트비트(15초)
                     current_time = time.time()
 
                     if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 15):
@@ -215,8 +198,6 @@ def run_inference():
                                 timeout=2
                             )
                             if resp.status_code == 200:
-                                count = len(stabilized_inventory)
-                                print(f"[{time.strftime('%H:%M:%S')}] Synced: {count} types stable. {stabilized_inventory}")
                                 last_sync_inventory = stabilized_inventory
                                 last_sync_time = current_time
 
@@ -226,7 +207,7 @@ def run_inference():
             time.sleep(0.05)
 
     except KeyboardInterrupt:
-        print("\nStopped")
+        pass
     finally:
         cap.release()
 
