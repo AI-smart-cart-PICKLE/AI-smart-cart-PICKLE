@@ -12,7 +12,7 @@ from .ledger import create_ledger_from_payment
 from app.core.config import settings
 
 # 환경 변수 및 키 설정
-BASE_URL = settings.BASE_URL if hasattr(settings, "BASE_URL") else "http://localhost:8000"
+BASE_URL = settings.BASE_URL
 KAKAO_ADMIN_KEY = settings.KAKAO_ADMIN_KEY
 
 # 라우터 설정

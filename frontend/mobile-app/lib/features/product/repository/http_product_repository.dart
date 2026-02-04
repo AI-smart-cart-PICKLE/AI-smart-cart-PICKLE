@@ -16,7 +16,7 @@ class HttpProductRepository implements ProductRepository {
   @override
   Future<List<ProductCategory>> fetch_categories() async {
     try {
-      final response = await _dio.get('/api/products/categories');
+      final response = await _dio.get('products/categories');
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.map((json) => ProductCategory.fromJson(json)).toList();
@@ -36,7 +36,7 @@ class HttpProductRepository implements ProductRepository {
         queryParams['category_id'] = category_id;
       }
 
-      final response = await _dio.get('/api/products/', queryParameters: queryParams);
+      final response = await _dio.get('products/', queryParameters: queryParams);
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.map((json) => Product.fromJson(json)).toList();
@@ -62,7 +62,7 @@ class HttpProductRepository implements ProductRepository {
         queryParams['category_id'] = category_id;
       }
 
-      final response = await _dio.get('/api/products/search', queryParameters: queryParams);
+      final response = await _dio.get('products/search', queryParameters: queryParams);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
@@ -79,7 +79,7 @@ class HttpProductRepository implements ProductRepository {
   @override
   Future<Product> fetch_product_detail({required String product_id}) async {
     try {
-      final response = await _dio.get('/api/products/$product_id');
+      final response = await _dio.get('products/$product_id');
 
       if (response.statusCode == 200) {
         return Product.fromJson(response.data);

@@ -6,6 +6,8 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback? on_pressed;
   final Widget? leading;
   final bool is_expanded;
+  final Color? background_color;
+  final Color? text_color;
 
   const PrimaryButton({
     super.key,
@@ -13,6 +15,8 @@ class PrimaryButton extends StatelessWidget {
     required this.on_pressed,
     this.leading,
     this.is_expanded = true,
+    this.background_color,
+    this.text_color,
   });
 
   @override
@@ -29,8 +33,8 @@ class PrimaryButton extends StatelessWidget {
     final Widget button = FilledButton(
       onPressed: on_pressed,
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.brand_primary,
-        foregroundColor: Colors.white,
+        backgroundColor: background_color ?? AppColors.brand_primary,
+        foregroundColor: text_color ?? Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),

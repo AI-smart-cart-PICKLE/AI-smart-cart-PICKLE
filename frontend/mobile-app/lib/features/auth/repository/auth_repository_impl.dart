@@ -15,7 +15,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 백엔드가 JSON 형식을 기대함 (422 에러 해결)
       final response = await _dioClient.dio.post(
-        '/auth/login',
+        'auth/login',
         data: {
           'email': email, 
           'password': password,
@@ -46,7 +46,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 회원가입은 보통 JSON으로 보냄 (기존 유지)
       await _dioClient.dio.post(
-        '/auth/signup', // URL 경로 수정 (/api 추가)
+        'auth/signup', // URL 경로 수정 (/api 추가)
         data: {
           'email': email,
           'password': password,
@@ -63,7 +63,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User> getUserMe() async {
     try {
-      final response = await _dioClient.dio.get('/users/me'); // URL 경로 수정
+      final response = await _dioClient.dio.get('users/me'); // URL 경로 수정
       
       // User 모델의 fromJson을 사용하여 깔끔하게 변환
       return User.fromJson(response.data);

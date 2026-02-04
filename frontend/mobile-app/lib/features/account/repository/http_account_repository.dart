@@ -13,7 +13,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<UserProfile> fetch_my_profile() async {
     try {
-      final response = await _dio.get('/users/me');
+      final response = await _dio.get('users/me');
       final data = response.data;
       return UserProfile(
         user_id: data['user_id'].toString(),

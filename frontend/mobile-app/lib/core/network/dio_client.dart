@@ -8,7 +8,7 @@ class DioClient {
   DioClient({String? baseUrl})
       : _dio = Dio(
           BaseOptions(
-            baseUrl: baseUrl ?? 'http://10.0.2.2:8000', 
+            baseUrl: baseUrl ?? 'https://bapsim.site/api/', 
             connectTimeout: const Duration(seconds: 10),
             receiveTimeout: const Duration(seconds: 10),
             headers: {'Content-Type': 'application/json'},

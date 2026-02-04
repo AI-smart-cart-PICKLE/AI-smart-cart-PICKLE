@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/bottom_nav.dart';
+import '../../payment/presentation/kakao_pay_settings_screen.dart';
 import 'account_providers.dart';
 
 class MyPageScreen extends ConsumerStatefulWidget {
@@ -136,6 +137,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                             _MenuTile(
                               icon: Icons.chat_bubble_outline,
                               title: '카카오페이 설정',
+                              status_label: ref.watch(kakao_pay_connected_provider) ? '연결됨' : '미연결',
                               on_tap: () => context.push(AppRoutes.kakao_pay_settings),
                             ),
                           ],
@@ -145,17 +147,14 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                       Center(
                         child: TextButton(
                           onPressed: () async {
-                            // 1. 로그아웃 로직 수행 (토큰 삭제 등)
                             await ref.read(account_repository_provider).logout();
                             
-                            // 2. 캐시된 모든 계정 관련 정보 초기화
                             ref.invalidate(my_profile_provider);
                             ref.invalidate(month_summary_provider);
                             ref.invalidate(recent_transactions_provider);
                             ref.invalidate(top_items_provider);
                             ref.invalidate(category_breakdown_provider);
                             
-                            // 3. 로그인 화면으로 이동 (기존 상태를 완전히 버리고 새로 시작)
                             if (context.mounted) {
                               context.go(AppRoutes.login);
                             }
@@ -189,11 +188,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
 class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String? status_label;
   final VoidCallback on_tap;
 
   const _MenuTile({
     required this.icon,
     required this.title,
+    this.status_label,
     required this.on_tap,
   });
 
@@ -217,6 +218,18 @@ class _MenuTile extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900))),
+            if (status_label != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  status_label!,
+                  style: TextStyle(
+                    color: status_label == '연결됨' ? AppColors.brand_primary : AppColors.text_secondary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             const Icon(Icons.chevron_right),
           ],
         ),
