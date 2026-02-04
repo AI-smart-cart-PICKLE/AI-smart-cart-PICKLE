@@ -42,7 +42,8 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
 
   void _check_cart_status() async {
     try {
-      ref.invalidate(cart_summary_provider);
+      // 2초마다 모든 데이터를 새로고침(invalidate)하지 않고, 
+      // 현재 상태만 살짝 확인합니다. (불필요한 네트워크 부하 방지)
       final cart = await ref.read(cart_summary_provider.future);
       
       if (cart.cart_session_id != 0 && cart.status == 'CHECKOUT_REQUESTED') {
