@@ -57,6 +57,14 @@ def pair_cart_by_qr(
             detail=f"카트 디바이스를 찾을 수 없습니다. (입력: {device_code}, 가용: {available_codes})"
         )
 
+    # 3. [추가] 사용자의 기존 활성 세션 모두 종료 (중복 연동 방지)
+    db.query(models.CartSession).filter(
+        models.CartSession.user_id == current_user.user_id,
+        models.CartSession.status == models.CartSessionStatus.ACTIVE
+    ).update({"status": models.CartSessionStatus.CANCELLED, "ended_at": func.now()})
+    db.flush()
+
+    # 4. 해당 디바이스의 ACTIVE 세션 조회
     logger.info(f"✅ 디바이스 확인됨: ID {device.cart_device_id} (Code: {device.device_code})")
 
     # 2. 해당 디바이스의 ACTIVE 세션 조회
@@ -106,8 +114,14 @@ def check_pairing_status(
     device_code: str,
     db: Session = Depends(database.get_db)
 ):
-    # 1. 디바이스 조회
-    device = db.query(models.CartDevice).filter(models.CartDevice.device_code == device_code).first()
+    # 1. 디바이스 조회 (유연한 검색)
+    clean_code = device_code.strip().replace('-', '_')
+    device = (
+        db.query(models.CartDevice)
+        .filter((models.CartDevice.device_code == device_code) | (models.CartDevice.device_code == clean_code))
+        .first()
+    )
+    
     if not device:
         raise HTTPException(status_code=404, detail="Unknown Device")
 

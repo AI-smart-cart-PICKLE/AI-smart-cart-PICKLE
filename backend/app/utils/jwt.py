@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Optional
 from fastapi import HTTPException, status
+from app.core.config import settings
 
-SECRET_KEY = "SECRET_KEY"
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
