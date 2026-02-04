@@ -232,5 +232,3 @@ services:
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend
-      - mlflow
-      - airflow
