@@ -32,7 +32,7 @@ build-backend:
       when: always
 
 # =========================================================
-# 2. AI (Inference) Build Job
+# 2. AI Build Job
 # =========================================================
 build-ai:
   stage: build
@@ -65,7 +65,7 @@ build-frontend:
     - npm run build
   artifacts:
     paths:
-      - frontend/cart/dist/  # [수정] 빌드 경로와 아티팩트 저장 경로 일치
+      - frontend/cart/dist/
     expire_in: 1 hour
   rules:
     - changes:
@@ -128,45 +128,41 @@ deploy:
     - echo "Uploading frontend build files..."
     - |
       if [ -d "frontend/cart/dist" ]; then
-        echo "Syncing frontend files..."
         rsync -avz --delete -e "ssh" frontend/cart/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/dist/
-      else
-        echo "No frontend artifacts found - skipping rsync"
       fi
 
-    - echo "Generating .env file on EC2..."
+    - echo "Generating .env file..."
     - |
       ssh $EC2_USER@$EC2_HOST "cat <<EOF > ~/workspaces/S14P11A202/.env
-DOCKER_USERNAME=$DOCKER_USERNAME
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-DB_NAME=$DB_NAME
-MINIO_ROOT_USER=$MINIO_ROOT_USER
-MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
-MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
-KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
-KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
-KAKAO_REDIRECT_URI=$KAKAO_REDIRECT_URI
-GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
-GOOGLE_REDIRECT_URI=$GOOGLE_REDIRECT_URI
-SMTP_HOST=$SMTP_HOST
-SMTP_PORT=$SMTP_PORT
-SMTP_USER=$SMTP_USER
-SMTP_PASSWORD=$SMTP_PASSWORD
-FRONTEND_URL=$FRONTEND_URL
-AIRFLOW_BASE_URL=$AIRFLOW_BASE_URL
-SSL_CERT_PATH=$SSL_CERT_PATH
-EOF"
+      DOCKER_USERNAME=$DOCKER_USERNAME
+      DB_USER=$DB_USER
+      DB_PASSWORD=$DB_PASSWORD
+      DB_NAME=$DB_NAME
+      MINIO_ROOT_USER=$MINIO_ROOT_USER
+      MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
+      MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+      KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
+      KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
+      KAKAO_REDIRECT_URI=$KAKAO_REDIRECT_URI
+      GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+      GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+      GOOGLE_REDIRECT_URI=$GOOGLE_REDIRECT_URI
+      SMTP_HOST=$SMTP_HOST
+      SMTP_PORT=$SMTP_PORT
+      SMTP_USER=$SMTP_USER
+      SMTP_PASSWORD=$SMTP_PASSWORD
+      FRONTEND_URL=$FRONTEND_URL
+      AIRFLOW_BASE_URL=$AIRFLOW_BASE_URL
+      SSL_CERT_PATH=$SSL_CERT_PATH
+      EOF"
 
-    - echo "Executing Remote Deployment Commands..."
+    - echo "Executing Remote Deployment..."
     - |
       ssh $EC2_USER@$EC2_HOST << 'REMOTECMD'
         cd ~/workspaces/S14P11A202
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         docker compose pull
         docker compose --profile cpu up -d --remove-orphans
-        echo "Running Alembic Migrations..."
         docker compose exec -T backend alembic upgrade head
         docker compose restart nginx
         docker image prune -f
