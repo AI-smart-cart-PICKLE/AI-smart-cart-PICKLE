@@ -73,15 +73,20 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         children: [
           MobileScanner(
             controller: controller,
-            scanWindow: scan_window,
+            // scanWindow: scan_window, // 인식 문제 해결을 위해 일시적으로 영역 제한 해제
             onDetect: (capture) {
               if (is_scanned) return;
+              
               final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final String? code = barcodes.first.rawValue;
+              for (final barcode in barcodes) {
+                final String? code = barcode.rawValue;
                 if (code != null) {
+                  debugPrint('QR Code detected: $code');
                   setState(() => is_scanned = true);
+                  
+                  // 인식 성공 시 짧은 진동 대신 가벼운 피드백 (SnackBar는 BuildContext 필요하므로 내부에서 처리)
                   _handleScannedCode(code);
+                  break; 
                 }
               }
             },

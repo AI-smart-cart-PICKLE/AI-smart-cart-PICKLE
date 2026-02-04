@@ -24,10 +24,11 @@ class CartItem {
 
 class CartSummary {
   final int cart_session_id;
-  final String status; // ACTIVE, CHECKOUT_REQUESTED 등
+  final String status;
   final List<CartItem> items;
   final int subtotal;
   final int total;
+  final String? device_code;
 
   const CartSummary({
     required this.cart_session_id,
@@ -35,8 +36,17 @@ class CartSummary {
     required this.items,
     required this.subtotal,
     required this.total,
+    this.device_code,
   });
-  
-  // CartSummary는 Repository에서 조합해서 만들므로 fromJson은 선택 사항이나,
-  // 백엔드에서 통으로 내려줄 경우를 대비해 추가 가능
+
+  factory CartSummary.fromJson(Map<String, dynamic> json) {
+    return CartSummary(
+      cart_session_id: json['cart_session_id'] ?? 0,
+      status: json['status'] ?? 'INACTIVE',
+      items: [], // 실제 아이템 파싱은 Repository에서 수행 중
+      subtotal: json['total_amount'] ?? 0,
+      total: json['total_amount'] ?? 0,
+      device_code: json['device_code'],
+    );
+  }
 }

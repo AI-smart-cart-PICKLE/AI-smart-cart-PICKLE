@@ -43,7 +43,8 @@ class CartRepositoryImpl implements CartRepository {
         status: status,
         items: items, 
         subtotal: subtotal, 
-        total: subtotal
+        total: subtotal,
+        device_code: data['device_code'],
       );
     } catch (e) {
       print('fetch_cart_summary error: $e');

@@ -27,11 +27,30 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import api from '@/api/axios'
 
+const router = useRouter()
 const qrCanvas = ref(null)
 const loading = ref(true)
-const deviceCode = 'CART-DEVICE-001'
+const deviceCode = 'CART_001'
+let pollingTimer = null
+
+// 🔍 연동 상태 확인 (폴링)
+const checkStatus = async () => {
+  try {
+    const res = await api.get(`carts/pair/status/${deviceCode}`)
+    if (res.data.paired) {
+      // 1. 세션 정보 저장
+      localStorage.setItem('cart_session_id', res.data.cart_session_id)
+      // 2. 대시보드로 이동
+      router.push('/')
+    }
+  } catch (e) {
+    console.error("Polling error:", e)
+  }
+}
 
 // 라이브러리 없이 QR 생성을 위해 CDN 스크립트 동적 로드
 const loadQRCodeLib = () => {
@@ -59,6 +78,14 @@ onMounted(async () => {
     })
     loading.value = false
   }
+
+  // 🕒 2초마다 상태 체크 시작
+  pollingTimer = setInterval(checkStatus, 2000)
+})
+
+onBeforeUnmount(() => {
+  // 🛑 컴포넌트 파괴 시 폴링 중단
+  if (pollingTimer) clearInterval(pollingTimer)
 })
 </script>
 

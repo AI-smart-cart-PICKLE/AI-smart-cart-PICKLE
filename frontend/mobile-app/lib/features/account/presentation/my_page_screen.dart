@@ -9,6 +9,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/bottom_nav.dart';
 import '../../payment/presentation/kakao_pay_settings_screen.dart';
+import '../../cart/presentation/cart_providers.dart';
 import 'account_providers.dart';
 
 class MyPageScreen extends ConsumerStatefulWidget {
@@ -154,6 +155,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                             ref.invalidate(recent_transactions_provider);
                             ref.invalidate(top_items_provider);
                             ref.invalidate(category_breakdown_provider);
+                            ref.invalidate(cart_summary_provider); // 카트 정보도 초기화
                             
                             if (context.mounted) {
                               context.go(AppRoutes.login);
