@@ -1,3 +1,4 @@
+import 'dart:async'; // 타이머 추가
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,8 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/bottom_nav.dart';
+import '../../cart/presentation/cart_providers.dart'; // 카트 프로바이더 추가
+import '../../account/presentation/account_providers.dart'; // 계정 프로바이더 추가
 
 class HomeDashboardScreen extends ConsumerStatefulWidget {
   const HomeDashboardScreen({super.key});
@@ -17,11 +20,57 @@ class HomeDashboardScreen extends ConsumerStatefulWidget {
 
 class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   BottomTab current_tab = BottomTab.home;
+  Timer? _polling_timer; // 상태 감지용 타이머
+
+  @override
+  void initState() {
+    super.initState();
+    // 2초마다 카트 상태를 체크하여 결제 요청이 있는지 확인합니다.
+    _polling_timer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _check_cart_status();
+    });
+  }
+
+  @override
+  void dispose() {
+    _polling_timer?.cancel();
+    super.dispose();
+  }
+
+  void _check_cart_status() async {
+    // 1. 최신 장바구니 정보 가져오기
+    ref.invalidate(cart_summary_provider); // 강제 갱신 유도
+    final cart_async = await ref.read(cart_summary_provider.future);
+    
+    // 2. 상태가 결제 요청(CHECKOUT_REQUESTED)인지 확인
+    if (cart_async.status == 'CHECKOUT_REQUESTED') {
+      _polling_timer?.cancel(); // 이동 전 타이머 중지
+      if (mounted) {
+        // 정의된 카카오페이 결제 화면으로 이동
+        context.push(AppRoutes.kakao_pay_checkout);
+      }
+    }
+  }
+
+  String _format_money(int amount) {
+    final String s = amount.toString();
+    final StringBuffer b = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      final int from_end = s.length - i;
+      b.write(s[i]);
+      if (from_end > 1 && from_end % 3 == 1) b.write(',');
+    }
+    return '₩${b.toString()}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final double max_w = Responsive.max_width(context);
     final theme_mode = ref.watch(theme_mode_provider);
+    
+    // 지출 데이터 구독
+    final summary_async = ref.watch(month_summary_provider);
+    final days_async = ref.watch(month_days_provider);
 
     return Scaffold(
       appBar: AppBar(
@@ -114,23 +163,58 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                       children: <Widget>[
                         const Text('이번 달 지출', style: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w800)),
                         const SizedBox(height: 4),
-                        const Text('₩428,500', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                        summary_async.when(
+                          loading: () => const Text('₩-', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                          error: (e, _) => const Text('₩0', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                          data: (summary) => Text(_format_money(summary.total_amount), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                        ),
                         const SizedBox(height: 20),
                         // Bar Chart
                         SizedBox(
                           height: 150,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: <Widget>[
-                              _SpendingBar(label: '일', height: 40),
-                              _SpendingBar(label: '월', height: 80),
-                              _SpendingBar(label: '화', height: 60),
-                              _SpendingBar(label: '수', height: 100),
-                              _SpendingBar(label: '목', height: 30),
-                              _SpendingBar(label: '금', height: 120, is_today: true),
-                              _SpendingBar(label: '토', height: 50),
-                            ],
+                          child: days_async.when(
+                            loading: () => const Center(child: CircularProgressIndicator()),
+                            error: (e, _) => const Center(child: Text('데이터 로드 실패')),
+                            data: (days) {
+                              // 오늘 기준 최근 7일 계산
+                              final now = DateTime.now();
+                              final List<Map<String, dynamic>> last7Days = [];
+                              int maxAmount = 10000; // 최소 기준값 (0 나누기 방지)
+
+                              for (int i = 6; i >= 0; i--) {
+                                final date = now.subtract(Duration(days: i));
+                                final dayAmount = days.where((d) => 
+                                  d.date.year == date.year && 
+                                  d.date.month == date.month && 
+                                  d.date.day == date.day
+                                ).fold(0, (sum, d) => sum + d.amount);
+                                
+                                if (dayAmount > maxAmount) maxAmount = dayAmount;
+                                
+                                final weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+                                last7Days.add({
+                                  'label': weekdayLabels[date.weekday - 1],
+                                  'amount': dayAmount,
+                                  'isToday': i == 0,
+                                });
+                              }
+
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: last7Days.map((d) {
+                                  // 최대 높이 120px 기준으로 비율 계산
+                                  double barHeight = (d['amount'] / maxAmount) * 120;
+                                  if (barHeight < 5) barHeight = 5; // 최소 높이 보장
+
+                                  return _SpendingBar(
+                                    label: d['label'],
+                                    height: barHeight,
+                                    is_today: d['isToday'],
+                                  );
+                                }).toList(),
+                              );
+                            },
                           ),
                         ),
                       ],

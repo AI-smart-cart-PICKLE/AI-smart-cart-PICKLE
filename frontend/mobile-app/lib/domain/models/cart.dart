@@ -24,12 +24,14 @@ class CartItem {
 
 class CartSummary {
   final int cart_session_id;
+  final String status; // ACTIVE, CHECKOUT_REQUESTED 등
   final List<CartItem> items;
   final int subtotal;
   final int total;
 
   const CartSummary({
     required this.cart_session_id,
+    required this.status,
     required this.items,
     required this.subtotal,
     required this.total,

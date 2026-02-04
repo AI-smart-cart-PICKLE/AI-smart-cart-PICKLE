@@ -160,11 +160,11 @@ class LedgerUpdateRequest(BaseModel):
 # 👤 User Schemas (회원)
 # =========================================================
 
-NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣]{2,20}$")
+NICKNAME_REGEX = re.compile(r"^[A-Za-z가-힣0-9]{2,8}$")
 
-class UserBase(BaseModel):
+class UserBase(BaseModel) :
     email: EmailStr
-    nickname: str = Field(min_length=2, max_length=20)
+    nickname: str = Field(min_length=2, max_length=8)
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -186,7 +186,7 @@ class UserCreate(BaseModel):
         if not NICKNAME_REGEX.fullmatch(value):
             raise ValueError("Nickname must be 2–20 characters long and contain only Korean or English letters")
         return value
-    
+
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "email": "user@example.com",
@@ -345,83 +345,33 @@ class RecipeRecommendResponse(BaseModel):
     similarity_score: Optional[float] = None
     
     # 전체 재료
-    ingredients: List[IngredientSimpleResponse] = [] 
-    
+    ingredients: List[IngredientSimpleResponse] = []
+
     # 부족한 재료
     missing_ingredients: List[IngredientSimpleResponse] = []
     
     class Config:
         from_attributes = True
 
-# --- Product Schemas ---
-
-
-
 class ProductResponse(BaseModel):
-
     product_id: int
-
-    category_id: Optional[int]
-
-    barcode: Optional[str]
-
     name: str
-
     price: int
-
-    unit_weight_g: int
-
-    stock_quantity: int
-
-    image_url: Optional[str]
-
-    product_info: Optional[dict] = None  # JSONB
-
-    
-
-    # 추가 필드 (위치 정보 등)
-
-    zone_code: Optional[str] = None # Category 조인 결과
-
-    category_name: Optional[str] = None
-
-
+    stock_quantity: Optional[int] = 0
+    image_url: Optional[str] = None
+    product_info: Optional[Dict[str, Any]] = None
 
     class Config:
-
         from_attributes = True
-
-
-
-class ProductLocationResponse(BaseModel):
-
-    product_id: int
-
-    name: str
-
-    zone_code: Optional[str]
-
-    map_image_url: Optional[str] = None # 매장 지도 이미지 URL 등
-
-
 
 class RecipeIngredientResponse(BaseModel):
-
     product_id: int
-
     name: str
-
     quantity_info: Optional[str] = None
-
     image_url: Optional[str] = None
 
-    
-
     class Config:
-
         from_attributes = True
-
-
 
 class RecipeDetailResponse(BaseModel):
     recipe_id: int
@@ -429,14 +379,9 @@ class RecipeDetailResponse(BaseModel):
     description: Optional[str] = None
     instructions: Optional[str] = None
     image_url: Optional[str] = None
-    prep_time_min: int = 30
-    difficulty_label: str = "보통"
-    calories: int = 500
-    
+
     # 조리 재료
     ingredients: List[RecipeIngredientResponse] = []
-    
+
     class Config:
         from_attributes = True
-
-

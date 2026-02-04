@@ -15,7 +15,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 백엔드가 JSON 형식을 기대함 (422 에러 해결)
       final response = await _dioClient.dio.post(
-        '/auth/login',
+        'auth/login',
         data: {
           'email': email, 
           'password': password,
@@ -24,10 +24,10 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       final accessToken = response.data['access_token'];
-      _dioClient.setAccessToken(accessToken);
-      await _tokenStorage.saveToken(accessToken);
+      // DioClient를 통해 토큰을 저장 (내부에서 TokenStorage 사용)
+      await _dioClient.setAccessToken(accessToken);
 
-      // 로그인 성공 후 내 정보 가져오기
+      // 로그인 성공 후 내 정보 가져오기 (이제 인터셉터가 최신 토큰을 사용함)
       return await getUserMe();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
@@ -46,7 +46,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 회원가입은 보통 JSON으로 보냄 (기존 유지)
       await _dioClient.dio.post(
-        '/auth/signup', // URL 경로 수정 (/api 추가)
+        'auth/signup', // URL 경로 수정 (/api 추가)
         data: {
           'email': email,
           'password': password,
@@ -63,7 +63,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User> getUserMe() async {
     try {
-      final response = await _dioClient.dio.get('/users/me'); // URL 경로 수정
+      final response = await _dioClient.dio.get('users/me'); // URL 경로 수정
       
       // User 모델의 fromJson을 사용하여 깔끔하게 변환
       return User.fromJson(response.data);
@@ -75,9 +75,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> logout() async {
     try {
-      // 로그아웃은 보통 프론트에서 토큰만 삭제하면 됨 (서버 호출 선택 사항)
-      _dioClient.clearAccessToken();
-      await _tokenStorage.deleteToken();
+      await _dioClient.clearAccessToken();
     } catch (e) {
       // 무시
     }

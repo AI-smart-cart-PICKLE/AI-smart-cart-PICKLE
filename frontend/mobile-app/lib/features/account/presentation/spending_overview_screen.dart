@@ -345,8 +345,9 @@ class _SpendingCalendar extends StatelessWidget {
             has_spend ? AppColors.brand_primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 4), // 패딩을 줄여 내부 공간 확보
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, // 중앙 정렬 추가
             children: <Widget>[
               Text('$day',
                   style: TextStyle(
@@ -354,14 +355,16 @@ class _SpendingCalendar extends StatelessWidget {
                       color: has_spend
                           ? AppColors.brand_primary
                           : AppColors.text_primary)),
-              const SizedBox(height: 4),
-              Text(
-                has_spend ? '-${_short_k(amount)}' : '',
-                style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.text_secondary,
-                    fontWeight: FontWeight.w800),
-              ),
+              if (has_spend) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '-${_short_k(amount)}',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.text_secondary,
+                      fontWeight: FontWeight.w800),
+                ),
+              ],
             ],
           ),
         ),
@@ -372,7 +375,7 @@ class _SpendingCalendar extends StatelessWidget {
       builder: (BuildContext context, BoxConstraints c) {
         final double spacing = 8;
         final double cell_w = (c.maxWidth - spacing * 6) / 7;
-        final double cell_h = 46;
+        const double cell_h = 58; // 높이를 충분히 늘려 오버플로우 해결
 
         return Wrap(
           spacing: spacing,

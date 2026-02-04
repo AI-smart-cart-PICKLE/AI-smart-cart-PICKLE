@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/primary_button.dart';
+import '../../account/presentation/account_providers.dart'; // 추가
 import 'auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -64,6 +65,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     try {
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.login(email: email, password: password);
+      
+      // 로그인 성공 후 계정 관련 캐시 강제 무효화 (프로필 및 가계부)
+      // account_providers.dart에 정의된 것들
+      ref.invalidate(my_profile_provider);
+      ref.invalidate(month_summary_provider);
+      ref.invalidate(recent_transactions_provider);
       
       if (mounted) {
         context.go(AppRoutes.home);

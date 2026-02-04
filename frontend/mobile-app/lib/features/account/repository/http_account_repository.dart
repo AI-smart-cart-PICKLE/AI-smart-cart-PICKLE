@@ -1,23 +1,25 @@
 import 'package:dio/dio.dart';
 import '../../../domain/models/user_profile.dart';
 import '../../../domain/models/spending.dart';
+import '../../../core/storage/token_storage.dart'; // 추가
 import 'account_repository.dart';
 
 class HttpAccountRepository implements AccountRepository {
   final Dio _dio;
+  final TokenStorage _tokenStorage = TokenStorage();
 
   HttpAccountRepository({required Dio dio}) : _dio = dio;
 
   @override
   Future<UserProfile> fetch_my_profile() async {
     try {
-      final response = await _dio.get('/api/users/me');
+      final response = await _dio.get('users/me');
       final data = response.data;
       return UserProfile(
         user_id: data['user_id'].toString(),
         nickname: data['nickname'],
         email: data['email'],
-        is_premium: data['is_premium'] ?? false,
+        is_premium: false, // DB 변경 없이 기본값 false 사용
       );
     } catch (e) {
       throw Exception('Failed to load user profile: $e');
@@ -27,7 +29,8 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<void> update_nickname({required String new_nickname}) async {
     try {
-      await _dio.put('/api/users/me', data: {'nickname': new_nickname});
+      // 백엔드가 patch를 사용하므로 수정
+      await _dio.patch('/users/me/nickname', data: {'nickname': new_nickname});
     } catch (e) {
       throw Exception('Failed to update nickname: $e');
     }
@@ -36,7 +39,8 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<void> change_password({required String current_password, required String new_password}) async {
     try {
-      await _dio.put('/api/users/me/password', data: {
+      // 백엔드가 patch를 사용하므로 수정
+      await _dio.patch('/users/me/password', data: {
         'current_password': current_password,
         'new_password': new_password,
       });
@@ -48,7 +52,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<SpendingSummary> fetch_month_summary({required DateTime month}) async {
     try {
-      final response = await _dio.get('/api/ledger/summary/monthly', queryParameters: {
+      final response = await _dio.get('/ledger/summary/monthly', queryParameters: {
         'year': month.year,
         'month': month.month,
       });
@@ -69,7 +73,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<List<SpendingDay>> fetch_month_days({required DateTime month}) async {
     try {
-      final response = await _dio.get('/api/ledger/calendar', queryParameters: {
+      final response = await _dio.get('/ledger/calendar', queryParameters: {
         'year': month.year,
         'month': month.month,
       });
@@ -96,7 +100,7 @@ class HttpAccountRepository implements AccountRepository {
     // 여기서는 화면 요구사항에 맞춰 /recent를 호출하거나, /ledger (목록 조회)를 호출해야 함.
     // 일단 /recent API 활용
     try {
-      final response = await _dio.get('/api/ledger/recent', queryParameters: {'limit': 10});
+      final response = await _dio.get('/ledger/recent', queryParameters: {'limit': 10});
       final List<dynamic> items = response.data['items'] ?? [];
 
       return items.map((item) {
@@ -117,7 +121,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<List<TopItem>> fetch_top_items({required DateTime month}) async {
     try {
-      final response = await _dio.get('/api/ledger/top-items', queryParameters: {
+      final response = await _dio.get('/ledger/top-items', queryParameters: {
         'year': month.year,
         'month': month.month,
         'limit': 5,
@@ -143,7 +147,7 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<List<CategorySpend>> fetch_category_breakdown({required DateTime month}) async {
     try {
-      final response = await _dio.get('/api/ledger/top-categories', queryParameters: {
+      final response = await _dio.get('/ledger/top-categories', queryParameters: {
         'year': month.year,
         'month': month.month,
         'limit': 10,
@@ -163,5 +167,11 @@ class HttpAccountRepository implements AccountRepository {
       print('fetch_category_breakdown error: $e');
       return [];
     }
+  }
+
+  @override
+  Future<void> logout() async {
+    await _tokenStorage.deleteToken();
+    _dio.options.headers.remove('Authorization');
   }
 }

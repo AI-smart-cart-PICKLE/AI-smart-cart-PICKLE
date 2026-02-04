@@ -17,7 +17,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
   Future<DigitalReceipt> fetch_receipt({required String receipt_id}) async {
     try {
       // receipt_id는 payment_id와 동일
-      final response = await _dioClient.dio.get('/payments/$receipt_id');
+      final response = await _dioClient.dio.get('payments/$receipt_id');
       final data = response.data;
       
       final List<ReceiptItem> items = [];
@@ -89,7 +89,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
   }) async {
     try {
       final response = await _dioClient.dio.post(
-        '/payments/ready',
+        'payments/ready',
         data: {
           "cart_session_id": cart_session_id,
           "total_amount": amount,
@@ -110,7 +110,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
   }) async {
     try {
       final response = await _dioClient.dio.post(
-        '/payments/approve',
+        'payments/approve',
         data: {
           "tid": tid,
           "pg_token": pg_token,

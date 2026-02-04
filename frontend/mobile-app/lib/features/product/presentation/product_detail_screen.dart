@@ -59,7 +59,13 @@ class ProductDetailScreen extends ConsumerWidget {
                       flexibleSpace: FlexibleSpaceBar(
                         background: Container(
                           color: Colors.black.withOpacity(0.05),
-                          child: const Center(child: Icon(Icons.image_outlined, size: 64)),
+                          child: product.image_url.isNotEmpty
+                              ? Image.network(
+                                  product.image_url,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.image_outlined, size: 64)),
+                                )
+                              : const Center(child: Icon(Icons.image_outlined, size: 64)),
                         ),
                       ),
                     ),
@@ -114,7 +120,7 @@ class ProductDetailScreen extends ConsumerWidget {
                                   const Text('설명', style: TextStyle(fontWeight: FontWeight.w900)),
                                   const SizedBox(height: 8),
                                   Text(
-                                    '이 상품은 ${product.name}입니다. ${product.aisle_label}에서 만나보실 수 있습니다.',
+                                    product.product_info?['description'] ?? '이 상품은 ${product.name}입니다. ${product.aisle_label}에서 만나보실 수 있습니다.',
                                     style: TextStyle(color: AppColors.text_secondary),
                                   ),
                                   const SizedBox(height: 12),
@@ -170,6 +176,7 @@ class ProductDetailScreen extends ConsumerWidget {
                                       return _RelatedProductTile(
                                         title: item.name,
                                         price: '₩${item.price}',
+                                        image_url: item.image_url,
                                         on_tap: () => context.push(AppRoutes.product_detail, extra: {'product_id': item.product_id}),
                                       );
                                     },
@@ -226,11 +233,18 @@ class _RelatedProductTile extends StatelessWidget {
 
   final String price;
 
+  final String image_url;
+
   final VoidCallback on_tap;
 
 
 
-  const _RelatedProductTile({required this.title, required this.price, required this.on_tap});
+  const _RelatedProductTile({
+    required this.title, 
+    required this.price, 
+    required this.image_url,
+    required this.on_tap
+  });
 
 
 
@@ -264,6 +278,8 @@ class _RelatedProductTile extends StatelessWidget {
 
                   child: Container(
 
+                    width: double.infinity,
+
                     decoration: BoxDecoration(
 
                       color: AppColors.border.withOpacity(0.35),
@@ -272,7 +288,16 @@ class _RelatedProductTile extends StatelessWidget {
 
                     ),
 
-                    child: const Center(child: Icon(Icons.image_outlined)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: image_url.isNotEmpty
+                          ? Image.network(
+                              image_url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.image_outlined)),
+                            )
+                          : const Center(child: Icon(Icons.image_outlined)),
+                    ),
 
                   ),
 

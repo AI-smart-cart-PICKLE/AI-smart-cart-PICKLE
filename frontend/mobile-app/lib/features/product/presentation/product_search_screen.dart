@@ -21,8 +21,6 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
   late final TextEditingController search_controller;
   BottomTab current_tab = BottomTab.search;
 
-  String selected_category_key = 'on_sale'; 
-
   @override
   void initState() {
     super.initState();
@@ -39,6 +37,8 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
   Widget build(BuildContext context) {
     final double max_w = Responsive.max_width(context);
     final search_results = ref.watch(search_results_provider);
+    final categories_async = ref.watch(categories_provider);
+    final selected_category_id = ref.watch(selected_category_id_provider);
 
     return Scaffold(
       appBar: AppBar(
@@ -71,24 +71,18 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
                     child: Row(
                       children: <Widget>[
                         _CategoryChip(
-                          label: '할인',
-                          is_selected: selected_category_key == 'on_sale',
-                          on_tap: () => setState(() => selected_category_key = 'on_sale'),
+                          label: '전체',
+                          is_selected: selected_category_id == null,
+                          on_tap: () => ref.read(selected_category_id_provider.notifier).state = null,
                         ),
-                        _CategoryChip(
-                          label: '채소',
-                          is_selected: selected_category_key == 'vegetables',
-                          on_tap: () => setState(() => selected_category_key = 'vegetables'),
-                        ),
-                        _CategoryChip(
-                          label: '유제품',
-                          is_selected: selected_category_key == 'dairy',
-                          on_tap: () => setState(() => selected_category_key = 'dairy'),
-                        ),
-                        _CategoryChip(
-                          label: '간식',
-                          is_selected: selected_category_key == 'snacks',
-                          on_tap: () => setState(() => selected_category_key = 'snacks'),
+                        ...categories_async.when(
+                          data: (categories) => categories.map((cat) => _CategoryChip(
+                            label: cat.name,
+                            is_selected: selected_category_id == cat.category_id,
+                            on_tap: () => ref.read(selected_category_id_provider.notifier).state = cat.category_id,
+                          )),
+                          error: (err, stack) => [const Text('카테고리 로딩 실패')],
+                          loading: () => [const CircularProgressIndicator()],
                         ),
                       ],
                     ),
@@ -175,6 +169,7 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
                                 return _ProductTile(
                                   name: item.name,
                                   price_label: '₩${item.price}',
+                                  image_url: item.image_url,
                                   on_tap: () => context.push(AppRoutes.product_detail, extra: <String, dynamic>{'product_id': item.product_id}),
                                 );
                               },
@@ -243,9 +238,15 @@ class _CategoryChip extends StatelessWidget {
 class _ProductTile extends StatelessWidget {
   final String name;
   final String price_label;
+  final String image_url;
   final VoidCallback on_tap;
 
-  const _ProductTile({required this.name, required this.price_label, required this.on_tap});
+  const _ProductTile({
+    required this.name, 
+    required this.price_label, 
+    required this.image_url,
+    required this.on_tap
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -260,15 +261,25 @@ class _ProductTile extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: AppColors.border.withOpacity(0.35),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Center(child: Icon(Icons.image_outlined)),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: image_url.isNotEmpty
+                        ? Image.network(
+                            image_url,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.image_outlined)),
+                          )
+                        : const Center(child: Icon(Icons.image_outlined)),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
-              Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
+              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 6),
               Text(price_label, style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.brand_primary)),
               // Removed + button from product tile

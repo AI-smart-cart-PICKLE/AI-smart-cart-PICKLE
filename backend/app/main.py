@@ -20,17 +20,9 @@ app = FastAPI(
 
 import os
 
-# CORS
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-origins = [
-    frontend_url,
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://bapsim.site",
-    "http://bapsim.site",
-]
+# CORS 
+# 개발 환경에서는 모든 출처 허용 ("*")
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,18 +34,18 @@ app.add_middleware(
 
 # 라우터 등록 (만들어둔 API 연결)
 # user.py의 2개 라우터
-app.include_router(user.auth_router)  # /auth/signup, /auth/login, /auth/logout
-app.include_router(user.user_router)  # /users/me, /users/me/nickname, etc.
+app.include_router(user.auth_router, prefix="/api")  # /api/auth/signup, etc.
+app.include_router(user.user_router, prefix="/api")  # /api/users/me, etc.
 
 # 나머지 라우터
-app.include_router(auth.router)       # /auth/refresh, /auth/google, /auth/kakao
-app.include_router(product.router)
-app.include_router(cart.router)
-app.include_router(payment.router)
-app.include_router(admin.router)
-app.include_router(ledger.router)
-app.include_router(recommendation.router)
-app.include_router(recipe.router)
+app.include_router(auth.router, prefix="/api")       # /api/auth/refresh, etc.
+app.include_router(product.router, prefix="/api")
+app.include_router(cart.router, prefix="/api")
+app.include_router(payment.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+app.include_router(ledger.router, prefix="/api")
+app.include_router(recommendation.router, prefix="/api")
+app.include_router(recipe.router, prefix="/api")
 
 @app.get("/")
 def read_root():

@@ -16,4 +16,6 @@ abstract class AccountRepository {
     required String current_password,
     required String new_password,
   });
+
+  Future<void> logout();
 }
