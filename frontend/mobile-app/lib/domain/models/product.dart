@@ -6,6 +6,7 @@ class Product {
   final String image_url;
   final bool is_in_stock;
   final String aisle_label; // 예: "Aisle 4" -> UI에서는 "통로 4"
+  final Map<String, dynamic>? product_info;
 
   const Product({
     required this.product_id,
@@ -15,6 +16,7 @@ class Product {
     required this.image_url,
     required this.is_in_stock,
     required this.aisle_label,
+    this.product_info,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class Product {
       is_in_stock: (json['stock_quantity'] ?? 0) > 0,
       // 백엔드에서 위치 정보를 주지 않을 경우 기본값 처리
       aisle_label: json['zone_code'] ?? '위치 정보 없음',
+      product_info: json['product_info'],
     );
   }
 }

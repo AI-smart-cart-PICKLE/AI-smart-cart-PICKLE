@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../domain/models/product.dart';
+import '../../../domain/models/product_category.dart';
 import 'product_repository.dart';
 
 class HttpProductRepository implements ProductRepository {
@@ -13,18 +14,55 @@ class HttpProductRepository implements ProductRepository {
   ));
 
   @override
+  Future<List<ProductCategory>> fetch_categories() async {
+    try {
+      final response = await _dio.get('/api/products/categories');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => ProductCategory.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching categories: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<Product>> fetch_products({int? category_id}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (category_id != null) {
+        queryParams['category_id'] = category_id;
+      }
+
+      final response = await _dio.get('/api/products/', queryParameters: queryParams);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => Product.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching products: $e');
+      return [];
+    }
+  }
+
+  @override
   Future<List<Product>> fetch_recommendations() async {
     // TODO: 백엔드 추천 API 구현 시 연동 (현재는 빈 리스트 반환)
     return [];
   }
 
   @override
-  Future<List<Product>> search_products({required String query, required String category_key}) async {
+  Future<List<Product>> search_products({required String query, int? category_id}) async {
     try {
-      final response = await _dio.get('/api/products/search', queryParameters: {
-        'q': query,
-        'category_key': category_key,
-      });
+      final queryParams = <String, dynamic>{'q': query};
+      if (category_id != null) {
+        queryParams['category_id'] = category_id;
+      }
+
+      final response = await _dio.get('/api/products/search', queryParameters: queryParams);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
