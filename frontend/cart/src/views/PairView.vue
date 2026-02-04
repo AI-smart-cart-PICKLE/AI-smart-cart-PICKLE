@@ -29,12 +29,14 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCartStore } from '@/stores/cart'
 import api from '@/api/axios'
 
 const router = useRouter()
+const cartStore = useCartStore()
 const qrCanvas = ref(null)
 const loading = ref(true)
-const deviceCode = 'CART_001'
+const deviceCode = 'CART-DEVICE-001'
 let pollingTimer = null
 
 // 🔍 연동 상태 확인 (폴링)
@@ -44,8 +46,12 @@ const checkStatus = async () => {
     if (res.data.paired) {
       // 1. 세션 정보 저장
       localStorage.setItem('cart_session_id', res.data.cart_session_id)
-      // 2. 대시보드로 이동
-      router.push('/')
+      
+      // 2. [추가] 스토어 상태 즉시 동기화
+      await cartStore.fetchCartSession(res.data.cart_session_id)
+      
+      // 3. 대시보드로 이동
+      router.replace('/')
     }
   } catch (e) {
     console.error("Polling error:", e)

@@ -37,6 +37,8 @@ const login = async () => {
     try {
       const res = await cartStore.createCartSession()
       localStorage.setItem('cart_session_id', res.cart_session_id)
+      // 🔥 스토어 상태 즉시 동기화
+      await cartStore.fetchCartSession(res.cart_session_id)
     } catch (e) {
       console.error("Cart Session Error:", e)
       throw new Error('카트 세션을 생성하는 중 오류가 발생했습니다.')

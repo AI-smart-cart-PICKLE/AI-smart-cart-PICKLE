@@ -193,16 +193,20 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               Navigator.pop(context);
               
               try {
-                // 1. 카트 연동 API 호출
-                final result = await ref.read(cart_repository_provider).pair_cart_by_qr(device_code: code);
+                                // 1. 카트 연동 API 호출
+                                final result = await ref.read(cart_repository_provider).pair_cart_by_qr(device_code: code);
+                                
+                                // 2. 홈 화면 및 장바구니 상태 즉시 갱신 (캐시 무효화)
+                                ref.invalidate(cart_summary_provider);
+                                
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('카트와 성공적으로 연동되었습니다!')),
+                                  );
+                                  // 3. 연동 성공 후 홈으로 이동
+                                  context.pushReplacement(AppRoutes.home);
+                                }
                 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('카트와 성공적으로 연동되었습니다!')), 
-                  );
-                  // 2. 연동 성공 후 홈 또는 리뷰 화면으로 이동
-                  context.pushReplacement(AppRoutes.home);
-                }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
