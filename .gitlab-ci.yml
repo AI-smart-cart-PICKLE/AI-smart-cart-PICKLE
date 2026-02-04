@@ -132,6 +132,8 @@ deploy:
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin &&
         docker compose pull && 
         docker compose --profile cpu up -d --remove-orphans &&
+        echo "Running Alembic Migrations..." &&
+        docker compose exec -T backend alembic upgrade head &&
         docker image prune -f
       "
   rules:
