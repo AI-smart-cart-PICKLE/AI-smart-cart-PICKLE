@@ -2,6 +2,7 @@ class AppRoutes {
   static const String splash = '/';
   static const String login = '/login';
   static const String signup = '/signup';
+  static const String oauth_webview = '/oauth-webview'; // 추가
   static const String home = '/home';
   static const String product_search = '/product/search';
   static const String product_detail = '/product/detail';

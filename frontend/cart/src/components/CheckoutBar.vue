@@ -2,19 +2,20 @@
 import { ref } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import CheckoutModal from '@/components/modals/CheckoutModal.vue'
+import PaymentQRModal from '@/components/modals/PaymentQRModal.vue'
 
 const cartStore = useCartStore()
 const showCheckoutModal = ref(false)
+const showQRModal = ref(false)
+const currentPaymentData = ref(null)
 
 const openCheckoutModal = () => {
   showCheckoutModal.value = true
 }
 
-const handleCheckoutSuccess = () => {
-  // TODO: 이후 실제 결제 완료 페이지로 이동하거나,
-  // 결제 대기 상태 화면(QR 등)을 띄워야 함.
-  // 우선은 간단히 알림만.
-  alert('결제 요청이 정상적으로 처리되었습니다.')
+const handleCheckoutSuccess = (paymentData) => {
+  currentPaymentData.value = paymentData
+  showQRModal.value = true
 }
 </script>
 
@@ -32,27 +33,9 @@ const handleCheckoutSuccess = () => {
       flex items-center justify-between
     "
   >
-    <!-- LEFT : 금액 / 수량 -->
+    <!-- ... 기존 코드 ... -->
     <div class="flex items-center gap-6">
-      <div>
-        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-          Total Amount
-        </p>
-        <p class="text-2xl font-black text-white">
-          {{ cartStore.estimatedTotal.toLocaleString() }}원
-        </p>
-      </div>
-
-      <div class="h-8 w-px bg-slate-700"></div>
-
-      <div>
-        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-          Items
-        </p>
-        <p class="text-xl font-bold text-white">
-          {{ cartStore.totalQuantity }}개
-        </p>
-      </div>
+      <!-- ... -->
     </div>
 
     <!-- RIGHT : 결제 버튼 -->
@@ -77,6 +60,13 @@ const handleCheckoutSuccess = () => {
       v-if="showCheckoutModal"
       @close="showCheckoutModal = false"
       @success="handleCheckoutSuccess"
+    />
+
+    <!-- QR 결제 대기 모달 -->
+    <PaymentQRModal
+      v-if="showQRModal"
+      :paymentData="currentPaymentData"
+      @close="showQRModal = false"
     />
   </div>
 </template>

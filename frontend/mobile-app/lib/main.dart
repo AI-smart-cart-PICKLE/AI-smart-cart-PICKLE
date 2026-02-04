@@ -6,10 +6,14 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint("Warning: Could not load .env file: $e");
-  }
-  runApp(const ProviderScope(child: PickleApp()));
+  await dotenv.load(fileName: ".env");
+
+  final container = ProviderContainer();
+  // PaymentService 초기화
+  container.read(paymentServiceProvider).init();
+
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: const PickleApp(),
+  ));
 }

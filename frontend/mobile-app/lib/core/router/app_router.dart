@@ -4,6 +4,7 @@ import 'app_routes.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
+import '../../features/auth/presentation/oauth_webview_screen.dart'; // 추가
 import '../../features/home/presentation/home_dashboard_screen.dart';
 import '../../features/product/presentation/product_search_screen.dart';
 import '../../features/product/presentation/product_detail_screen.dart';
@@ -29,11 +30,21 @@ import '../../features/payment/presentation/digital_receipt_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.splash,
     routes: <RouteBase>[
       GoRoute(path: AppRoutes.splash, builder: (c, s) => const SplashScreen()),
       GoRoute(path: AppRoutes.login, builder: (c, s) => const LoginScreen()),
       GoRoute(path: AppRoutes.signup, builder: (c, s) => const SignupScreen()),
+      GoRoute(
+        path: AppRoutes.oauth_webview,
+        builder: (c, s) {
+          final Map<String, dynamic> extra = s.extra as Map<String, dynamic>;
+          return OAuthWebViewScreen(
+            url: extra['url'] as String,
+            title: extra['title'] as String,
+          );
+        },
+      ),
       GoRoute(path: AppRoutes.home, builder: (c, s) => const HomeDashboardScreen()),
 
       GoRoute(path: AppRoutes.product_search, builder: (c, s) => const ProductSearchScreen()),

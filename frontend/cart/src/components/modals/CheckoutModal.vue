@@ -14,10 +14,10 @@ const confirmCheckout = async () => {
 
   try {
     // 실제 결제 요청 (무게 검증 없이 바로 요청)
-    await cartStore.checkout()
+    const paymentData = await cartStore.checkout()
     
-    // 성공 시 부모에게 알림 (이후 페이지 이동 등 처리)
-    emit('success')
+    // 성공 시 부모에게 데이터 전달 (QR URL 등)
+    emit('success', paymentData)
     // 모달 닫기
     emit('close')
 

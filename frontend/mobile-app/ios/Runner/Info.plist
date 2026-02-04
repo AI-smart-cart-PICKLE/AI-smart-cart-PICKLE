@@ -47,5 +47,17 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>카트 QR 코드를 스캔하기 위해 카메라 권한이 필요합니다.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.874133068405-83s78f96pl44leck3bct15fjp2ho71m2</string>
+				<string>pickle</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

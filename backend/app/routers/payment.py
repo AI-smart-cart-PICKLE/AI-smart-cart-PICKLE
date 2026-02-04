@@ -368,6 +368,19 @@ async def payment_ready(
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
     
+    # Append TID to custom URLs if they exist (to help mobile app identification)
+    approval_url = request.approval_url or f"{BASE_URL}/api/payments/success"
+    cancel_url = request.cancel_url or f"{BASE_URL}/api/payments/cancel"
+    fail_url = request.fail_url or f"{BASE_URL}/api/payments/fail"
+
+    if request.approval_url and "tid=" not in approval_url:
+        sep = "&" if "?" in approval_url else "?"
+        approval_url = f"{approval_url}{sep}tid={res_data['tid']}"
+    
+    if request.cancel_url and "tid=" not in cancel_url:
+        sep = "&" if "?" in cancel_url else "?"
+        cancel_url = f"{cancel_url}{sep}tid={res_data['tid']}"
+
     data = {
         "cid": CID_ONETIME,
         "partner_order_id": str(cart_session.cart_session_id),
@@ -376,9 +389,9 @@ async def payment_ready(
         "quantity": 1,
         "total_amount": request.total_amount,
         "tax_free_amount": 0,
-        "approval_url": f"{BASE_URL}/api/payments/success",
-        "cancel_url": f"{BASE_URL}/api/payments/cancel",
-        "fail_url": f"{BASE_URL}/api/payments/fail",
+        "approval_url": approval_url,
+        "cancel_url": cancel_url,
+        "fail_url": fail_url,
     }
 
     async with httpx.AsyncClient() as client:

@@ -154,7 +154,24 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   }
 
   Future<void> _handleScannedCode(String code) async {
-    // Show success dialog or navigate
+    // 1. 만약 스캔된 코드가 URL이라면 (결제 요청)
+    if (code.startsWith('http://') || code.startsWith('https://')) {
+      final Uri url = Uri.parse(code);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        if (mounted) context.pop(); // 스캐너 닫기
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('유효하지 않은 결제 URL입니다.')),
+          );
+          setState(() => is_scanned = false);
+        }
+      }
+      return;
+    }
+
+    // 2. 일반 텍스트 코드라면 (카트 연동)
     if (!mounted) return;
     
     showDialog(

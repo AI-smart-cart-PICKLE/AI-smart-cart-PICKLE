@@ -1,0 +1,86 @@
+-- =========================================================
+-- 🛒 PICKLE Project: Updated ERD Schema (Payment & Ledger Focused)
+-- Last Updated: 2026-02-04
+-- =========================================================
+
+-- 1. 결제 수단 테이블 (Payment Method)
+-- 사용자의 등록된 카드 또는 빌링키 정보를 관리합니다.
+CREATE TABLE IF NOT EXISTS payment_method (
+  method_id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  method_type payment_method_type NOT NULL,  
+  billing_key VARCHAR(255),               -- 카카오페이 SID (자동결제용)
+  card_brand VARCHAR(30),                 -- 카드사 (예: 신한, 국민)
+  card_last4 CHAR(4),                     -- 카드 뒷번호 4자리
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+
+  CONSTRAINT fk_method_user
+    FOREIGN KEY (user_id) REFERENCES app_user (user_id) ON DELETE CASCADE
+);
+
+-- 결제 수단 중복 등록 방지 (사용자당 동일 빌링키 중복 금지)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payment_method_user_billing_key
+  ON payment_method (user_id, billing_key)
+  WHERE billing_key IS NOT NULL;
+
+
+-- 2. 결제 테이블 (Payment)
+-- 모든 결제 시도와 결과를 관리합니다.
+CREATE TABLE IF NOT EXISTS payment (
+  payment_id BIGSERIAL PRIMARY KEY,
+  cart_session_id BIGINT UNIQUE,          -- 연동된 장바구니 세션 (1:1)
+  user_id BIGINT NOT NULL,
+  method_id BIGINT,                       -- 사용된 결제 수단
+
+  pg_provider pg_provider_type NOT NULL,  -- KAKAO_PAY, CARD_PG
+  pg_tid VARCHAR(255) UNIQUE,             -- 카카오페이 거래 고유 번호 (TID)
+
+  status payment_status NOT NULL DEFAULT 'PENDING', -- PENDING, APPROVED, FAILED, CANCELLED
+  total_amount INTEGER NOT NULL,
+  
+  approved_at TIMESTAMPTZ,                -- 실제 승인 완료 시각
+  created_at TIMESTAMPTZ DEFAULT now(),   -- 결제 시도(Ready) 시각
+
+  CONSTRAINT fk_payment_session
+    FOREIGN KEY (cart_session_id) REFERENCES cart_session (cart_session_id),
+  CONSTRAINT fk_payment_user
+    FOREIGN KEY (user_id) REFERENCES app_user (user_id),
+  CONSTRAINT fk_payment_method
+    FOREIGN KEY (method_id) REFERENCES payment_method (method_id)
+);
+
+-- 결제 조회 최적화를 위한 인덱스
+CREATE INDEX IF NOT EXISTS idx_payment_pg_tid ON payment (pg_tid);
+CREATE INDEX IF NOT EXISTS idx_payment_status ON payment (status);
+
+
+-- 3. 가계부 테이블 (Ledger Entry)
+-- 승인된 결제 내역을 바탕으로 지출 내역을 관리합니다.
+CREATE TABLE IF NOT EXISTS ledger_entry (
+  ledger_entry_id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  payment_id BIGINT,                      -- 연동된 결제 정보 (SET NULL로 유지)
+
+  spend_date DATE NOT NULL,               -- 지출 일자
+  category ledger_category NOT NULL DEFAULT 'ETC', -- GROCERY, SNACK 등
+  amount INTEGER NOT NULL,                -- 지출 금액
+  memo TEXT,                              -- 사용자 메모 (API 명세 대응)
+  created_at TIMESTAMPTZ DEFAULT now(),
+
+  CONSTRAINT fk_ledger_user
+    FOREIGN KEY (user_id) REFERENCES app_user (user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_ledger_payment
+    FOREIGN KEY (payment_id) REFERENCES payment (payment_id) ON DELETE SET NULL
+);
+
+-- 가계부 통계를 위한 인덱스
+CREATE INDEX IF NOT EXISTS idx_ledger_user_date ON ledger_entry (user_id, spend_date);
+CREATE INDEX IF NOT EXISTS idx_ledger_category ON ledger_entry (category);
+
+
+-- 4. 장바구니 세션 테이블 (Cart Session - 보완)
+-- 결제 상태(status)와 동기화를 보장합니다.
+-- (기존 테이블이 존재한다면 status 타입 확인 필요: ACTIVE, PAID, CANCELLED 등)
+-- ALTER TABLE cart_session ADD COLUMN IF NOT EXISTS measured_total_g INTEGER DEFAULT 0;
+-- ALTER TABLE cart_session ADD COLUMN IF NOT EXISTS expected_total_g INTEGER DEFAULT 0;
