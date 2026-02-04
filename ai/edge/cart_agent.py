@@ -6,7 +6,7 @@ from collections import Counter, deque
 from ultralytics import YOLO
 
 # =========================================================
-# 🛒 Smart Cart Edge Agent
+# Smart Cart Edge Agent
 # =========================================================
 # [실행 가이드]
 # 1. 환경 변수 설정 (또는 .env 파일):
