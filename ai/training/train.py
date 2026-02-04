@@ -9,118 +9,173 @@ from ultralytics import YOLO
 # --- [필수] Windows OpenMP 충돌 방지 ---
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# --- 경로 설정 (환경변수 우선, 없으면 로컬 기본값) ---
+# ==============================
+# Path / Env
+# ==============================
 DEFAULT_DATASET_PATH = "/data/dataset"
 DATASET_PATH = os.getenv("DATASET_PATH", DEFAULT_DATASET_PATH)
 DATA_YAML = os.path.join(DATASET_PATH, "data.yaml")
 
-# --- MLflow 설정 ---
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "smart-cart-training")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+DEFAULT_EXPERIMENT_NAME = os.getenv(
+    "MLFLOW_EXPERIMENT_NAME",
+    "smart-cart-training"
+)
 
+# ==============================
+# Train Function
+# ==============================
 def train(
+    *,
     epochs: int = 50,
     imgsz: int = 640,
     batch: int = 16,
     device: object = 0,
     data_yaml: str = DATA_YAML,
     project: str = "/data/runs/train",
-    name: str = "mlflow_exp",
-    experiment_name: str = EXPERIMENT_NAME
+    name: str = "mlflow_run",
+    experiment_name: str = DEFAULT_EXPERIMENT_NAME,
+    model_name: str = "yolov8s.pt",
+    **kwargs  # 🔥 [NEW] 모든 추가 파라미터를 받음
 ):
     """
-    YOLOv8 학습 및 MLflow 로깅 함수
+    YOLOv8 학습 + MLflow 로깅
+
+    Args:
+        model_name: 사전학습 모델 (.pt)
+        experiment_name: MLflow experiment name
+        **kwargs: model.train()에 전달할 모든 추가 파라미터 (mosaic, mixup, lr0, lrf 등)
     """
-    # 1. MLflow 초기화
+
+    # ==============================
+    # MLflow Init
+    # ==============================
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(experiment_name)
-    print(f"[MLflow] Tracking URI: {MLFLOW_TRACKING_URI}")
-    print(f"[MLflow] Experiment: {experiment_name}")
 
-    # 2. 사전학습 모델 로드
-    model_name = "yolov8s.pt"
+    print(f"[MLflow] URI        : {MLFLOW_TRACKING_URI}")
+    print(f"[MLflow] Experiment : {experiment_name}")
+    print(f"[Training] Model    : {model_name}")
+
+    # ==============================
+    # Load Model
+    # ==============================
     model = YOLO(model_name)
 
-    # 3. MLflow Run 시작
-    mlflow.end_run() # 안전장치: 혹시라도 닫히지 않은 이전 Run 강제 종료
+    # ==============================
+    # MLflow Run
+    # ==============================
+    mlflow.end_run()  # 혹시 남아있는 run 정리
     with mlflow.start_run() as run:
-        print(f"[MLflow] Run ID: {run.info.run_id}")
-        
-        # Check CUDA availability
+        run_id = run.info.run_id
+        print(f"[MLflow] Run ID: {run_id}")
+
+        # ==============================
+        # Device Check
+        # ==============================
         import torch
         if device == 0 and not torch.cuda.is_available():
-            print("[Warning] CUDA not available. Falling back to CPU.")
-            device = 'cpu'
-            
-        # 파라미터 로깅
-        mlflow.log_params({
-            "model": model_name,
+            print("[Warning] CUDA not available → CPU fallback")
+            device = "cpu"
+
+        # ==============================
+        # Set Default Hyperparams
+        # ==============================
+        # 사용자가 kwargs로 넘기지 않은 경우에만 기본값 적용
+        train_args = {
             "data": data_yaml,
-            "epochs": epochs,
             "imgsz": imgsz,
+            "epochs": epochs,
             "batch": batch,
-            "device": device
-        })
-
-        print("Starting training...")
-        
-        # 4. 학습 실행
-        # project='runs/train', name='mlflow_run'으로 지정하여 경로 예측 가능하게 설정
-        results = model.train(
-            data=data_yaml,
-            imgsz=imgsz,
-            epochs=epochs,
-            batch=batch,
-            device=device,
-            workers=0,
-
-            # --- Augmentation ---
-            mosaic=1.0,
-            mixup=0.2,
-            fliplr=0.5,
-            hsv_h=0.015,
-            hsv_s=0.7,
-            hsv_v=0.4,
-
-            # --- 안정성 옵션 ---
-            amp=True,
-            deterministic=True,
-            seed=0,
+            "device": device,
+            "workers": 0,  # Windows/Linux 호환성 안전값
             
-            project=project,
-            name=name,
-            exist_ok=True
-        )
+            # --- Augmentation Defaults ---
+            "mosaic": 1.0,
+            "mixup": 0.2,
+            "fliplr": 0.5,
+            "hsv_h": 0.015,
+            "hsv_s": 0.7,
+            "hsv_v": 0.4,
+            
+            # --- Stability Defaults ---
+            "amp": True,
+            "deterministic": True,
+            "seed": 0,
+            
+            "project": project,
+            "name": name,
+            "exist_ok": True,
+        }
+        
+        # kwargs로 들어온 값이 있다면 덮어쓰기 (Override)
+        train_args.update(kwargs)
 
-        # 5. 결과 지표 로깅
-        # YOLOv8의 results 객체에서 지표 추출
+        # ==============================
+        # Log Params
+        # ==============================
+        # 로깅을 위해 model_name도 포함
+        log_params = train_args.copy()
+        log_params["model_name"] = model_name
+        mlflow.log_params(log_params)
+
+        print("[Training] Start with params:", train_args)
+
+        # ==============================
+        # Train
+        # ==============================
+        results = model.train(**train_args)
+
+        # ==============================
+        # Metrics
+        # ==============================
         metrics = {
-            "mAP50": results.box.map50,
-            "mAP50-95": results.box.map,
-            "fitness": results.fitness,
-            # 필요한 경우 loss 등 추가 가능 (results.results_dict 확인)
+            "mAP50": float(results.box.map50),
+            "mAP50_95": float(results.box.map),
+            "fitness": float(results.fitness)
         }
         mlflow.log_metrics(metrics)
-        print(f"[MLflow] Logged metrics: {metrics}")
 
-        # 6. 모델 아티팩트 업로드 (MinIO)
-        # best.pt 모델 파일 경로
-        best_model_path = os.path.join(results.save_dir, "weights", "best.pt")
-        
-        if os.path.exists(best_model_path):
-            print(f"Uploading model artifact: {best_model_path}")
-            mlflow.log_artifact(best_model_path, artifact_path="weights")
-            
-            # (옵션) 혼동 행렬 등 시각화 이미지도 업로드
-            confusion_matrix = os.path.join(results.save_dir, "confusion_matrix.png")
-            if os.path.exists(confusion_matrix):
-                mlflow.log_artifact(confusion_matrix, artifact_path="plots")
-                
-            print("[MLflow] Upload complete.")
-        else:
-            print(f"[Warning] Model file not found at {best_model_path}")
-            
-        return run.info.run_id
+        print(f"[MLflow] Metrics: {metrics}")
 
+        # ==============================
+        # Artifacts
+        # ==============================
+        best_model_path = os.path.join(
+            results.save_dir,
+            "weights",
+            "best.pt"
+        )
+
+        if not os.path.exists(best_model_path):
+            raise FileNotFoundError(
+                f"best.pt not found at {best_model_path}"
+            )
+
+        # 🔑 AI 서버와 약속된 경로
+        mlflow.log_artifact(
+            best_model_path,
+            artifact_path="weights"
+        )
+
+        # Optional: confusion matrix
+        confusion_matrix = os.path.join(
+            results.save_dir,
+            "confusion_matrix.png"
+        )
+        if os.path.exists(confusion_matrix):
+            mlflow.log_artifact(
+                confusion_matrix,
+                artifact_path="plots"
+            )
+
+        print("[MLflow] Artifacts uploaded")
+
+        return run_id
+
+
+# ==============================
+# Local Run
+# ==============================
 if __name__ == "__main__":
     train()

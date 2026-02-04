@@ -55,7 +55,28 @@ build-ai:
       when: always
 
 # =========================================================
-# 3. MLOps (Airflow) Build Job
+# 3. Frontend Build Job
+# =========================================================
+build-frontend:
+  stage: build
+  image: node:20-alpine
+  script:
+    - echo "Building Frontend (Vue.js)..."
+    - cd frontend/cart
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/web-kiosk/dist/
+    expire_in: 1 hour
+  rules:
+    - changes:
+        - frontend/**/*
+        - docker-compose.yml
+      when: always
+
+# =========================================================
+# 4. MLOps (Airflow) Build Job
 # =========================================================
 build-airflow:
   stage: build
@@ -82,8 +103,12 @@ build-airflow:
 deploy:
   stage: deploy
   image: alpine:latest
+  needs:
+    - job: build-frontend
+      artifacts: true
+      optional: true
   before_script:
-    - apk add --no-cache openssh-client
+    - apk add --no-cache openssh-client rsync
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
@@ -92,13 +117,23 @@ deploy:
   script:
     - echo "Creating full directory structure on EC2..."
     - >
-      ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202/backend 
-      ~/workspaces/S14P11A202/ai 
-      ~/workspaces/S14P11A202/mlops/airflow"
-    
+      ssh $EC2_USER@$EC2_HOST "mkdir -p ~/workspaces/S14P11A202/backend
+      ~/workspaces/S14P11A202/ai
+      ~/workspaces/S14P11A202/mlops/airflow
+      ~/workspaces/S14P11A202/frontend/web-kiosk/dist"
+
     - echo "Uploading deployment files..."
     # feat 브랜치의 수정사항: init-db.sh, nginx 설정 포함 업로드
     - scp docker-compose.yml init-db.sh nginx-ssl-prod.conf $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/
+
+    - echo "Uploading frontend build files (if available)..."
+    - |
+      if [ -d "frontend/web-kiosk/dist" ]; then
+        rsync -avz --delete -e "ssh" frontend/web-kiosk/dist/ $EC2_USER@$EC2_HOST:~/workspaces/S14P11A202/frontend/web-kiosk/dist/
+        echo "Frontend files uploaded successfully"
+      else
+        echo "No frontend build artifacts found - skipping frontend upload"
+      fi
 
     - echo "Generating .env file on EC2..."
     - |

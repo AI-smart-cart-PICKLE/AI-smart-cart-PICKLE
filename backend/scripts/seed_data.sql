@@ -108,3 +108,21 @@ INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_
 (12, 2, '4큰술', 5),  -- 케찹 (시연 물품)
 (12, 100, '반개', 3),   -- 양파
 (12, 102, '1큰술', 1);  -- 마늘
+
+
+-- ========================================================
+-- 🛒 5. 카트 디바이스 (필수)
+-- ========================================================
+INSERT INTO cart_device (cart_device_id, device_code) VALUES
+(1, 'CART-DEVICE-001'),
+(2, 'CART-DEVICE-002');
+
+
+-- ========================================================
+-- 🔄 6. 시퀀스 재설정 (ID 충돌 방지)
+-- ========================================================
+SELECT setval('product_category_category_id_seq', (SELECT MAX(category_id) FROM product_category));
+SELECT setval('product_product_id_seq', (SELECT MAX(product_id) FROM product));
+SELECT setval('recipe_recipe_id_seq', (SELECT MAX(recipe_id) FROM recipe));
+SELECT setval('cart_device_cart_device_id_seq', (SELECT MAX(cart_device_id) FROM cart_device));
+

@@ -81,7 +81,7 @@ class PaymentCancelRequest(BaseModel):
     reason: str = "사용자 요청에 의한 취소"
 
 class PaymentDetailResponse(PaymentResponse):
-    pass
+    items: List["CartItemResponse"] = []
 
 # --- ✨ [NEW] 결제 요청 및 무게 검증 (Checkout) ---
 
@@ -353,13 +353,90 @@ class RecipeRecommendResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- Product Schemas ---
+
+
+
 class ProductResponse(BaseModel):
+
     product_id: int
+
+    category_id: Optional[int]
+
+    barcode: Optional[str]
+
     name: str
+
     price: int
-    stock_quantity: Optional[int] = 0
-    image_url: Optional[str] = None
-    product_info: Optional[Dict[str, Any]] = None
+
+    unit_weight_g: int
+
+    stock_quantity: int
+
+    image_url: Optional[str]
+
+    product_info: Optional[dict] = None  # JSONB
+
+    
+
+    # 추가 필드 (위치 정보 등)
+
+    zone_code: Optional[str] = None # Category 조인 결과
+
+    category_name: Optional[str] = None
+
+
 
     class Config:
+
         from_attributes = True
+
+
+
+class ProductLocationResponse(BaseModel):
+
+    product_id: int
+
+    name: str
+
+    zone_code: Optional[str]
+
+    map_image_url: Optional[str] = None # 매장 지도 이미지 URL 등
+
+
+
+class RecipeIngredientResponse(BaseModel):
+
+    product_id: int
+
+    name: str
+
+    quantity_info: Optional[str] = None
+
+    image_url: Optional[str] = None
+
+    
+
+    class Config:
+
+        from_attributes = True
+
+
+
+class RecipeDetailResponse(BaseModel):
+    recipe_id: int
+    title: str
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+    image_url: Optional[str] = None
+    prep_time_min: int = 30
+    difficulty_label: str = "보통"
+    calories: int = 500
+    
+    # 조리 재료
+    ingredients: List[RecipeIngredientResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+
