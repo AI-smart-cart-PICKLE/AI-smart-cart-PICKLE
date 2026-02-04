@@ -14,6 +14,11 @@ from app.schemas import (
 )
 from app.utils.check_data import validate_cart_weight
 
+import logging
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/carts",
     tags=["carts"],
@@ -27,8 +32,13 @@ def pair_cart_by_qr(
     db: Session = Depends(database.get_db),
     current_user: models.AppUser = Depends(get_current_user),
 ):
+    logger.info(f"--- 카트 연동 시작 ---")
+    logger.info(f"요청 유저: {current_user.email} (ID: {current_user.user_id})")
+    logger.info(f"요청 디바이스 코드: '{device_code}'")
+
     # 1. 입력값 정제 (하이픈을 언더바로 변경하여 DB 매칭 확률 높임)
     clean_code = device_code.strip().replace('-', '_')
+    logger.info(f"정제된 디바이스 코드: '{clean_code}'")
     
     # 2. 디바이스 조회
     device = (
@@ -40,10 +50,14 @@ def pair_cart_by_qr(
     if not device:
         # 디버깅을 위해 가능한 모든 디바이스 출력 (로그)
         all_devices = db.query(models.CartDevice.device_code).all()
+        available_codes = [d[0] for d in all_devices]
+        logger.error(f"❌ 연동 실패: 디바이스 '{device_code}'를 찾을 수 없음. 가용 코드: {available_codes}")
         raise HTTPException(
             status_code=404, 
-            detail=f"카트 디바이스를 찾을 수 없습니다. (입력: {device_code}, 정제: {clean_code}, 가용: {[d[0] for d in all_devices]})"
+            detail=f"카트 디바이스를 찾을 수 없습니다. (입력: {device_code}, 가용: {available_codes})"
         )
+
+    logger.info(f"✅ 디바이스 확인됨: ID {device.cart_device_id} (Code: {device.device_code})")
 
     # 2. 해당 디바이스의 ACTIVE 세션 조회
     session = (
@@ -56,26 +70,35 @@ def pair_cart_by_qr(
         .first()
     )
 
-    # 3. 없으면 새 세션 생성
-    if not session:
-        session = models.CartSession(
-            cart_device_id=device.cart_device_id,
-            user_id=current_user.user_id,
-            status=models.CartSessionStatus.ACTIVE,
-        )
-        db.add(session)
-        db.commit()
-        db.refresh(session)
-    else:
-        # 4. 있으면 사용자만 연결
-        session.user_id = current_user.user_id
-        db.commit()
+    try:
+        # 3. 없으면 새 세션 생성
+        if not session:
+            logger.info("기존 활성 세션 없음. 새 세션 생성 중...")
+            session = models.CartSession(
+                cart_device_id=device.cart_device_id,
+                user_id=current_user.user_id,
+                status=models.CartSessionStatus.ACTIVE,
+            )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+            logger.info(f"✅ 새 카트 세션 생성 완료: ID {session.cart_session_id}")
+        else:
+            # 4. 있으면 사용자만 연결
+            logger.info(f"기존 활성 세션(ID: {session.cart_session_id}) 발견. 사용자 연결 중...")
+            session.user_id = current_user.user_id
+            db.commit()
+            logger.info(f"✅ 기존 세션에 사용자 연결 완료")
 
-    return {
-        "cart_session_id": session.cart_session_id,
-        "cart_device_id": device.cart_device_id,
-        "message": "카트가 앱과 연결되었습니다.",
-    }
+        return {
+            "cart_session_id": session.cart_session_id,
+            "cart_device_id": device.cart_device_id,
+            "message": "카트가 앱과 연결되었습니다.",
+        }
+    except Exception as e:
+        logger.error(f"❌ 연동 처리 중 DB 에러 발생: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error during pairing")
 
 # --- 카트 연동 상태 확인 (웹 키오스크 폴링용) ---
 @router.get("/pair/status/{device_code}")
