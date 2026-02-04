@@ -1,48 +1,130 @@
-<script setup>
-import { ref } from 'vue'
-import LoginModal from '@/components/modals/LoginModal.vue'
-
-const showLoginModal = ref(false)
-
-const handleLoginClose = () => {
-  showLoginModal.value = false
-  // LoginModal 내부에서 이미 router.push('/')를 수행하므로 여기서는 추가 동작 불필요
-}
-</script>
-
 <template>
-  <div class="flex flex-col items-center justify-center h-full bg-slate-50">
-    <div class="text-center mb-10">
-      <h1 class="text-3xl font-black text-slate-800 mb-2">Pickle Smart Cart</h1>
-      <p class="text-slate-400 font-medium">쇼핑을 시작하려면 로그인하세요</p>
+  <div class="pair-container">
+    <div class="content-wrapper">
+      <div class="text-center">
+        <h1 class="main-title">Pickle Smart Cart</h1>
+        <p class="sub-title">카트 연동을 위해 QR 코드를 스캔하세요</p>
+      </div>
+
+      <!-- QR 코드 영역 (Canvas 기반) -->
+      <div class="qr-section">
+        <div class="qr-card">
+          <div class="qr-white-box">
+            <canvas ref="qrCanvas"></canvas>
+            <div v-if="loading" class="loading-text">QR 생성 중...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <p class="guide-text">
+          모바일 앱의 <b>'QR 스캔'</b> 메뉴를 열고<br/>
+          위의 코드를 인식시켜 주세요.
+        </p>
+      </div>
     </div>
-
-    <!-- QR 코드 스캔 대신 버튼으로 대체 -->
-    <button
-      class="px-8 py-4 bg-primary text-white rounded-[20px] font-bold text-lg shadow-xl shadow-primary/30 hover:scale-105 transition-transform"
-      @click="showLoginModal = true"
-    >
-      시작하기 (로그인)
-    </button>
-    
-    <p class="mt-6 text-sm text-slate-400">
-      QR 코드를 스캔하여 <br/>카트와 연동할 수 있습니다.
-    </p>
-
-    <!-- 로그인 모달 -->
-    <LoginModal v-if="showLoginModal" @close="handleLoginClose" />
   </div>
 </template>
 
+<script setup>
+import { ref, onMounted } from 'vue'
+
+const qrCanvas = ref(null)
+const loading = ref(true)
+const deviceCode = 'CART-DEVICE-001'
+
+// 라이브러리 없이 QR 생성을 위해 CDN 스크립트 동적 로드
+const loadQRCodeLib = () => {
+  return new Promise((resolve) => {
+    if (window.QRious) {
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
+    script.onload = resolve
+    document.head.appendChild(script)
+  })
+}
+
+onMounted(async () => {
+  await loadQRCodeLib()
+  
+  if (window.QRious && qrCanvas.value) {
+    new window.QRious({
+      element: qrCanvas.value,
+      value: deviceCode,
+      size: 250,
+      level: 'H'
+    })
+    loading.value = false
+  }
+})
+</script>
+
 <style scoped>
-.bg-primary {
-  background-color: #4ade80;
+.pair-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 536px;
+  background-color: #f8fafc;
 }
-.text-primary {
-  color: #4ade80;
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
-.shadow-primary\/30 {
-  --tw-shadow-color: rgb(74 222 128 / 0.3);
-  --tw-shadow: var(--tw-shadow-colored);
+
+.main-title {
+  font-size: 40px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.sub-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.qr-section {
+  padding: 24px;
+  background-color: #ffffff;
+  border-radius: 40px;
+  border: 4px solid #4ade80;
+  box-shadow: 0 25px 50px -12px rgba(74, 222, 128, 0.15);
+}
+
+.qr-white-box {
+  background-color: #ffffff;
+  padding: 10px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 250px;
+  height: 250px;
+}
+
+.guide-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.guide-text {
+  text-align: center;
+  color: #94a3b8;
+}
+
+.loading-text {
+  color: #94a3b8;
+  font-size: 14px;
 }
 </style>

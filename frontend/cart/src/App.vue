@@ -1,7 +1,7 @@
 <!-- App.vue -->
 <script setup>
-import { RouterView } from 'vue-router'
-import { onMounted } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import { onMounted, watch } from 'vue'
 import TheHeader from './components/TheHeader.vue'
 import LoginModal from './components/modals/LoginModal.vue'
 
@@ -10,12 +10,24 @@ import { useUIStore } from '@/stores/ui'
 
 const authStore = useAuthStore()
 const uiStore = useUIStore()
+const route = useRoute()
 
-onMounted(async () => {
+const checkAuth = async () => {
   await authStore.fetchMe()
 
-  if (!authStore.isAuthenticated) {
+  if (!authStore.isAuthenticated && route.path !== '/pair') {
     uiStore.openLoginModal()
+  }
+}
+
+onMounted(checkAuth)
+
+// 경로가 바뀔 때마다 체크 (로그인 페이지가 아닌 곳으로 갈 때 로그인 유도)
+watch(() => route.path, (newPath) => {
+  if (!authStore.isAuthenticated && newPath !== '/pair') {
+    uiStore.openLoginModal()
+  } else if (newPath === '/pair') {
+    uiStore.closeLoginModal()
   }
 })
 </script>

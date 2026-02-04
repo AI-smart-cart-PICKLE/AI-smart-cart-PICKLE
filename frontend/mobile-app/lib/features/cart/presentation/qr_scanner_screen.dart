@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/router/app_routes.dart';
+import 'cart_providers.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -168,21 +169,24 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              if (code.startsWith('http')) {
-                final Uri url = Uri.parse(code);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('URL을 열 수 없습니다.')),
-                    );
-                  }
-                }
-              } else {
-                // For other codes, navigate to the cart review screen
+              
+              try {
+                // 1. 카트 연동 API 호출
+                final result = await ref.read(cart_repository_provider).pair_cart_by_qr(device_code: code);
+                
                 if (mounted) {
-                  context.pushReplacement(AppRoutes.review_and_cook);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('카트와 성공적으로 연동되었습니다!')), 
+                  );
+                  // 2. 연동 성공 후 홈 또는 리뷰 화면으로 이동
+                  context.pushReplacement(AppRoutes.home);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('연동 실패: ${e.toString().replaceAll('Exception: ', '')}')),
+                  );
+                  setState(() => is_scanned = false);
                 }
               }
             },
