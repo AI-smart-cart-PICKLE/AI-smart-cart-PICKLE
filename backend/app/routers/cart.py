@@ -63,7 +63,7 @@ def pair_cart_by_qr(
         .first()
     )
 
-    # 3. 없으면 새 세션 생성
+    # 5. 없으면 새 세션 생성
     if not session:
         session = models.CartSession(
             cart_device_id=device.cart_device_id,
@@ -71,12 +71,14 @@ def pair_cart_by_qr(
             status=models.CartSessionStatus.ACTIVE,
         )
         db.add(session)
-        db.commit()
-        db.refresh(session)
+        print(f"DEBUG: Created NEW session {session.cart_session_id} for user {current_user.user_id} on device {device.device_code}")
     else:
-        # 4. 있으면 사용자만 연결
+        # 6. 있으면 사용자만 연결
         session.user_id = current_user.user_id
-        db.commit()
+        print(f"DEBUG: Re-assigned EXISTING session {session.cart_session_id} to user {current_user.user_id}")
+    
+    db.commit()
+    db.refresh(session)
 
     return {
         "cart_session_id": session.cart_session_id,
