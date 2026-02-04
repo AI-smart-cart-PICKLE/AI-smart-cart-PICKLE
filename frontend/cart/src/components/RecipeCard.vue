@@ -6,7 +6,7 @@ defineProps({
 
 <template>
   <div
-    class="bg-slate-100 border rounded-xl p-2
+    class="bg-slate-100 border rounded-xl p-5
            hover:border-green-400 cursor-pointer transition"
   >
     <!-- 이미지 -->

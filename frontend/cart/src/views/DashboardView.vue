@@ -7,6 +7,7 @@ import RecommendationPanel from '@/components/RecommendationPanel.vue'
 import CheckoutBar from '@/components/CheckoutBar.vue'
 import LoginModal from '@/components/modals/LoginModal.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
+import WelcomePanel from '@/components/WelcomePanel.vue'
 
 const cartStore = useCartStore()
 const showLoginModal = ref(false)
@@ -49,16 +50,20 @@ onMounted(init)
 
           <!-- 액션 버튼 (아래) -->
           <ActionButtons />
-        </div>
 
+          <!-- 결제 영역 -->
+          <CheckoutBar
+            v-if="cartStore.cartSession"
+            class="flex-none"
+          />
+        </div>
+      </template>
+      <template v-else>
+        <div class="col-span-12 h-full min-h-0">
+          <WelcomePanel />
+        </div>
       </template>
     </div>
-
-    <!-- =========================
-         결제 바 (84px)
-         👉 위로 끌어올림
-    ========================== -->
-    <CheckoutBar class="h-[65px]" />
   </main>
 </template>
 
