@@ -14,7 +14,7 @@ const cartStore = useCartStore()
  * ========================= */
 const showCheckoutModal = ref(false)
 const showQRModal = ref(false)
-const currentPaymentData = ref(null)
+const qrUrl = ref('')
 
 /* =========================
  * Computed
@@ -33,9 +33,15 @@ const openCheckoutModal = () => {
   showCheckoutModal.value = true
 }
 
+// 결제 준비 API 성공 시 실행
 const handleCheckoutSuccess = (paymentData) => {
-  currentPaymentData.value = paymentData
-  showQRModal.value = true
+  // 카카오페이 PC 결제 페이지 URL 추출
+  if (paymentData && paymentData.next_redirect_pc_url) {
+    qrUrl.value = paymentData.next_redirect_pc_url
+    showQRModal.value = true
+  } else {
+    alert('결제 정보를 불러오지 못했습니다.')
+  }
 }
 </script>
 
@@ -78,14 +84,14 @@ const handleCheckoutSuccess = (paymentData) => {
       @click="openCheckoutModal"
       :disabled="totalQuantity === 0"
       class="
-        px-8 py-2.5
+        px-8 py-3
         bg-violet-500 text-white
         rounded-xl
-        font-bold text-base
+        font-bold text-lg
         hover:bg-violet-600
         active:scale-95
         transition-all
-        shadow-md
+        shadow-lg shadow-violet-500/30
         disabled:opacity-40
       "
     >
@@ -102,7 +108,7 @@ const handleCheckoutSuccess = (paymentData) => {
     <!-- QR 결제 대기 모달 -->
     <PaymentQRModal
       v-if="showQRModal"
-      :paymentData="currentPaymentData"
+      :url="qrUrl"
       @close="showQRModal = false"
     />
   </div>

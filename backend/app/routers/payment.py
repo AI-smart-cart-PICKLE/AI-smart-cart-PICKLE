@@ -335,16 +335,22 @@ async def register_callback(status: str, pg_token: str = None):
 @router.post("/ready", response_model=schemas.PaymentReadyResponse)
 async def payment_ready(
     request: schemas.PaymentReadyRequest,
-    db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    user_id = current_user.user_id
+    """
+    [결제 준비 API] 웹 키오스크에서도 호출 가능하도록 인증을 해제합니다.
+    """
     cart_session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == request.cart_session_id
     ).first()
     
     if not cart_session:
         raise HTTPException(status_code=404, detail="해당 카트 세션을 찾을 수 없습니다.")
+
+    # 결제 주체 유저 ID 가져오기 (세션에 연결된 유저)
+    user_id = cart_session.user_id
+    if not user_id:
+         raise HTTPException(status_code=400, detail="세션에 연결된 사용자가 없습니다.")
 
     weight_check = validate_cart_weight(
         db=db,
