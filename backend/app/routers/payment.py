@@ -436,17 +436,28 @@ async def payment_success_callback(
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
+    
+    # Ready 시점과 동일한 partner 정보 구성
+    partner_order_id = str(payment.cart_session_id)
+    partner_user_id = str(payment.user_id)
+    
     data = {
         "cid": CID_ONETIME,
         "tid": payment.pg_tid,
-        "partner_order_id": str(session_id),
-        "partner_user_id": str(payment.user_id),
+        "partner_order_id": partner_order_id,
+        "partner_user_id": partner_user_id,
         "pg_token": pg_token
     }
+
+    logger.info(f"--- 카카오 승인 요청 시작 ---")
+    logger.info(f"TID: {payment.pg_tid}, Session: {session_id}, User: {payment.user_id}")
 
     async with httpx.AsyncClient() as client:
         res = await client.post(url, headers=headers, data=data)
         res_data = res.json()
+
+    logger.info(f"--- 카카오 승인 응답 결과 ---")
+    logger.info(f"Response: {res_data}")
 
     if "aid" in res_data:
         # 3. 승인 성공 시 상태 업데이트
@@ -459,22 +470,36 @@ async def payment_success_callback(
         if cart_session:
             cart_session.status = models.CartSessionStatus.PAID
             cart_session.ended_at = datetime.now()
+            logger.info(f"✅ 결제 승인 완료 및 세션 종료 (Session ID: {session_id})")
 
         db.commit()
         
         # 가계부 등록
         try:
             create_ledger_from_payment(payment_id=payment.payment_id, db=db)
-        except: pass
+        except Exception as e:
+            logger.error(f"⚠️ 가계부 등록 실패: {e}")
 
         return HTMLResponse(content="""
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif;">
-                <h1 style="color:#8b5cf6;">✅ 결제가 완료되었습니다!</h1>
-                <p>잠시 후 메인 화면으로 돌아갑니다.</p>
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; background-color:#f8fafc;">
+                <div style="background:white; padding:40px; border-radius:32px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center;">
+                    <h1 style="color:#8b5cf6; font-size:48px; margin-bottom:16px;">✅</h1>
+                    <h2 style="color:#1e293b; margin-bottom:8px;">결제가 완료되었습니다!</h2>
+                    <p style="color:#64748b;">카카오톡으로 결제 알림이 전송되었습니다.</p>
+                    <p style="color:#94a3b8; font-size:14px; margin-top:20px;">잠시 후 화면이 자동으로 닫힙니다.</p>
+                </div>
             </div>
         """)
     
-    return HTMLResponse(content=f"<h1>결제 승인 실패: {res_data.get('msg')}</h1>", status_code=400)
+    error_msg = res_data.get('msg', '알 수 없는 오류')
+    logger.error(f"❌ 카카오 결제 승인 실패: {error_msg}")
+    return HTMLResponse(content=f"""
+        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+            <h1 style="color:red;">❌ 결제 승인 실패</h1>
+            <p>{error_msg}</p>
+            <p>TID: {payment.pg_tid}</p>
+        </div>
+    """, status_code=400)
 
 @router.get("/cancel")
 async def payment_cancel_callback():
