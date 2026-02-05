@@ -38,6 +38,19 @@ const openRecipe = (recipe) => {
 const closeRecipe = () => {
   selectedRecipe.value = null
 }
+
+const handleSelectRecipe = async (recipeId) => {
+  const sessionId = cartStore.cartSession?.cart_session_id
+  if (!sessionId) return
+
+  const success = await recStore.selectRecipe(recipeId, sessionId)
+  if (success) {
+    alert('레시피가 선택되었습니다. 앱의 "나의 레시피"에서 확인하실 수 있습니다.')
+    closeRecipe()
+  } else {
+    alert('레시피 선택에 실패했습니다.')
+  }
+}
 </script>
 
 <template>
@@ -75,6 +88,7 @@ const closeRecipe = () => {
         v-if="selectedRecipe"
         :recipe="selectedRecipe"
         @close="closeRecipe"
+        @select="handleSelectRecipe"
       />
 
     </div>

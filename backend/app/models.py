@@ -183,6 +183,7 @@ class CartSession(Base):
     started_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     ended_at = Column(DateTime(timezone=True))
     camera_view_on = Column(Boolean, default=False, nullable=False)
+    selected_recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), nullable=True)
 
     # Relationships
     device = relationship("CartDevice", back_populates="sessions")
@@ -190,6 +191,7 @@ class CartSession(Base):
     items = relationship("CartItem", back_populates="session", cascade="all, delete-orphan")
     logs = relationship("CartDetectionLog", back_populates="session", cascade="all, delete-orphan")
     payment = relationship("Payment", uselist=False, back_populates="session")
+    selected_recipe = relationship("Recipe")
 
 
 class CartItem(Base):
