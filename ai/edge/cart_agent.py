@@ -16,7 +16,7 @@ DEVICE_CODE = os.getenv("DEVICE_CODE", "CART-DEVICE-001")
 MODEL_PATH = os.getenv("MODEL_PATH", "best.pt")
 CONF_THRESHOLD = 0.5
 CAMERA_INDEX = 0
-WINDOW_SIZE = 40
+WINDOW_SIZE = 30
 STABILIZATION_THRESHOLD = 0.7
 
 # Uncertain image collection configuration
@@ -110,6 +110,28 @@ def upload_to_s3_async(image_bytes, metadata, device_code):
     else:
         print("[S3] Upload skipped - S3 client not initialized")
 
+class CameraStream:
+    def __init__(self, index):
+        self.cap = cv2.VideoCapture(index)
+        self.ret = False
+        self.frame = None
+        self.running = True
+        self.thread = Thread(target=self._update, daemon=True)
+        self.thread.start()
+
+    def _update(self):
+        while self.running:
+            self.ret, self.frame = self.cap.read()
+            if not self.ret:
+                time.sleep(0.1)
+
+    def read(self):
+        return self.ret, self.frame
+
+    def release(self):
+        self.running = False
+        self.cap.release()
+
 def run_inference():
     try:
         model = YOLO(MODEL_PATH)
@@ -118,28 +140,21 @@ def run_inference():
         model = YOLO("yolov8n.pt")
         print("[EDGE] Failed to load custom model, using yolov8n.pt")
 
-    cap = cv2.VideoCapture(CAMERA_INDEX)
-    if not cap.isOpened():
-        print(f"[EDGE] Error: Could not open camera {CAMERA_INDEX}")
-        return
+    # 기존 cap = cv2.VideoCapture 대신 CameraStream 사용
+    stream = CameraStream(CAMERA_INDEX)
+    time.sleep(1.0) # 카메라 안정화 대기
 
     detection_buffer = deque(maxlen=WINDOW_SIZE)
     last_sync_inventory = None
     last_sync_time = 0
 
-    # Uncertain image upload tracking
-    last_uncertain_upload = 0
-    last_uploaded_detections = None
-
-    print("[EDGE] Starting inference loop...")
+    print("[EDGE] Starting inference loop with Threaded Camera...")
     try:
         while True:
-            loop_start = time.time()
-            
-            ret, frame = cap.read()
-            if not ret:
-                print("[EDGE] Failed to grab frame")
-                time.sleep(0.1)
+            # 버퍼링된 프레임이 아닌, 스레드가 갱신하고 있는 최신 프레임을 즉시 가져옴
+            ret, frame = stream.read()
+            if not ret or frame is None:
+                time.sleep(0.01)
                 continue
 
             inf_start = time.time()
@@ -225,7 +240,7 @@ def run_inference():
     except KeyboardInterrupt:
         print("[EDGE] Interrupted by user")
     finally:
-        cap.release()
+        stream.release()
         print("[EDGE] Camera released")
 
 if __name__ == "__main__":
