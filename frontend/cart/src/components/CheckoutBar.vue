@@ -35,20 +35,24 @@ const handleCheckoutSuccess = (paymentData) => {
   if (paymentData && paymentData.next_redirect_pc_url) {
     const url = paymentData.next_redirect_pc_url
     
-    // 팝업 크기 설정 (카카오페이 권장 사이즈)
-    const width = 480
-    const height = 550
+    // 팝업 크기 설정 (카카오페이 최적 사이즈로 조정)
+    const width = 500
+    const height = 700
     
-    // 화면 중앙 정렬 계산
-    const left = window.screenX + (window.outerWidth - width) / 2
-    const top = window.screenY + (window.outerHeight - height) / 2
+    // 화면 중앙 정렬을 위한 좌표 계산 (듀얼 모니터 등 대응)
+    const left = window.screen.width / 2 - width / 2 + window.screenLeft
+    const top = window.screen.height / 2 - height / 2 + window.screenTop
     
     // 새 창(팝업) 열기
-    window.open(
+    const popup = window.open(
       url, 
       'kakaoPayPopup', 
-      `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no`
+      `width=${width},height=${height},top=${top},left=${left},resizable=no,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`
     )
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      alert('팝업 차단이 설정되어 있습니다. 팝업 차단을 해제하고 다시 시도해주세요.')
+    }
   } else {
     alert('결제 정보를 불러오지 못했습니다.')
   }

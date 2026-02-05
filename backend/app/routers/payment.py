@@ -182,14 +182,29 @@ async def payment_success_callback(
         except: pass
 
         return HTMLResponse(content="""
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; background-color:#f8fafc;">
-                <div style="background:white; padding:40px; border-radius:32px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center;">
-                    <h1 style="color:#8b5cf6; font-size:48px; margin-bottom:16px;">✅</h1>
-                    <h2 style="color:#1e293b; margin-bottom:8px;">결제가 완료되었습니다!</h2>
-                    <p style="color:#64748b;">카카오톡 결제 알림을 확인해주세요.</p>
-                    <p style="color:#94a3b8; font-size:14px; margin-top:20px;">잠시 후 화면이 자동으로 리다이렉트됩니다.</p>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family: sans-serif; background-color:#f8fafc; }
+                    .card { background:white; padding:40px; border-radius:32px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center; max-width: 80%; }
+                    h2 { color:#1e293b; margin:16px 0 8px 0; }
+                    p { color:#64748b; margin:0; line-height:1.5; }
+                    .btn { margin-top:24px; padding:12px 24px; background:#8b5cf6; color:white; border-radius:12px; text-decoration:none; font-weight:bold; display:inline-block; border:none; cursor:pointer; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div style="font-size:64px;">✅</div>
+                    <h2>결제 완료</h2>
+                    <p>카카오톡 결제 알림을 확인해주세요.</p>
+                    <p style="font-size:14px; color:#94a3b8; margin-top:10px;">이 창은 잠시 후 자동으로 닫힙니다.</p>
+                    <button class="btn" onclick="window.close()">창 닫기</button>
                 </div>
-            </div>
+                <script>setTimeout(() => { window.close(); }, 3000);</script>
+            </body>
+            </html>
         """)
     
     # 실패 시 상세 에러 노출
@@ -198,12 +213,28 @@ async def payment_success_callback(
     logger.error(f"❌ 카카오 승인 실패: {kakao_error} (Code: {kakao_code})")
     
     return HTMLResponse(content=f"""
-        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-            <h1 style="color:#ef4444;">❌ 결제 승인 실패</h1>
-            <p style="font-size:18px; color:#475569;">{kakao_error}</p>
-            <p style="color:#94a3b8;">에러 코드: {kakao_code}</p>
-            <button onclick="window.close()" style="margin-top:20px; padding:10px 20px; border-radius:8px; border:none; background:#64748b; color:white; font-weight:bold; cursor:pointer;">창 닫기</button>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family: sans-serif; background-color:#fff1f2; }
+                .card { background:white; padding:40px; border-radius:32px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center; max-width: 80%; }
+                h2 { color:#991b1b; margin:16px 0 8px 0; }
+                p { color:#7f1d1d; margin:0; }
+                .btn { margin-top:24px; padding:12px 24px; background:#ef4444; color:white; border-radius:12px; text-decoration:none; font-weight:bold; display:inline-block; border:none; cursor:pointer; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div style="font-size:64px;">❌</div>
+                <h2>결제 실패</h2>
+                <p>{kakao_error}</p>
+                <p style="font-size:12px; color:#94a3b8; margin-top:10px;">에러 코드: {kakao_code}</p>
+                <button class="btn" onclick="window.close()">창 닫기</button>
+            </div>
+        </body>
+        </html>
     """, status_code=400)
 
 
