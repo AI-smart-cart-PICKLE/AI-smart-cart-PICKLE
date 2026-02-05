@@ -155,6 +155,7 @@ deploy:
       FRONTEND_URL=$FRONTEND_URL
       AIRFLOW_BASE_URL=$AIRFLOW_BASE_URL
       SSL_CERT_PATH=$SSL_CERT_PATH
+      BASE_URL=$BASE_URL
       EOF"
 
     - echo "Executing Remote Deployment..."
