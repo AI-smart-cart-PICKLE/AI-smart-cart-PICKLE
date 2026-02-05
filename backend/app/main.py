@@ -64,26 +64,3 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-@app.get("/debug/db-info")
-def debug_db_info():
-    """DB 연결 정보 확인용 (비밀번호 마스킹)"""
-    import os
-    db_url = os.getenv("DATABASE_URL", "NOT_SET")
-    # 비밀번호 마스킹 처리
-    if "@" in db_url:
-        prefix, suffix = db_url.split("@", 1)
-        if ":" in prefix:
-            user_part, password_part = prefix.split(":", 1)
-            # user:***@host... 형태로 변경
-            masked_url = f"{user_part}:***@{suffix}"
-        else:
-            masked_url = db_url
-    else:
-        masked_url = db_url
-        
-    return {
-        "db_url": masked_url,
-        "env_host": os.getenv("EC2_HOST", "NOT_SET"),
-        "backend_port": os.getenv("BACKEND_PORT", "8000")
-    }
