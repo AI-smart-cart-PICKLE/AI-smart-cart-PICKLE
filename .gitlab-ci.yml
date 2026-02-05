@@ -161,11 +161,27 @@ deploy:
     - |
       ssh $EC2_USER@$EC2_HOST << 'REMOTECMD'
         cd ~/workspaces/S14P11A202
+
+        # frontend/dist가 비어있으면 web-kiosk/dist에서 복사 (fallback)
+        if [ ! -f "frontend/dist/index.html" ] && [ -d "frontend/web-kiosk/dist" ]; then
+          echo "frontend/dist is empty, copying from web-kiosk/dist..."
+          cp -r frontend/web-kiosk/dist/* frontend/dist/
+        fi
+
+        # 기존 컨테이너 정리
+        docker compose down
+
+        # Docker 로그인 및 이미지 pull
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         docker compose pull
+
+        # 서비스 실행
         docker compose --profile cpu up -d --remove-orphans
+
+        # DB 마이그레이션
         docker compose exec -T backend alembic upgrade head
-        docker compose restart nginx
+
+        # 이미지 정리
         docker image prune -f
       REMOTECMD
   rules:
