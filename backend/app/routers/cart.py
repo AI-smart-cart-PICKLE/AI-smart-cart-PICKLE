@@ -476,6 +476,10 @@ def cancel_cart_session(
     session_id: int,
     db: Session = Depends(database.get_db)
 ):
+    """
+    카트 세션을 취소합니다. 
+    웹 키오스크(로그인 없음)에서도 호출 가능하도록 인증을 해제합니다.
+    """
     session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == session_id
     ).first()
@@ -489,6 +493,7 @@ def cancel_cart_session(
             detail="취소 가능한 카트 상태가 아닙니다."
         )
 
+    # 상태를 CANCELLED로 변경하고 종료 시간 기록
     session.status = models.CartSessionStatus.CANCELLED
     session.ended_at = func.now()
 
