@@ -217,16 +217,23 @@ def get_current_cart_session(
     }
 
 
+from fastapi import APIRouter, Depends, HTTPException, Response
+# ... (상단 생략)
+
 # --- 2.1 특정 ID로 장바구니 조회 ---
 @router.get("/{session_id}", response_model=schemas.CartSessionResponse)
 def get_cart_session(
     session_id: int, 
+    response: Response,
     db: Session = Depends(database.get_db)
 ):
     """
     특정 ID의 장바구니 세션을 조회합니다.
-    웹 키오스크(로그인 없음)에서도 접근할 수 있어야 하므로 인증을 생략합니다.
     """
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
     session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == session_id
     ).first()
