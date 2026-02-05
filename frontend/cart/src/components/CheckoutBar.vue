@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import CheckoutModal from '@/components/modals/CheckoutModal.vue'
-import PaymentQRModal from '@/components/modals/PaymentQRModal.vue'
 
 /* =========================
  * Store
@@ -13,8 +12,6 @@ const cartStore = useCartStore()
  * State
  * ========================= */
 const showCheckoutModal = ref(false)
-const showQRModal = ref(false)
-const qrUrl = ref('')
 
 /* =========================
  * Computed
@@ -33,12 +30,25 @@ const openCheckoutModal = () => {
   showCheckoutModal.value = true
 }
 
-// 결제 준비 API 성공 시 실행
+// 결제 준비 API 성공 시 실행 -> 새 창(팝업)으로 결제 페이지 오픈
 const handleCheckoutSuccess = (paymentData) => {
-  // 카카오페이 PC 결제 페이지 URL 추출
   if (paymentData && paymentData.next_redirect_pc_url) {
-    qrUrl.value = paymentData.next_redirect_pc_url
-    showQRModal.value = true
+    const url = paymentData.next_redirect_pc_url
+    
+    // 팝업 크기 설정 (카카오페이 권장 사이즈)
+    const width = 480
+    const height = 550
+    
+    // 화면 중앙 정렬 계산
+    const left = window.screenX + (window.outerWidth - width) / 2
+    const top = window.screenY + (window.outerHeight - height) / 2
+    
+    // 새 창(팝업) 열기
+    window.open(
+      url, 
+      'kakaoPayPopup', 
+      `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no`
+    )
   } else {
     alert('결제 정보를 불러오지 못했습니다.')
   }
@@ -103,13 +113,6 @@ const handleCheckoutSuccess = (paymentData) => {
       v-if="showCheckoutModal"
       @close="showCheckoutModal = false"
       @success="handleCheckoutSuccess"
-    />
-
-    <!-- QR 결제 대기 모달 -->
-    <PaymentQRModal
-      v-if="showQRModal"
-      :url="qrUrl"
-      @close="showQRModal = false"
     />
   </div>
 </template>
