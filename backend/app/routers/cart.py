@@ -318,9 +318,15 @@ def sync_cart_by_device(
     req: schemas.CartSyncRequest,
     db: Session = Depends(database.get_db)
 ):
+    import time
+    start_all = time.time()
+    logger.info(f"[SYNC_START] Device: {req.device_code}, Items count: {len(req.items)}")
+
     # 1. 기기 및 세션 조회
+    t0 = time.time()
     device = db.query(models.CartDevice).filter(models.CartDevice.device_code == req.device_code).first()
     if not device:
+        logger.error(f"[SYNC_ERROR] Unknown device: {req.device_code}")
         raise HTTPException(status_code=404, detail="Unknown Device")
 
     session = db.query(models.CartSession).filter(
@@ -328,28 +334,60 @@ def sync_cart_by_device(
         models.CartSession.status == models.CartSessionStatus.ACTIVE
     ).first()
     if not session:
+        logger.error(f"[SYNC_ERROR] No active session for device: {req.device_code}")
         raise HTTPException(status_code=404, detail="No Active Session")
+    
+    t1 = time.time()
+    logger.info(f"[SYNC_STEP 1] Device/Session lookup took: {t1-t0:.4f}s")
 
     # 2. 기존 품목 싹 비우기 (동기화를 위해)
     db.query(models.CartItem).filter(models.CartItem.cart_session_id == session.cart_session_id).delete()
+    t2 = time.time()
+    logger.info(f"[SYNC_STEP 2] Delete existing items took: {t2-t1:.4f}s")
 
     # 3. 새로운 Snapshot으로 채우기
     synced_count = 0
+    product_lookup_total = 0
+    item_add_total = 0
+    
     for item in req.items:
+        lookup_start = time.time()
         product = db.query(models.Product).filter(models.Product.name == item.product_name).first()
+        lookup_end = time.time()
+        product_lookup_total += (lookup_end - lookup_start)
+        
         if product:
+            add_start = time.time()
             db.add(models.CartItem(
                 cart_session_id=session.cart_session_id,
                 product_id=product.product_id,
                 quantity=item.quantity,
                 unit_price=product.price
             ))
+            add_end = time.time()
+            item_add_total += (add_end - add_start)
             synced_count += 1
     
+    t3 = time.time()
+    logger.info(f"[SYNC_STEP 3] Product lookups (total): {product_lookup_total:.4f}s")
+    logger.info(f"[SYNC_STEP 3] Item additions (total): {item_add_total:.4f}s")
+    logger.info(f"[SYNC_STEP 3] Total snapshot mapping took: {t3-t2:.4f}s")
+
+    # 4. 무게 재계산 및 커밋
     db.flush()
+    t4 = time.time()
     recalc_expected_weight(session)
+    t5 = time.time()
+    logger.info(f"[SYNC_STEP 4] Weight recalculation took: {t5-t4:.4f}s")
+    
     db.commit()
-    return {"status": "synced", "item_count": synced_count}
+    t6 = time.time()
+    logger.info(f"[SYNC_STEP 5] DB Commit took: {t6-t5:.4f}s")
+    
+    total_duration = t6 - start_all
+    logger.info(f"[SYNC_FINISHED] Total processing time: {total_duration:.4f}s, Synced: {synced_count} items")
+    
+    return {"status": "synced", "item_count": synced_count, "backend_time": total_duration}
 
 
 # --- 요리 선택 ---

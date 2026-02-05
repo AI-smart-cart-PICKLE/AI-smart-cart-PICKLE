@@ -113,11 +113,14 @@ def upload_to_s3_async(image_bytes, metadata, device_code):
 def run_inference():
     try:
         model = YOLO(MODEL_PATH)
+        print(f"[EDGE] Model loaded: {MODEL_PATH}")
     except:
         model = YOLO("yolov8n.pt")
+        print("[EDGE] Failed to load custom model, using yolov8n.pt")
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
+        print(f"[EDGE] Error: Could not open camera {CAMERA_INDEX}")
         return
 
     detection_buffer = deque(maxlen=WINDOW_SIZE)
@@ -128,14 +131,20 @@ def run_inference():
     last_uncertain_upload = 0
     last_uploaded_detections = None
 
+    print("[EDGE] Starting inference loop...")
     try:
         while True:
+            loop_start = time.time()
+            
             ret, frame = cap.read()
             if not ret:
+                print("[EDGE] Failed to grab frame")
                 time.sleep(0.1)
                 continue
 
+            inf_start = time.time()
             results = model(frame, conf=CONF_THRESHOLD, verbose=False)
+            inf_end = time.time()
 
             current_frame_counts = Counter()
             detections = []
@@ -144,10 +153,7 @@ def run_inference():
                     class_id = int(box.cls[0])
                     class_name = model.names[class_id]
                     confidence = float(box.conf[0])
-
                     current_frame_counts[class_name] += 1
-
-                    # Build detection list for uncertain image upload
                     detections.append({
                         "class": class_id,
                         "name": class_name,
@@ -155,66 +161,72 @@ def run_inference():
                         "bbox": box.xyxy[0].tolist()
                     })
 
-            # Check for uncertain detections and upload if needed
+            # Check for uncertain detections
             current_time = time.time()
-            should_upload = (
-                has_low_confidence(detections, UNCERTAIN_THRESHOLD) and
+            if (has_low_confidence(detections, UNCERTAIN_THRESHOLD) and
                 current_time - last_uncertain_upload > UPLOAD_INTERVAL and
-                detections_changed(detections, last_uploaded_detections)
-            )
-
-            if should_upload:
-                # Convert frame to JPEG bytes
+                detections_changed(detections, last_uploaded_detections)):
+                
                 _, buffer = cv2.imencode('.jpg', frame)
                 image_bytes = buffer.tobytes()
-
-                # Build metadata
                 metadata = {
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                     "device_code": DEVICE_CODE,
                     "detections": detections,
-                    "reason": "low_confidence",
-                    "threshold": UNCERTAIN_THRESHOLD
+                    "reason": "low_confidence"
                 }
-
-                # Upload asynchronously
                 upload_to_s3_async(image_bytes, metadata, DEVICE_CODE)
-
-                # Update tracking variables
                 last_uncertain_upload = current_time
                 last_uploaded_detections = detections.copy()
 
             detection_buffer.append(dict(current_frame_counts))
 
+            # Buffer stability check
             if len(detection_buffer) == WINDOW_SIZE:
+                stab_start = time.time()
                 stabilized_inventory = get_global_stabilized_state(detection_buffer)
+                stab_end = time.time()
 
                 if stabilized_inventory is not None:
                     current_time = time.time()
-
+                    # Sync condition: Inventory changed OR 5 seconds passed
                     if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 5):
                         try:
+                            sync_req_start = time.time()
+                            print(f"[EDGE_SYNC] Sending inventory to backend... Items: {len(stabilized_inventory)}")
                             resp = requests.post(
                                 f"{BACKEND_URL}/api/carts/sync-by-device",
                                 json={
                                     "device_code": DEVICE_CODE,
                                     "items": stabilized_inventory
                                 },
-                                timeout=2
+                                timeout=5 # Increased timeout slightly for logging
                             )
+                            sync_req_end = time.time()
+                            
                             if resp.status_code == 200:
+                                b_time = resp.json().get('backend_time', 'N/A')
+                                print(f"[EDGE_SYNC] Success! Network+Backend: {sync_req_end-sync_req_start:.4f}s (Backend says: {b_time}s)")
                                 last_sync_inventory = stabilized_inventory
                                 last_sync_time = current_time
+                            else:
+                                print(f"[EDGE_SYNC] Failed with status: {resp.status_code}")
 
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"[EDGE_SYNC] Error during sync: {e}")
 
+            loop_end = time.time()
+            # Optional: print loop stats occasionally
+            # print(f"[DEBUG] Inf: {inf_end-inf_start:.4f}s, Total Loop: {loop_end-loop_start:.4f}s")
+            
+            # Control loop speed
             time.sleep(0.05)
 
     except KeyboardInterrupt:
-        pass
+        print("[EDGE] Interrupted by user")
     finally:
         cap.release()
+        print("[EDGE] Camera released")
 
 if __name__ == "__main__":
     run_inference()
