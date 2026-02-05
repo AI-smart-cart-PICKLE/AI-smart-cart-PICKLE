@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 
 import CartPanel from '@/components/CartPanel.vue'
@@ -9,12 +10,19 @@ import LoginModal from '@/components/modals/LoginModal.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import WelcomePanel from '@/components/WelcomePanel.vue'
 
+const router = useRouter()
 const cartStore = useCartStore()
 const showLoginModal = ref(false)
+let pollingTimer = null
 
 const init = async () => {
   const sessionId = localStorage.getItem('cart_session_id')
-  if (!sessionId) return
+  
+  // 세션 ID가 없으면 즉시 QR 화면으로
+  if (!sessionId) {
+    router.replace('/pair')
+    return
+  }
 
   try {
     await cartStore.fetchCartSession(sessionId)
@@ -24,7 +32,31 @@ const init = async () => {
   }
 }
 
-onMounted(init)
+// 🔄 주기적으로 세션 상태 확인 (결제 완료/취소 감지용)
+const startPolling = () => {
+  pollingTimer = setInterval(async () => {
+    const sessionId = localStorage.getItem('cart_session_id')
+    if (sessionId) {
+      await cartStore.fetchCartSession(sessionId)
+    }
+  }, 3000) // 3초마다 갱신
+}
+
+// 👀 세션 상태 감시 -> 세션이 끊기면(null) QR 화면으로 이동
+watch(() => cartStore.cartSession, (newSession) => {
+  if (!newSession) {
+    router.replace('/pair')
+  }
+})
+
+onMounted(async () => {
+  await init()
+  startPolling()
+})
+
+onBeforeUnmount(() => {
+  if (pollingTimer) clearInterval(pollingTimer)
+})
 </script>
 
 <template>
