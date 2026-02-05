@@ -12,6 +12,7 @@ import WelcomePanel from '@/components/WelcomePanel.vue'
 const router = useRouter()
 const cartStore = useCartStore()
 let pollingTimer = null
+let isPolling = false  // 중복 요청 방지 플래그
 
 const init = async () => {
   const sessionId = localStorage.getItem('cart_session_id')
@@ -33,11 +34,24 @@ const init = async () => {
 // 🔄 주기적으로 세션 상태 확인 (결제 완료/취소 감지용)
 const startPolling = () => {
   pollingTimer = setInterval(async () => {
-    const sessionId = localStorage.getItem('cart_session_id')
-    if (sessionId) {
-      await cartStore.fetchCartSession(sessionId)
+    // 이전 요청이 진행 중이면 스킵 (요청 큐잉 방지)
+    if (isPolling) {
+      console.log('⏭️ [POLL] 이전 요청 진행 중, 스킵')
+      return
     }
-  }, 1000) // 3초 -> 1초마다 갱신
+
+    const sessionId = localStorage.getItem('cart_session_id')
+    if (!sessionId) return
+
+    isPolling = true
+    try {
+      await cartStore.fetchCartSession(sessionId)
+    } catch (e) {
+      console.error('❌ [POLL] 폴링 에러:', e)
+    } finally {
+      isPolling = false  // 완료/실패 관계없이 플래그 해제
+    }
+  }, 1000) // 1초마다 시도 (단, 이전 요청 완료 후에만 실행)
 }
 
 // 👀 세션 상태 감시 -> 세션이 끊기면(null) QR 화면으로 이동
