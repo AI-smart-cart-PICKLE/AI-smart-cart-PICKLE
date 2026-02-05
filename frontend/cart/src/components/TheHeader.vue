@@ -2,11 +2,9 @@
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
-import { useUIStore } from '@/stores/ui'
 
 const cartStore = useCartStore()
 const authStore = useAuthStore()
-const uiStore = useUIStore()
 
 // 🔽 드롭다운 상태
 const showUserMenu = ref(false)
@@ -16,20 +14,16 @@ const cartDeviceCode = computed(() =>
   cartStore.cartSession?.device_code ?? '-'
 )
 
-// 👤 유저 닉네임
+// 👤 유저 닉네임 (로그인 정보가 있으면 표시, 없으면 Guest)
 const userNickname = computed(() =>
   authStore.user?.nickname ?? 'Guest'
 )
 
-// 🔐 로그아웃 (❗ URL 이동 없음)
+// 🔐 로그아웃
 const logout = async () => {
   showUserMenu.value = false
-
-  // 1️⃣ 인증 정보 제거
   await authStore.logout()
-
-  // 2️⃣ 로그인 모달 오픈
-  uiStore.openLoginModal()
+  // 로그인 모달 호출 제거
 }
 </script>
 
@@ -96,10 +90,15 @@ const logout = async () => {
             class="w-full px-4 py-2 text-left hover:bg-slate-100"
             @click="logout"
           >
-            로그아웃
+            카트 종료
           </button>
         </div>
       </div>
     </div>
   </header>
 </template>
+
+<style scoped>
+/* 아이콘 폰트 로드 */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Round');
+</style>

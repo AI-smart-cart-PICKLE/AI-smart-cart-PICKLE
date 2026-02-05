@@ -43,9 +43,9 @@ export const useCartStore = defineStore("cart", () => {
       const res = await api.get(`carts/${cartSessionId}`);
       console.log("✅ [DEBUG] fetchCartSession 성공:", res.data);
       
-      // ACTIVE가 아니면 세션이 없는 것으로 간주
-      if (res.data.status !== 'ACTIVE') {
-        console.warn("⚠️ [DEBUG] 세션 상태가 ACTIVE가 아님:", res.data.status);
+      // ACTIVE 또는 CHECKOUT_REQUESTED가 아니면 세션이 종료된 것으로 간주
+      const validStatuses = ['ACTIVE', 'CHECKOUT_REQUESTED'];
+      if (!validStatuses.includes(res.data.status)) {
         cartSession.value = null;
         cartItems.value = [];
         localStorage.removeItem('cart_session_id');

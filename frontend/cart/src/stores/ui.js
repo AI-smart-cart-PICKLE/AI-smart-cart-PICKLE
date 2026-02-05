@@ -1,17 +1,10 @@
-// ui.js
 import { defineStore } from 'pinia'
 
 export const useUIStore = defineStore('ui', {
   state: () => ({
-    showLoginModal: false,
+    // 로그인 모달 관련 상태 제거 완료
   }),
-
   actions: {
-    openLoginModal() {
-      this.showLoginModal = true
-    },
-    closeLoginModal() {
-      this.showLoginModal = false
-    },
-  },
+    // 로그인 모달 관련 함수 제거 완료
+  }
 })
