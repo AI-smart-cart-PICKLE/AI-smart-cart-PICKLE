@@ -367,10 +367,10 @@ async def payment_ready(
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
     
-    # Append TID to custom URLs if they exist (to help mobile app identification)
-    approval_url = request.approval_url or f"{BASE_URL}/api/payments/success"
-    cancel_url = request.cancel_url or f"{BASE_URL}/api/payments/cancel"
-    fail_url = request.fail_url or f"{BASE_URL}/api/payments/fail"
+    # Append session_id to default URLs to identify the session in callback
+    approval_url = request.approval_url or f"{BASE_URL}/api/payments/success?session_id={cart_session.cart_session_id}"
+    cancel_url = request.cancel_url or f"{BASE_URL}/api/payments/cancel?session_id={cart_session.cart_session_id}"
+    fail_url = request.fail_url or f"{BASE_URL}/api/payments/fail?session_id={cart_session.cart_session_id}"
 
     data = {
         "cid": CID_ONETIME,
@@ -411,22 +411,26 @@ async def payment_ready(
         next_redirect_pc_url=res_data.get('next_redirect_pc_url')
     )
 
-@router.post("/approve", response_model=schemas.PaymentResponse)
-async def payment_approve(
-    request: schemas.PaymentApproveRequest,
-    db: Session = Depends(get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+@router.get("/success", response_class=HTMLResponse)
+async def payment_success_callback(
+    pg_token: str, 
+    session_id: int, 
+    db: Session = Depends(get_db)
 ):
-    user_id = current_user.user_id
+    """
+    [웹 결제 콜백] 카카오페이 결제 성공 시 호출됩니다.
+    여기서 직접 승인(Approve) 처리를 진행하여 세션을 종료시킵니다.
+    """
+    # 1. 해당 세션의 대기 중인 결제 정보 조회
     payment = db.query(models.Payment).filter(
-        models.Payment.pg_tid == request.tid,
-        models.Payment.user_id == user_id,
+        models.Payment.cart_session_id == session_id,
         models.Payment.status == models.PaymentStatus.PENDING
     ).first()
 
     if not payment:
-        raise HTTPException(status_code=404, detail="대기 중인 결제 정보를 찾을 수 없습니다.")
+        return HTMLResponse(content="<h1>결제 정보를 찾을 수 없습니다.</h1>", status_code=404)
 
+    # 2. 카카오페이 승인 API 호출
     url = "https://kapi.kakao.com/v1/payment/approve"
     headers = {
         "Authorization": f"KakaoAK {KAKAO_ADMIN_KEY}",
@@ -434,54 +438,43 @@ async def payment_approve(
     }
     data = {
         "cid": CID_ONETIME,
-        "tid": request.tid,
-        "partner_order_id": str(payment.cart_session_id),
-        "partner_user_id": str(user_id),
-        "pg_token": request.pg_token
+        "tid": payment.pg_tid,
+        "partner_order_id": str(session_id),
+        "partner_user_id": str(payment.user_id),
+        "pg_token": pg_token
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, data=data)
-        res_data = response.json()
+        res = await client.post(url, headers=headers, data=data)
+        res_data = res.json()
 
-    if "aid" not in res_data:
-        payment.status = models.PaymentStatus.FAILED
-        db.commit()
-        raise HTTPException(status_code=400, detail=f"Approval failed: {res_data}")
-
-    payment.status = models.PaymentStatus.APPROVED
-    payment.approved_at = datetime.now()
-    
-    if payment.cart_session_id:
+    if "aid" in res_data:
+        # 3. 승인 성공 시 상태 업데이트
+        payment.status = models.PaymentStatus.APPROVED
+        payment.approved_at = datetime.now()
+        
         cart_session = db.query(models.CartSession).filter(
-            models.CartSession.cart_session_id == payment.cart_session_id
+            models.CartSession.cart_session_id == session_id
         ).first()
         if cart_session:
             cart_session.status = models.CartSessionStatus.PAID
             cart_session.ended_at = datetime.now()
 
-    db.commit()
-    db.refresh(payment)
+        db.commit()
+        
+        # 가계부 등록
+        try:
+            create_ledger_from_payment(payment_id=payment.payment_id, db=db)
+        except: pass
 
-    try:
-        create_ledger_from_payment(payment_id=payment.payment_id, db=db)
-    except Exception as e:
-        print(f"⚠️ 가계부 등록 실패: {e}")
-
-    return payment
-
-@router.get("/success", response_class=HTMLResponse)
-async def payment_success_callback(pg_token: str):
-    return HTMLResponse(content=f"""
-    <html>
-        <head><title>결제 성공</title></head>
-        <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
-            <h1 style="color:green;">✅ 결제 승인 대기중</h1>
-            <p>앱으로 돌아가서 결제 완료 버튼을 눌러주세요.</p>
-            <p>토큰: <b>{pg_token}</b></p>
-        </body>
-    </html>
-    """)
+        return HTMLResponse(content="""
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif;">
+                <h1 style="color:#8b5cf6;">✅ 결제가 완료되었습니다!</h1>
+                <p>잠시 후 메인 화면으로 돌아갑니다.</p>
+            </div>
+        """)
+    
+    return HTMLResponse(content=f"<h1>결제 승인 실패: {res_data.get('msg')}</h1>", status_code=400)
 
 @router.get("/cancel")
 async def payment_cancel_callback():
