@@ -425,14 +425,27 @@ async def payment_success_callback(
     [웹 결제 콜백] 카카오페이 결제 성공 시 호출됩니다.
     여기서 직접 승인(Approve) 처리를 진행하여 세션을 종료시킵니다.
     """
-    # 1. 해당 세션의 대기 중인 결제 정보 조회
+    logger.info(f"🏁 콜백 수신 - Session ID: {session_id}, Token: {pg_token[:5]}...")
+
+    # 1. 해당 세션의 대기 중인 결제 정보 조회 (최신 순으로 조회)
     payment = db.query(models.Payment).filter(
         models.Payment.cart_session_id == session_id,
         models.Payment.status == models.PaymentStatus.PENDING
-    ).first()
+    ).order_by(models.Payment.payment_id.desc()).first()
 
     if not payment:
-        return HTMLResponse(content="<h1>결제 정보를 찾을 수 없습니다.</h1>", status_code=404)
+        logger.error(f"❌ 결제 정보를 찾을 수 없음 - Session ID: {session_id}")
+        # DB에 있는 해당 세션의 다른 결제 정보가 있는지 확인 (디버깅용)
+        any_payment = db.query(models.Payment).filter(models.Payment.cart_session_id == session_id).first()
+        status_msg = f" (상태: {any_payment.status if any_payment else '데이터없음'})"
+        
+        return HTMLResponse(content=f"""
+            <div style="text-align:center; margin-top:50px;">
+                <h1>❌ 결제 정보를 찾을 수 없습니다.</h1>
+                <p>세션 번호: {session_id}{status_msg}</p>
+                <p>관리자에게 문의해 주세요.</p>
+            </div>
+        """, status_code=404)
 
     # 2. 카카오페이 승인 API 호출
     url = "https://kapi.kakao.com/v1/payment/approve"
