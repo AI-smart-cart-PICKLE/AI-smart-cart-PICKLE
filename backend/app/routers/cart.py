@@ -223,13 +223,14 @@ def get_current_cart_session(
 @router.get("/{session_id}", response_model=schemas.CartSessionResponse)
 def get_cart_session(
     session_id: int, 
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
-    # 세션 본인 확인
+    """
+    특정 ID의 장바구니 세션을 조회합니다.
+    웹 키오스크(로그인 없음)에서도 접근할 수 있어야 하므로 인증을 생략합니다.
+    """
     session = db.query(models.CartSession).filter(
-        models.CartSession.cart_session_id == session_id,
-        models.CartSession.user_id == current_user.user_id
+        models.CartSession.cart_session_id == session_id
     ).first()
 
     if not session:
