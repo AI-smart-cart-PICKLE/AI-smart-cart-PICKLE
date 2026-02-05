@@ -176,23 +176,14 @@ const addItemByBarcode = async (barcode) => {
     const sessionId = cartSession.value?.cart_session_id;
     if (!sessionId) throw new Error("결제할 세션이 없습니다.");
 
-    // 1. 결제 준비 요청 (모바일 딥링크 포함)
+    // 1. 결제 준비 요청 (웹 키오스크용은 딥링크를 보내지 않음)
     const res = await api.post(`payments/ready`, {
       cart_session_id: sessionId,
-      total_amount: estimatedTotal.value,
-      // 앱에서 가로챌 딥링크 주소. 
-      // 앱이 pg_token과 함께 tid를 알 수 있도록 쿼리에 포함 요청
-      approval_url: "pickle://payment/success", 
-      cancel_url: "pickle://payment/cancel",
-      fail_url: "pickle://payment/fail"
+      total_amount: estimatedTotal.value
+      // approval_url 등을 보내지 않으면 백엔드가 허용된 도메인 기반의 기본 URL을 사용합니다.
     });
-
-    // 백엔드에서 tid를 approval_url에 붙여주지 않으므로, 
-    // 실제로는 앱이 ready 시점의 tid를 기억하거나 
-    // 여기서 보낼 때 approval_url에 tid를 직접 붙일 수 없으므로(tid는 응답으로 옴)
-    // 백엔드 payment/ready 로직에서 approval_url에 tid를 붙여주도록 수정하는 것이 가장 좋습니다.
     
-    return res.data; // { tid, next_redirect_mobile_url, ... }
+    return res.data; // { tid, next_redirect_pc_url, ... }
   };
 
   /**
