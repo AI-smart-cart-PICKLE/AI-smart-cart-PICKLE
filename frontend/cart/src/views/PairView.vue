@@ -43,12 +43,19 @@ let pollingTimer = null
 const checkStatus = async () => {
   try {
     const res = await api.get(`carts/pair/status/${deviceCode}`)
+    console.log("Pairing status check:", res.data)
+    
     if (res.data.paired) {
+      console.log("✅ Pairing successful! Session ID:", res.data.cart_session_id)
       // 1. 세션 정보 저장
       localStorage.setItem('cart_session_id', res.data.cart_session_id)
       
       // 2. [추가] 스토어 상태 즉시 동기화
-      await cartStore.fetchCartSession(res.data.cart_session_id)
+      try {
+        await cartStore.fetchCartSession(res.data.cart_session_id)
+      } catch (storeError) {
+        console.warn("Initial store sync failed:", storeError)
+      }
       
       // 3. 대시보드로 이동
       router.replace('/')

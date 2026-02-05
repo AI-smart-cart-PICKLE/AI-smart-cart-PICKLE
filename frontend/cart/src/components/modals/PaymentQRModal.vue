@@ -1,84 +1,65 @@
 <script setup>
-import { computed } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-  paymentData: {
-    type: Object,
+  url: {
+    type: String,
     required: true
   }
 })
 
 const emit = defineEmits(['close'])
 
-// 구글 차트 API를 사용한 QR 코드 URL 생성
-const qrCodeUrl = computed(() => {
-  const url = props.paymentData.next_redirect_mobile_url
-  if (!url) return ''
-  // 300x300 사이즈, URL 인코딩 적용
-  return `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(url)}`
-})
-
-const close = () => {
-  emit('close')
+// ESC 키로 닫기
+const handleEsc = (e) => {
+  if (e.key === 'Escape') emit('close')
 }
+
+onMounted(() => window.addEventListener('keydown', handleEsc))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleEsc))
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center
-           bg-slate-900/60 backdrop-blur-sm"
-  >
-    <div
-      class="w-[520px] bg-white rounded-[40px] p-10 shadow-2xl
-             flex flex-col items-center text-center animate-in fade-in zoom-in duration-300"
-    >
-      <!-- 상단 뱃지 -->
-      <div class="mb-6 px-4 py-1.5 bg-amber-100 text-amber-700 rounded-full font-black text-xs uppercase tracking-widest">
-        Payment Pending
+  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative">
+      
+      <!-- 헤더 -->
+      <div class="px-6 py-4 border-b flex items-center justify-between bg-yellow-400">
+        <div class="flex items-center gap-2">
+          <img src="https://developers.kakao.com/assets/img/about/logos/kakaopay/payment/icon_pay_72x72.png" alt="kakaopay" class="w-8 h-8" />
+          <h2 class="text-lg font-bold text-slate-900">카카오페이 결제</h2>
+        </div>
+        <button @click="emit('close')" class="p-2 hover:bg-black/10 rounded-full transition-colors">
+          <span class="material-icons-round text-slate-900">close</span>
+        </button>
       </div>
 
-      <h2 class="text-3xl font-black text-slate-800 mb-2">
-        QR 코드로 결제하기
-      </h2>
-      
-      <p class="text-slate-500 font-medium mb-8 leading-relaxed">
-        앱에서 QR 카메라를 켜고 아래 코드를 스캔하세요. <br/>
-        카카오페이 결제 화면으로 이동합니다.
-      </p>
-
-      <!-- QR 코드 영역 -->
-      <div class="mb-8 p-6 bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
-        <div class="w-64 h-64 bg-white rounded-2xl flex items-center justify-center overflow-hidden shadow-inner">
-          <img 
-            v-if="qrCodeUrl" 
-            :src="qrCodeUrl" 
-            alt="Payment QR Code"
-            class="w-full h-full object-contain"
-          />
-          <div v-else class="animate-pulse flex flex-col items-center text-slate-300">
-            <span class="material-icons-round text-6xl">qr_code_2</span>
-            <p class="text-xs font-bold mt-2">Generating QR...</p>
-          </div>
+      <!-- 본문 (Iframe) -->
+      <div class="flex-1 bg-white p-4 flex flex-col items-center">
+        <p class="text-sm text-slate-500 mb-4 text-center">
+          아래 화면의 QR 코드를 휴대폰으로 스캔하여 결제를 완료해주세요.
+        </p>
+        
+        <div class="w-full h-[500px] border rounded-xl overflow-hidden shadow-inner relative">
+          <iframe 
+            :src="url" 
+            class="w-full h-full border-none"
+            allow="payment"
+          ></iframe>
         </div>
       </div>
 
-      <!-- 안내 사항 -->
-      <div class="flex items-start gap-3 text-left bg-blue-50 p-5 rounded-2xl mb-8 w-full">
-        <span class="material-icons-round text-blue-500">info</span>
-        <p class="text-blue-700 text-sm font-medium leading-snug">
-          결제가 완료되면 앱에서 완료 메시지가 나타납니다. <br/>
-          결제 중에는 이 창을 닫지 마세요.
+      <!-- 하단 안내 -->
+      <div class="px-6 py-4 bg-slate-50 border-t">
+        <p class="text-[11px] text-slate-400 text-center leading-relaxed">
+          결제가 완료되면 모바일 앱에서 확인 버튼을 눌러주세요.<br/>
+          창을 닫으려면 우측 상단의 X 버튼이나 ESC 키를 눌러주세요.
         </p>
       </div>
-
-      <!-- 닫기 버튼 -->
-      <button
-        @click="close"
-        class="w-full py-4 rounded-2xl bg-slate-800 text-white font-bold text-lg
-               hover:bg-slate-700 transition-colors shadow-lg"
-      >
-        창 닫기
-      </button>
     </div>
   </div>
 </template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Round');
+</style>

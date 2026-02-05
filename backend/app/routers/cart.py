@@ -36,14 +36,10 @@ def pair_cart_by_qr(
     logger.info(f"요청 유저: {current_user.email} (ID: {current_user.user_id})")
     logger.info(f"요청 디바이스 코드: '{device_code}'")
 
-    # 1. 입력값 정제 (하이픈을 언더바로 변경하여 DB 매칭 확률 높임)
-    clean_code = device_code.strip().replace('-', '_')
-    logger.info(f"정제된 디바이스 코드: '{clean_code}'")
-    
-    # 2. 디바이스 조회
+    # 1. 디바이스 조회 (하이픈 포함된 코드 그대로 사용)
     device = (
         db.query(models.CartDevice)
-        .filter((models.CartDevice.device_code == device_code) | (models.CartDevice.device_code == clean_code))
+        .filter(models.CartDevice.device_code == device_code)
         .first()
     )
 
@@ -57,17 +53,16 @@ def pair_cart_by_qr(
             detail=f"카트 디바이스를 찾을 수 없습니다. (입력: {device_code}, 가용: {available_codes})"
         )
 
-    # 3. [추가] 사용자의 기존 활성 세션 모두 종료 (중복 연동 방지)
+    # 2. [추가] 사용자의 기존 활성 세션 모두 종료 (중복 연동 방지)
     db.query(models.CartSession).filter(
         models.CartSession.user_id == current_user.user_id,
         models.CartSession.status == models.CartSessionStatus.ACTIVE
     ).update({"status": models.CartSessionStatus.CANCELLED, "ended_at": func.now()})
     db.flush()
 
-    # 4. 해당 디바이스의 ACTIVE 세션 조회
     logger.info(f"✅ 디바이스 확인됨: ID {device.cart_device_id} (Code: {device.device_code})")
 
-    # 2. 해당 디바이스의 ACTIVE 세션 조회
+    # 3. 해당 디바이스의 ACTIVE 세션 조회
     session = (
         db.query(models.CartSession)
         .filter(
@@ -79,7 +74,7 @@ def pair_cart_by_qr(
     )
 
     try:
-        # 3. 없으면 새 세션 생성
+        # 4. 없으면 새 세션 생성
         if not session:
             logger.info("기존 활성 세션 없음. 새 세션 생성 중...")
             session = models.CartSession(
@@ -92,7 +87,7 @@ def pair_cart_by_qr(
             db.refresh(session)
             logger.info(f"✅ 새 카트 세션 생성 완료: ID {session.cart_session_id}")
         else:
-            # 4. 있으면 사용자만 연결
+            # 5. 있으면 사용자만 연결
             logger.info(f"기존 활성 세션(ID: {session.cart_session_id}) 발견. 사용자 연결 중...")
             session.user_id = current_user.user_id
             db.commit()
@@ -114,15 +109,17 @@ def check_pairing_status(
     device_code: str,
     db: Session = Depends(database.get_db)
 ):
-    # 1. 디바이스 조회 (유연한 검색)
-    clean_code = device_code.strip().replace('-', '_')
+    logger.info(f"--- 연동 상태 확인 폴링: {device_code} ---")
+    
+    # 1. 디바이스 조회 (하이픈 포함된 코드 그대로 사용)
     device = (
         db.query(models.CartDevice)
-        .filter((models.CartDevice.device_code == device_code) | (models.CartDevice.device_code == clean_code))
+        .filter(models.CartDevice.device_code == device_code)
         .first()
     )
     
     if not device:
+        logger.error(f"❌ 알 수 없는 디바이스: {device_code}")
         raise HTTPException(status_code=404, detail="Unknown Device")
 
     # 2. 해당 디바이스의 ACTIVE 세션 중 유저가 할당된 세션 찾기
@@ -133,6 +130,7 @@ def check_pairing_status(
     ).first()
 
     if session:
+        logger.info(f"✅ 연동 확인됨: 세션 {session.cart_session_id}, 유저 {session.user_id}")
         return {
             "paired": True,
             "cart_session_id": session.cart_session_id,
