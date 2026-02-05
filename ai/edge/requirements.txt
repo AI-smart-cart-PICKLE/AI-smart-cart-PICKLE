@@ -1,0 +1,8 @@
+# Edge Device (Jetson Orin Nano) Dependencies
+# cart_agent.py에서 사용하는 패키지들
+
+ultralytics>=8.4.0      # YOLO 모델
+requests>=2.31.0        # 백엔드 API 호출
+opencv-python-headless>=4.8.0  # 카메라 입력 및 이미지 처리
+numpy>=1.24.0           # 배열 연산
+boto3>=1.34.0           # MinIO/S3 업로드 (불확실한 이미지 수집)
