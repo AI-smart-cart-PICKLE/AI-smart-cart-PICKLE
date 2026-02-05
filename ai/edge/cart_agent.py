@@ -16,8 +16,8 @@ DEVICE_CODE = os.getenv("DEVICE_CODE", "CART-DEVICE-001")
 MODEL_PATH = os.getenv("MODEL_PATH", "best.pt")
 CONF_THRESHOLD = 0.5
 CAMERA_INDEX = 0
-WINDOW_SIZE = 30
-STABILIZATION_THRESHOLD = 0.7
+WINDOW_SIZE = 6
+STABILIZATION_THRESHOLD = 0.2
 
 # Uncertain image collection configuration
 UNCERTAIN_THRESHOLD = float(os.getenv("UNCERTAIN_CONFIDENCE_THRESHOLD", "0.65"))
@@ -121,9 +121,16 @@ class CameraStream:
 
     def _update(self):
         while self.running:
-            self.ret, self.frame = self.cap.read()
+            # 하드웨어 버퍼에 쌓인 모든 프레임을 grab()으로 건너뛰고 비움
+            while True:
+                grabbed = self.cap.grab()
+                if not grabbed:
+                    break
+                # 마지막에 grab된(최신) 프레임만 실제로 가져옴
+                self.ret, self.frame = self.cap.retrieve()
+            
             if not self.ret:
-                time.sleep(0.1)
+                time.sleep(0.01)
 
     def read(self):
         return self.ret, self.frame
@@ -131,6 +138,26 @@ class CameraStream:
     def release(self):
         self.running = False
         self.cap.release()
+
+def sync_with_backend_async(inventory):
+    """별도 스레드에서 백엔드 동기화를 수행하여 메인 루프가 멈추지 않게 함"""
+    def _sync():
+        try:
+            sync_req_start = time.time()
+            resp = requests.post(
+                f"{BACKEND_URL}/api/carts/sync-by-device",
+                json={
+                    "device_code": DEVICE_CODE,
+                    "items": inventory
+                },
+                timeout=3
+            )
+            if resp.status_code == 200:
+                print(f"[EDGE_SYNC] Success! Network+Backend: {time.time()-sync_req_start:.4f}s")
+        except Exception as e:
+            print(f"[EDGE_SYNC] Sync error: {e}")
+    
+    Thread(target=_sync, daemon=True).start()
 
 def run_inference():
     try:
@@ -204,31 +231,11 @@ def run_inference():
 
                 if stabilized_inventory is not None:
                     current_time = time.time()
-                    # Sync condition: Inventory changed OR 5 seconds passed
+                    # 상태가 바뀌었거나 5초가 경과했으면 비동기로 전송
                     if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 5):
-                        try:
-                            sync_req_start = time.time()
-                            print(f"[EDGE_SYNC] Sending inventory to backend... Items: {len(stabilized_inventory)}")
-                            resp = requests.post(
-                                f"{BACKEND_URL}/api/carts/sync-by-device",
-                                json={
-                                    "device_code": DEVICE_CODE,
-                                    "items": stabilized_inventory
-                                },
-                                timeout=5 # Increased timeout slightly for logging
-                            )
-                            sync_req_end = time.time()
-                            
-                            if resp.status_code == 200:
-                                b_time = resp.json().get('backend_time', 'N/A')
-                                print(f"[EDGE_SYNC] Success! Network+Backend: {sync_req_end-sync_req_start:.4f}s (Backend says: {b_time}s)")
-                                last_sync_inventory = stabilized_inventory
-                                last_sync_time = current_time
-                            else:
-                                print(f"[EDGE_SYNC] Failed with status: {resp.status_code}")
-
-                        except Exception as e:
-                            print(f"[EDGE_SYNC] Error during sync: {e}")
+                        sync_with_backend_async(stabilized_inventory)
+                        last_sync_inventory = stabilized_inventory
+                        last_sync_time = current_time
 
             loop_end = time.time()
             # Optional: print loop stats occasionally
