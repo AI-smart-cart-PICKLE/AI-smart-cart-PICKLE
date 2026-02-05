@@ -234,6 +234,7 @@ def get_cart_session(
     ).first()
 
     if not session:
+        logger.error(f"❌ [DEBUG] 세션을 찾을 수 없음 - Session ID: {session_id}")
         raise HTTPException(status_code=404, detail="장바구니를 찾을 수 없습니다.")
     
     # 상품 목록 가져오기
@@ -274,13 +275,11 @@ def get_cart_session(
 def add_cart_item(
     session_id: int,
     item_req: schemas.CartItemCreate,
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
-    # 세션 본인 확인
+    # 세션 확인 (유저 체크 제거)
     session = db.query(models.CartSession).filter(
-        models.CartSession.cart_session_id == session_id,
-        models.CartSession.user_id == current_user.user_id
+        models.CartSession.cart_session_id == session_id
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="장바구니 세션이 없습니다.")
@@ -377,16 +376,11 @@ def recalc_expected_weight(session: models.CartSession):
 @router.delete("/items/{cart_item_id}")
 def delete_cart_item(
     cart_item_id: int,
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
     cart_item = (
         db.query(models.CartItem)
-        .join(models.CartSession)
-        .filter(
-            models.CartItem.cart_item_id == cart_item_id,
-            models.CartSession.user_id == current_user.user_id
-        )
+        .filter(models.CartItem.cart_item_id == cart_item_id)
         .first()
     )
 
@@ -416,17 +410,12 @@ def delete_cart_item(
 def update_cart_item_quantity(
     cart_item_id: int,
     req: schemas.CartItemUpdate,
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
-    # 1. 카트 상품 + 사용자 소유 확인
+    # 1. 카트 상품 확인 (유저 체크 제거)
     cart_item = (
         db.query(models.CartItem)
-        .join(models.CartSession)
-        .filter(
-            models.CartItem.cart_item_id == cart_item_id,
-            models.CartSession.user_id == current_user.user_id
-        )
+        .filter(models.CartItem.cart_item_id == cart_item_id)
         .first()
     )
 
@@ -462,12 +451,10 @@ def update_cart_item_quantity(
 @router.post("/weight/validate", response_model=CartWeightValidateResponse)
 def validate_weight(
     request: CartWeightValidateRequest,
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
     session = db.query(models.CartSession).filter(
-        models.CartSession.cart_session_id == request.cart_session_id,
-        models.CartSession.user_id == current_user.user_id
+        models.CartSession.cart_session_id == request.cart_session_id
     ).first()
 
     if not session:
@@ -487,12 +474,10 @@ def validate_weight(
 @router.post("/{session_id}/cancel")
 def cancel_cart_session(
     session_id: int,
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
     session = db.query(models.CartSession).filter(
-        models.CartSession.cart_session_id == session_id,
-        models.CartSession.user_id == current_user.user_id
+        models.CartSession.cart_session_id == session_id
     ).first()
 
     if not session:
@@ -552,13 +537,11 @@ def checkout_cart_session(
 def camera_view_on(
     cart_session_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user),
 ):
     cart = (
         db.query(models.CartSession)
         .filter(
             models.CartSession.cart_session_id == cart_session_id,
-            models.CartSession.user_id == current_user.user_id,
             models.CartSession.status == models.CartSessionStatus.ACTIVE,
         )
         .first()
@@ -582,13 +565,11 @@ def camera_view_on(
 def camera_view_off(
     cart_session_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user),
 ):
     cart = (
         db.query(models.CartSession)
         .filter(
             models.CartSession.cart_session_id == cart_session_id,
-            models.CartSession.user_id == current_user.user_id,
             models.CartSession.status == models.CartSessionStatus.ACTIVE,
         )
         .first()

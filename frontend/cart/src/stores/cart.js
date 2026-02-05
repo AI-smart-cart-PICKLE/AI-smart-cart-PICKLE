@@ -38,12 +38,14 @@ export const useCartStore = defineStore("cart", () => {
    * GET /api/carts/{session_id}
    */
   const fetchCartSession = async (cartSessionId) => {
+    console.log(`🔍 [DEBUG] fetchCartSession 시작 - ID: ${cartSessionId}`);
     try {
       const res = await api.get(`carts/${cartSessionId}`);
+      console.log("✅ [DEBUG] fetchCartSession 성공:", res.data);
       
-      // ACTIVE 또는 CHECKOUT_REQUESTED가 아니면 세션이 종료된 것으로 간주
-      const validStatuses = ['ACTIVE', 'CHECKOUT_REQUESTED'];
-      if (!validStatuses.includes(res.data.status)) {
+      // ACTIVE가 아니면 세션이 없는 것으로 간주
+      if (res.data.status !== 'ACTIVE') {
+        console.warn("⚠️ [DEBUG] 세션 상태가 ACTIVE가 아님:", res.data.status);
         cartSession.value = null;
         cartItems.value = [];
         localStorage.removeItem('cart_session_id');
@@ -70,10 +72,11 @@ export const useCartStore = defineStore("cart", () => {
         is_verified: true,
       }));
     } catch (e) {
-      console.error("Failed to fetch cart session:", e);
-      cartSession.value = null;
-      cartItems.value = [];
-      localStorage.removeItem('cart_session_id');
+      console.error("❌ [DEBUG] fetchCartSession 실패:", e.response?.status, e.response?.data || e.message);
+      // 에러가 나더라도 즉시 지우지 않고 유지하여 리다이렉트 흐름 확인 (테스트용)
+      // cartSession.value = null;
+      // cartItems.value = [];
+      // localStorage.removeItem('cart_session_id');
     }
   };
 
