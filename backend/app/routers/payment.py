@@ -143,32 +143,38 @@ async def payment_success_callback(
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
     
-    data = {
+    # Ready 시점과 정확히 일치하는 파라미터 구성
+    approve_data = {
         "cid": CID_ONETIME,
         "tid": payment.pg_tid,
-        "partner_order_id": str(session_id),
+        "partner_order_id": str(payment.cart_session_id),
         "partner_user_id": str(payment.user_id),
         "pg_token": pg_token
     }
 
+    logger.info(f"--- 카카오 승인 요청 (TID: {payment.pg_tid}) ---")
+
     async with httpx.AsyncClient() as client:
-        res = await client.post(url, headers=headers, data=data)
+        res = await client.post(url, headers=headers, data=approve_data)
         res_data = res.json()
+
+    logger.info(f"--- 카카오 승인 응답: {res_data} ---")
 
     if "aid" in res_data:
         # 3. 승인 성공 시 상태 업데이트 및 세션 종료
         payment.status = models.PaymentStatus.APPROVED
         payment.approved_at = datetime.now()
         
-        cart_session = db.query(models.CartSession).filter(
+        # 장바구니 세션 종료 처리
+        db.query(models.CartSession).filter(
             models.CartSession.cart_session_id == session_id
-        ).first()
-        if cart_session:
-            cart_session.status = models.CartSessionStatus.PAID
-            cart_session.ended_at = datetime.now()
-            logger.info(f"✅ 결제 승인 완료 및 세션 종료 (ID: {session_id})")
+        ).update({
+            "status": models.CartSessionStatus.PAID,
+            "ended_at": datetime.now()
+        })
 
         db.commit()
+        logger.info(f"✅ 결제 승인 성공 (Session: {session_id})")
         
         # 가계부 자동 등록
         try:
@@ -180,15 +186,25 @@ async def payment_success_callback(
                 <div style="background:white; padding:40px; border-radius:32px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); text-align:center;">
                     <h1 style="color:#8b5cf6; font-size:48px; margin-bottom:16px;">✅</h1>
                     <h2 style="color:#1e293b; margin-bottom:8px;">결제가 완료되었습니다!</h2>
-                    <p style="color:#64748b;">카카오톡으로 결제 알림이 전송되었습니다.</p>
-                    <p style="color:#94a3b8; font-size:14px; margin-top:20px;">잠시 후 화면이 자동으로 닫힙니다.</p>
+                    <p style="color:#64748b;">카카오톡 결제 알림을 확인해주세요.</p>
+                    <p style="color:#94a3b8; font-size:14px; margin-top:20px;">잠시 후 화면이 자동으로 리다이렉트됩니다.</p>
                 </div>
             </div>
         """)
     
-    error_msg = res_data.get('msg', '승인 실패')
-    logger.error(f"❌ 카카오 결제 승인 실패: {error_msg}")
-    return HTMLResponse(content=f"<h1>결제 승인 실패: {error_msg}</h1>", status_code=400)
+    # 실패 시 상세 에러 노출
+    kakao_error = res_data.get('msg', '승인 처리 중 오류 발생')
+    kakao_code = res_data.get('code', 'Unknown')
+    logger.error(f"❌ 카카오 승인 실패: {kakao_error} (Code: {kakao_code})")
+    
+    return HTMLResponse(content=f"""
+        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+            <h1 style="color:#ef4444;">❌ 결제 승인 실패</h1>
+            <p style="font-size:18px; color:#475569;">{kakao_error}</p>
+            <p style="color:#94a3b8;">에러 코드: {kakao_code}</p>
+            <button onclick="window.close()" style="margin-top:20px; padding:10px 20px; border-radius:8px; border:none; background:#64748b; color:white; font-weight:bold; cursor:pointer;">창 닫기</button>
+        </div>
+    """, status_code=400)
 
 
 @router.get("/cancel")
