@@ -1,8 +1,12 @@
 import httpx
+import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 # 내부 모듈 임포트
 from .. import models, schemas, database
