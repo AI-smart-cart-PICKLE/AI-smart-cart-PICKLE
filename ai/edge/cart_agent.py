@@ -16,8 +16,8 @@ DEVICE_CODE = os.getenv("DEVICE_CODE", "CART-DEVICE-001")
 MODEL_PATH = os.getenv("MODEL_PATH", "best.pt")
 CONF_THRESHOLD = 0.5
 CAMERA_INDEX = 0
-WINDOW_SIZE = 30
-STABILIZATION_THRESHOLD = 0.9
+WINDOW_SIZE = 40
+STABILIZATION_THRESHOLD = 0.7
 
 # Uncertain image collection configuration
 UNCERTAIN_THRESHOLD = float(os.getenv("UNCERTAIN_CONFIDENCE_THRESHOLD", "0.65"))
@@ -192,7 +192,7 @@ def run_inference():
                 if stabilized_inventory is not None:
                     current_time = time.time()
 
-                    if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 15):
+                    if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 5):
                         try:
                             resp = requests.post(
                                 f"{BACKEND_URL}/api/carts/sync-by-device",
