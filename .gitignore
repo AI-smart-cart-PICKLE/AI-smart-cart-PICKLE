@@ -166,3 +166,5 @@ Desktop.ini
 **/*.ipr
 **/*.iws
 frontend/dist/
+backend/alembic/versions/*.py
+!backend/alembic/versions/__init__.py
