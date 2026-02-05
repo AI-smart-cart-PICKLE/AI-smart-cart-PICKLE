@@ -37,7 +37,7 @@ const startPolling = () => {
     if (sessionId) {
       await cartStore.fetchCartSession(sessionId)
     }
-  }, 3000) // 3초마다 갱신
+  }, 1000) // 3초 -> 1초마다 갱신
 }
 
 // 👀 세션 상태 감시 -> 세션이 끊기면(null) QR 화면으로 이동
