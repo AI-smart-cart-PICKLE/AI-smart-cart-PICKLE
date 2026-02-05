@@ -6,13 +6,11 @@ import { useCartStore } from '@/stores/cart'
 import CartPanel from '@/components/CartPanel.vue'
 import RecommendationPanel from '@/components/RecommendationPanel.vue'
 import CheckoutBar from '@/components/CheckoutBar.vue'
-import LoginModal from '@/components/modals/LoginModal.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import WelcomePanel from '@/components/WelcomePanel.vue'
 
 const router = useRouter()
 const cartStore = useCartStore()
-const showLoginModal = ref(false)
 let pollingTimer = null
 
 const init = async () => {

@@ -229,7 +229,6 @@ def get_cart_session(
     특정 ID의 장바구니 세션을 조회합니다.
     웹 키오스크(로그인 없음)에서도 접근할 수 있어야 하므로 인증을 생략합니다.
     """
-    # 세션 ID로만 조회 (유저 본인 확인 제거)
     session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == session_id
     ).first()
