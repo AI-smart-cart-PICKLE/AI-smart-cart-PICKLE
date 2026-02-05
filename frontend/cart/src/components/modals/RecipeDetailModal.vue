@@ -6,7 +6,7 @@ defineProps({
   recipe: Object
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'select'])
 
 const showLocationModal = ref(false)
 const selectedIngredient = ref(null)
@@ -15,19 +15,23 @@ const openLocationModal = (ingredient) => {
   selectedIngredient.value = ingredient
   showLocationModal.value = true
 }
+
+const selectRecipe = () => {
+  emit('select', props.recipe.recipe_id)
+}
 </script>
 
 <template>
   <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div class="bg-white w-[900px] h-[520px] rounded-3xl p-6 overflow-hidden">
+    <div class="bg-white w-[900px] h-[600px] rounded-3xl p-6 overflow-hidden flex flex-col">
 
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold">{{ recipe.title }}</h2>
-        <button @click="emit('close')">✕</button>
+        <button @click="emit('close')" class="text-2xl text-slate-400 hover:text-slate-600">✕</button>
       </div>
 
       <!-- 재료 리스트 -->
-      <div class="grid grid-cols-4 gap-3 overflow-y-auto h-full">
+      <div class="grid grid-cols-4 gap-3 overflow-y-auto flex-1 mb-4">
         <div
           v-for="ing in recipe.ingredients"
           :key="ing.product_id"
@@ -66,9 +70,18 @@ const openLocationModal = (ingredient) => {
           >
             📍 위치 찾기
           </button>
-
-
         </div>
+      </div>
+
+      <!-- 레시피 선택 버튼 -->
+      <div class="flex justify-center pt-2">
+        <button
+          @click="selectRecipe"
+          class="bg-violet-600 text-white font-bold py-3 px-12 rounded-2xl
+                 hover:bg-violet-700 transition-colors shadow-lg"
+        >
+          이 레시피로 요리하기 (앱에 저장)
+        </button>
       </div>
 
       <!-- ✅ 모달은 여기! (v-for 밖) -->

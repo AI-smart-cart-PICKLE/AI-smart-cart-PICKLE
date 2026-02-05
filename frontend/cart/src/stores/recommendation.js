@@ -31,6 +31,19 @@ export const useRecommendationStore = defineStore('recommendation', {
       }
     },
 
+    async selectRecipe(recipeId, sessionId) {
+      if (!sessionId) return
+      try {
+        await api.post(`carts/${sessionId}/select-recipe`, null, {
+          params: { recipe_id: recipeId }
+        })
+        return true
+      } catch (e) {
+        console.error('레시피 선택 실패:', e)
+        return false
+      }
+    },
+
     clear() {
       this.recipes = []
     }
