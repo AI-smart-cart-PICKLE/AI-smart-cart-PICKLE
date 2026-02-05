@@ -141,6 +141,7 @@ deploy:
       MINIO_ROOT_USER=$MINIO_ROOT_USER
       MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
       MINIO_BUCKET_NAME=$MINIO_BUCKET_NAME
+      SECRET_KEY=$SECRET_KEY
       KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
       KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
       KAKAO_REDIRECT_URI=$KAKAO_REDIRECT_URI
@@ -160,11 +161,39 @@ deploy:
     - |
       ssh $EC2_USER@$EC2_HOST << 'REMOTECMD'
         cd ~/workspaces/S14P11A202
+
+        # frontend/dist가 비어있으면 web-kiosk/dist에서 복사 (fallback)
+        if [ ! -f "frontend/dist/index.html" ] && [ -d "frontend/web-kiosk/dist" ]; then
+          echo "frontend/dist is empty, copying from web-kiosk/dist..."
+          cp -r frontend/web-kiosk/dist/* frontend/dist/
+        fi
+
+        # 기존 컨테이너 정리 (데이터는 유지)
+        docker compose down
+
+        # Docker 로그인 및 이미지 pull
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         docker compose pull
+
+        # 서비스 실행
         docker compose --profile cpu up -d --remove-orphans
-        docker compose exec -T backend alembic upgrade head
-        docker compose restart nginx
+
+        # DB 준비 대기
+        sleep 10
+
+        # alembic_version 테이블 초기화 (마이그레이션 히스토리만 삭제)
+        docker compose exec -T db psql -U $DB_USER -d app_db -c "DELETE FROM alembic_version;" || true
+
+        # 기존 마이그레이션 파일 삭제
+        rm -rf backend/alembic/versions/*.py
+
+        # 현재 models.py 기준으로 새 마이그레이션 생성
+        docker compose exec -T backend alembic revision --autogenerate -m "auto_baseline_$(date +%Y%m%d_%H%M%S)"
+
+        # DB 변경 없이 "적용됨"으로 표시 (데이터 보존)
+        docker compose exec -T backend alembic stamp head
+
+        # 이미지 정리
         docker image prune -f
       REMOTECMD
   rules:

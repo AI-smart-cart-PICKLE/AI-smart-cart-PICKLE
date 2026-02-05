@@ -225,9 +225,10 @@ def get_cart_session(
     session_id: int, 
     db: Session = Depends(database.get_db)
 ):
-    logger.info(f"🔍 [DEBUG] get_cart_session 호출 - Session ID: {session_id}")
-    
-    # 세션 조회 (키오스크 접근 허용을 위해 유저 필터 제거)
+    """
+    특정 ID의 장바구니 세션을 조회합니다.
+    웹 키오스크(로그인 없음)에서도 접근할 수 있어야 하므로 인증을 생략합니다.
+    """
     session = db.query(models.CartSession).filter(
         models.CartSession.cart_session_id == session_id
     ).first()
