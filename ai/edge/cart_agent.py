@@ -233,8 +233,8 @@ def run_inference():
 
                 if stabilized_inventory is not None:
                     current_time = time.time()
-                    # 상태가 바뀌었으면 즉시 전송 (5초 대기 조건 제거)
-                    if stabilized_inventory != last_sync_inventory:
+                    # 상태가 바뀌었으면 즉시, 아니면 최대 1초 후 전송
+                    if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 1):
                         sync_with_backend_async(stabilized_inventory)
                         last_sync_inventory = stabilized_inventory
                         last_sync_time = current_time
