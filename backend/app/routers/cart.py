@@ -217,9 +217,6 @@ def get_current_cart_session(
     }
 
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-# ... (상단 생략)
-
 # --- 2.1 특정 ID로 장바구니 조회 ---
 @router.get("/{session_id}", response_model=schemas.CartSessionResponse)
 def get_cart_session(
