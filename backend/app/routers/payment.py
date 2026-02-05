@@ -15,7 +15,6 @@ from .ledger import create_ledger_from_payment
 from app.core.config import settings
 
 # 환경 변수 및 키 설정
-BASE_URL = settings.BASE_URL
 KAKAO_ADMIN_KEY = settings.KAKAO_ADMIN_KEY
 
 # 라우터 설정
@@ -70,10 +69,11 @@ async def payment_ready(
         "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
     }
     
-    # 콜백 URL 설정 (session_id를 포함하여 자동 승인 처리 유도)
-    approval_url = f"{BASE_URL}/api/payments/success?session_id={cart_session.cart_session_id}"
-    cancel_url = f"{BASE_URL}/api/payments/cancel?session_id={cart_session.cart_session_id}"
-    fail_url = f"{BASE_URL}/api/payments/fail?session_id={cart_session.cart_session_id}"
+    # [수정] settings에서 직접 실시간 BASE_URL 가져오기
+    base_url = settings.BASE_URL.rstrip('/')
+    approval_url = f"{base_url}/api/payments/success?session_id={cart_session.cart_session_id}"
+    cancel_url = f"{base_url}/api/payments/cancel?session_id={cart_session.cart_session_id}"
+    fail_url = f"{base_url}/api/payments/fail?session_id={cart_session.cart_session_id}"
 
     data = {
         "cid": CID_ONETIME,
