@@ -352,7 +352,14 @@ async def payment_ready(
     if not user_id:
          raise HTTPException(status_code=400, detail="세션에 연결된 사용자가 없습니다.")
 
-    # 무게 검증 로직 제거됨 (무게와 상관없이 결제 진행)
+    weight_check = validate_cart_weight(
+        db=db,
+        cart_session_id=cart_session.cart_session_id,
+        measured_weight_g=cart_session.measured_total_g
+    )
+
+    if not weight_check["is_valid"]:
+        raise HTTPException(status_code=400, detail=weight_check["message"])
 
     existing_payment = db.query(models.Payment).filter(
         models.Payment.cart_session_id == request.cart_session_id

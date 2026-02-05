@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
 .main-title {
   font-size: 40px;
   font-weight: 900;
-  color: #8b5cf6;
+  color: #0f172a;
 }
 
 .sub-title {
@@ -136,8 +136,8 @@ onBeforeUnmount(() => {
   padding: 24px;
   background-color: #ffffff;
   border-radius: 40px;
-  border: 4px solid #8b5cf6;
-  box-shadow: 0 25px 50px -12px rgba(139, 92, 246, 0.15);
+  border: 4px solid #4ade80;
+  box-shadow: 0 25px 50px -12px rgba(74, 222, 128, 0.15);
 }
 
 .qr-white-box {
