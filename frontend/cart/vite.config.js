@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      outDir: fileURLToPath(new URL('../web-kiosk/dist', import.meta.url)),
+      outDir: 'dist',
       emptyOutDir: true,
     },
     server: {
