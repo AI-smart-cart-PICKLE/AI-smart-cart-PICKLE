@@ -29,71 +29,31 @@ onBeforeUnmount(() => {
   <div
     class="fixed inset-0 z-[100] flex items-center justify-center
            bg-black/60 backdrop-blur-sm p-4"
+    @click.self="emit('close')"
   >
-    <!-- ✅ 모달 -->
+    <!-- ✅ 모달 (헤더/푸터 없이 iframe만 존재) -->
     <div
-      class="bg-white rounded-3xl shadow-2xl
-             w-full max-w-md overflow-hidden flex flex-col relative"
+      class="bg-white rounded-[32px] shadow-2xl
+             w-full max-w-[430px] h-[520px] overflow-hidden relative"
     >
-      <!-- ================= Header ================= -->
-      <div
-        class="px-6 py-4 flex items-center justify-between
-               bg-yellow-400 border-b"
+      <!-- 닫기 버튼 (플로팅) -->
+      <button
+        @click="emit('close')"
+        class="absolute top-4 right-4 z-10 p-2 rounded-full 
+               bg-black/5 hover:bg-black/10 transition-colors"
       >
-        <div class="flex items-center gap-2">
-          <img
-            src="https://developers.kakao.com/assets/img/about/logos/kakaopay/payment/icon_pay_72x72.png"
-            alt="kakaopay"
-            class="w-8 h-8"
-          />
-          <h2 class="text-lg font-bold text-slate-900">
-            카카오페이 결제
-          </h2>
-        </div>
+        <span class="material-icons-round text-slate-400 text-xl">
+          close
+        </span>
+      </button>
 
-        <button
-          @click="emit('close')"
-          class="p-2 rounded-full hover:bg-black/10 transition"
-        >
-          <span class="material-icons-round text-slate-900">
-            close
-          </span>
-        </button>
-      </div>
-
-      <!-- ================= Body ================= -->
-      <div class="flex-1 px-6 py-5 flex flex-col items-center">
-        <p class="text-sm text-slate-500 text-center mb-4">
-          휴대폰으로 QR 코드를 스캔하여<br />
-          결제를 완료해주세요.
-        </p>
-
-        <!-- ✅ QR 영역만 노출 -->
-        <div
-          class="w-full max-w-[360px] h-[420px]
-                 rounded-2xl border overflow-hidden
-                 shadow-inner bg-white
-                 flex items-center justify-center"
-        >
-          <!-- iframe 크롭용 래퍼 -->
-          <div class="iframe-crop">
-            <iframe
-              :src="url"
-              class="iframe-inner"
-              allow="payment"
-            ></iframe>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= Footer ================= -->
-      <div class="px-6 py-4 bg-slate-50 border-t">
-        <p
-          class="text-[11px] text-slate-400 text-center leading-relaxed"
-        >
-          결제가 완료되면 모바일 앱에서 확인 버튼을 눌러주세요.<br />
-          창을 닫으려면 우측 상단 X 또는 ESC 키를 누르세요.
-        </p>
+      <!-- iframe 컨테이너 -->
+      <div class="w-full h-full flex items-center justify-center bg-white">
+        <iframe
+          :src="url"
+          class="w-full h-full border-none"
+          allow="payment"
+        ></iframe>
       </div>
     </div>
   </div>
@@ -102,16 +62,8 @@ onBeforeUnmount(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons+Round');
 
-/* 실제 카카오페이 iframe 크기 */
-.iframe-inner {
-  width: 420px;
-  height: 720px;
-  border: none;
-}
-
-/* ✅ 여기서 QR 영역만 보이도록 크롭 */
-.iframe-crop {
-  transform: scale(1.15) translateY(-120px);
-  transform-origin: top center;
+/* iframe 내부의 여백이나 스크롤바를 숨기기 위한 스타일 */
+iframe {
+  overflow: hidden;
 }
 </style>
