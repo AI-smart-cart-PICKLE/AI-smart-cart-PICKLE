@@ -78,8 +78,10 @@ class DigitalReceiptScreen extends ConsumerWidget {
                 loading: () => const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
                 error: (e, _) => Text('영수증을 불러오지 못했어요.\n$e'),
                 data: (r) {
-                  final String date_label = '${r.paid_at.year}.${r.paid_at.month.toString().padLeft(2, '0')}.${r.paid_at.day.toString().padLeft(2, '0')} ' 
-                      '${r.paid_at.hour.toString().padLeft(2, '0')}:${r.paid_at.minute.toString().padLeft(2, '0')}';
+                  // 로컬 시간대로 변환하여 날짜 불일치 방지
+                  final localPaidAt = r.paid_at.toLocal();
+                  final String date_label = '${localPaidAt.year}.${localPaidAt.month.toString().padLeft(2, '0')}.${localPaidAt.day.toString().padLeft(2, '0')} ' 
+                      '${localPaidAt.hour.toString().padLeft(2, '0')}:${localPaidAt.minute.toString().padLeft(2, '0')}';
 
                   return Column(
                     children: <Widget>[

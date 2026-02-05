@@ -35,14 +35,18 @@ class PaymentRepositoryImpl implements PaymentRepository {
       
       final int totalAmount = data['total_amount'] ?? 0;
       
-      // 세금 계산 (임의로 10%)
-      final int tax = (totalAmount * 0.1).round();
-      final int subtotal = totalAmount - tax;
+      // 세금 계산 (부가세 포함 기준: 합계 / 1.1)
+      final int subtotal = (totalAmount / 1.1).round();
+      final int tax = totalAmount - subtotal;
+      
+      // 날짜 데이터 파싱 (approved_at 선호, 없으면 created_at 등)
+      final String? dateStr = data['approved_at'] ?? data['created_at'];
+      final DateTime paidAt = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
       
       return DigitalReceipt(
         receipt_id: data['payment_id'].toString(),
-        store_name: "피클 스토어", // 고정값
-        paid_at: DateTime.parse(data['approved_at'] ?? DateTime.now().toIso8601String()),
+        store_name: "피클 스토어", 
+        paid_at: paidAt,
         ref_code: data['pg_tid'] ?? "REF-UNKNOWN",
         items: items,
         subtotal: subtotal,

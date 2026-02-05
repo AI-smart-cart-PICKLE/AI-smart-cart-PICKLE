@@ -128,9 +128,9 @@ class HttpAccountRepository implements AccountRepository {
 
       return items.map((item) {
         return SpendingTransaction(
-          transaction_id: item['ledger_entry_id'].toString(),
-          spent_at: DateTime.parse(item['spend_date']), // 백엔드 spend_date가 날짜형식이면 시간은 00:00일수 있음
-          merchant_name: item['memo'] ?? '알 수 없음', // 가맹점명이 없으면 메모 사용
+          transaction_id: item['payment_id'].toString(),
+          spent_at: DateTime.parse(item['spend_date']).toLocal(), // 로컬 시간대로 변환
+          merchant_name: item['memo'] ?? '알 수 없음', 
           category_label: item['category'] ?? '기타',
           amount: item['amount'],
         );
