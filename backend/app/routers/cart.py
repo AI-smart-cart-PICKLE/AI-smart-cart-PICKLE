@@ -114,18 +114,26 @@ def check_pairing_status(
     device_code: str,
     db: Session = Depends(database.get_db)
 ):
-    # 1. 디바이스 조회 (유연한 검색)
+    # 1. 디바이스 조회 (유연한 검색 + TRIM 적용)
     clean_code = device_code.strip().replace('-', '_')
     device = (
         db.query(models.CartDevice)
-        .filter((models.CartDevice.device_code == device_code) | (models.CartDevice.device_code == clean_code))
+        .filter(
+            (func.trim(models.CartDevice.device_code) == device_code) | 
+            (func.trim(models.CartDevice.device_code) == clean_code) |
+            (models.CartDevice.device_code == device_code)
+        )
         .first()
     )
     
     if not device:
-        raise HTTPException(status_code=404, detail="Unknown Device")
+        # 현재 DB에 어떤 기기들이 있는지 로그에 출력 (디버깅용)
+        all_devices = db.query(models.CartDevice.device_code).all()
+        logger.error(f"❌ 디바이스 조회 실패 - 입력값: '{device_code}', DB내 기기들: {[d[0] for d in all_devices]}")
+        raise HTTPException(status_code=404, detail=f"Unknown Device: '{device_code}'. Available: {[d[0] for d in all_devices]}")
 
     # 2. 해당 디바이스의 ACTIVE 세션 중 유저가 할당된 세션 찾기
+    logger.info(f"🔍 세션 조회 시작 - Device ID: {device.cart_device_id}")
     session = db.query(models.CartSession).filter(
         models.CartSession.cart_device_id == device.cart_device_id,
         models.CartSession.status == models.CartSessionStatus.ACTIVE,
@@ -133,12 +141,14 @@ def check_pairing_status(
     ).first()
 
     if session:
+        logger.info(f"✅ 활성 세션 발견! Session ID: {session.cart_session_id}, User ID: {session.user_id}")
         return {
             "paired": True,
             "cart_session_id": session.cart_session_id,
             "user_id": session.user_id
         }
     
+    logger.info(f"ℹ️ 아직 활성 세션이 없습니다. (Device ID: {device.cart_device_id})")
     return {"paired": False}
 
 
@@ -223,13 +233,14 @@ def get_current_cart_session(
 @router.get("/{session_id}", response_model=schemas.CartSessionResponse)
 def get_cart_session(
     session_id: int, 
-    db: Session = Depends(database.get_db),
-    current_user: models.AppUser = Depends(get_current_user)
+    db: Session = Depends(database.get_db)
 ):
-    # 세션 본인 확인
+    """
+    특정 ID의 장바구니 세션을 조회합니다. 
+    웹 키오스크(로그인 없음)에서도 접근할 수 있어야 하므로 인증을 생략합니다.
+    """
     session = db.query(models.CartSession).filter(
-        models.CartSession.cart_session_id == session_id,
-        models.CartSession.user_id == current_user.user_id
+        models.CartSession.cart_session_id == session_id
     ).first()
 
     if not session:
