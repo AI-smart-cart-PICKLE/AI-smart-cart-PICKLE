@@ -372,14 +372,6 @@ async def payment_ready(
     cancel_url = request.cancel_url or f"{BASE_URL}/api/payments/cancel"
     fail_url = request.fail_url or f"{BASE_URL}/api/payments/fail"
 
-    if request.approval_url and "tid=" not in approval_url:
-        sep = "&" if "?" in approval_url else "?"
-        approval_url = f"{approval_url}{sep}tid={res_data['tid']}"
-    
-    if request.cancel_url and "tid=" not in cancel_url:
-        sep = "&" if "?" in cancel_url else "?"
-        cancel_url = f"{cancel_url}{sep}tid={res_data['tid']}"
-
     data = {
         "cid": CID_ONETIME,
         "partner_order_id": str(cart_session.cart_session_id),
