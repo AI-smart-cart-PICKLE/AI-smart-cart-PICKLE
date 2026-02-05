@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import CheckoutModal from '@/components/modals/CheckoutModal.vue'
-import PaymentQRModal from '@/components/modals/PaymentQRModal.vue'
 
 /* =========================
  * Store
@@ -13,8 +12,6 @@ const cartStore = useCartStore()
  * State
  * ========================= */
 const showCheckoutModal = ref(false)
-const showQRModal = ref(false)
-const qrUrl = ref('')
 
 /* =========================
  * Computed
@@ -33,12 +30,35 @@ const openCheckoutModal = () => {
   showCheckoutModal.value = true
 }
 
-// 결제 준비 API 성공 시 실행
+/**
+ * 🚀 카카오페이 결제창 열기
+ * 브라우저 보안 정책을 고려하여 옵션을 최소화합니다.
+ */
 const handleCheckoutSuccess = (paymentData) => {
-  // 카카오페이 PC 결제 페이지 URL 추출
   if (paymentData && paymentData.next_redirect_pc_url) {
-    qrUrl.value = paymentData.next_redirect_pc_url
-    showQRModal.value = true
+    const url = paymentData.next_redirect_pc_url
+    
+    // 카카오페이 권장 사이즈
+    const width = 450
+    const height = 650
+    
+    // 화면 중앙 정렬
+    const left = (window.screen.width / 2) - (width / 2)
+    const top = (window.screen.height / 2) - (height / 2)
+    
+    /**
+     * ✅ [중요] 옵션을 너무 많이 주면 보안 정책에 걸릴 수 있음
+     * 최소한의 옵션만 사용하여 표준 팝업으로 띄움
+     */
+    const popup = window.open(
+      url, 
+      'kakaoPayPopup', 
+      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes`
+    )
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      alert('팝업 차단이 설정되어 있습니다. 브라우저 설정에서 팝업을 허용해주세요.')
+    }
   } else {
     alert('결제 정보를 불러오지 못했습니다.')
   }
@@ -103,13 +123,6 @@ const handleCheckoutSuccess = (paymentData) => {
       v-if="showCheckoutModal"
       @close="showCheckoutModal = false"
       @success="handleCheckoutSuccess"
-    />
-
-    <!-- QR 결제 대기 모달 -->
-    <PaymentQRModal
-      v-if="showQRModal"
-      :url="qrUrl"
-      @close="showQRModal = false"
     />
   </div>
 </template>

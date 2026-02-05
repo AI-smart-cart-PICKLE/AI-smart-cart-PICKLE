@@ -174,6 +174,8 @@ def run_inference():
     detection_buffer = deque(maxlen=WINDOW_SIZE)
     last_sync_inventory = None
     last_sync_time = 0
+    last_uncertain_upload = 0  # S3 업로드 시간 추적
+    last_uploaded_detections = []  # 마지막 업로드된 detection
 
     print("[EDGE] Starting inference loop with Threaded Camera...")
     try:
@@ -231,8 +233,8 @@ def run_inference():
 
                 if stabilized_inventory is not None:
                     current_time = time.time()
-                    # 상태가 바뀌었거나 5초가 경과했으면 비동기로 전송
-                    if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 5):
+                    # 상태가 바뀌었으면 즉시, 아니면 최대 1초 후 전송
+                    if (stabilized_inventory != last_sync_inventory) or (current_time - last_sync_time > 1):
                         sync_with_backend_async(stabilized_inventory)
                         last_sync_inventory = stabilized_inventory
                         last_sync_time = current_time

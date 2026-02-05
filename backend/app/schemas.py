@@ -299,6 +299,7 @@ class CartSessionResponse(BaseModel):
     total_amount: int
     total_items: int = 0
     expected_total_g: int = 0
+    selected_recipe_id: Optional[int] = None
     items: List[CartItemResponse] = Field(default_factory=list)
     
     class Config:

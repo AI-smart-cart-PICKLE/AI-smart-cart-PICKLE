@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from .. import models, schemas, database
 from ..dependencies import get_current_user 
@@ -217,9 +217,6 @@ def get_current_cart_session(
     }
 
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-# ... (상단 생략)
-
 # --- 2.1 특정 ID로 장바구니 조회 ---
 @router.get("/{session_id}", response_model=schemas.CartSessionResponse)
 def get_cart_session(
@@ -402,8 +399,25 @@ def select_recipe(session_id: int, recipe_id: int, db: Session = Depends(databas
     if not session:
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
     
-    # 실제로는 여기서 세션 상태를 업데이트합니다.
-    return {"detail": f"레시피(ID:{recipe_id})가 선택되었습니다."}
+    # 1. 세션의 선택된 레시피 업데이트
+    session.selected_recipe_id = recipe_id
+    
+    # 2. 사용자 정보가 있다면 찜한 레시피(SavedRecipe)에도 자동 추가
+    if session.user_id:
+        existing_saved = db.query(models.SavedRecipe).filter(
+            models.SavedRecipe.user_id == session.user_id,
+            models.SavedRecipe.recipe_id == recipe_id
+        ).first()
+        
+        if not existing_saved:
+            new_saved = models.SavedRecipe(
+                user_id=session.user_id,
+                recipe_id=recipe_id
+            )
+            db.add(new_saved)
+    
+    db.commit()
+    return {"detail": f"레시피(ID:{recipe_id})가 선택 및 저장되었습니다."}
 
 
 # 예상 무게 계산

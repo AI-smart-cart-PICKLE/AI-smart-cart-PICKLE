@@ -73,10 +73,12 @@ export const useCartStore = defineStore("cart", () => {
       }));
     } catch (e) {
       console.error("❌ [DEBUG] fetchCartSession 실패:", e.response?.status, e.response?.data || e.message);
-      // 에러가 나더라도 즉시 지우지 않고 유지하여 리다이렉트 흐름 확인 (테스트용)
-      // cartSession.value = null;
-      // cartItems.value = [];
-      // localStorage.removeItem('cart_session_id');
+      // 404 에러 시 세션이 종료된 것으로 간주하고 localStorage 정리
+      if (e.response?.status === 404) {
+        cartSession.value = null;
+        cartItems.value = [];
+        localStorage.removeItem('cart_session_id');
+      }
     }
   };
 
