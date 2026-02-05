@@ -30,28 +30,34 @@ const openCheckoutModal = () => {
   showCheckoutModal.value = true
 }
 
-// 결제 준비 API 성공 시 실행 -> 새 창(팝업)으로 결제 페이지 오픈
+/**
+ * 🚀 카카오페이 결제창 열기
+ * 브라우저 보안 정책을 고려하여 옵션을 최소화합니다.
+ */
 const handleCheckoutSuccess = (paymentData) => {
   if (paymentData && paymentData.next_redirect_pc_url) {
     const url = paymentData.next_redirect_pc_url
     
-    // 팝업 크기 설정 (카카오페이 최적 사이즈로 조정)
-    const width = 500
-    const height = 700
+    // 카카오페이 권장 사이즈
+    const width = 450
+    const height = 650
     
-    // 화면 중앙 정렬을 위한 좌표 계산 (듀얼 모니터 등 대응)
-    const left = window.screen.width / 2 - width / 2 + window.screenLeft
-    const top = window.screen.height / 2 - height / 2 + window.screenTop
+    // 화면 중앙 정렬
+    const left = (window.screen.width / 2) - (width / 2)
+    const top = (window.screen.height / 2) - (height / 2)
     
-    // 새 창(팝업) 열기
+    /**
+     * ✅ [중요] 옵션을 너무 많이 주면 보안 정책에 걸릴 수 있음
+     * 최소한의 옵션만 사용하여 표준 팝업으로 띄움
+     */
     const popup = window.open(
       url, 
       'kakaoPayPopup', 
-      `width=${width},height=${height},top=${top},left=${left},resizable=no,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`
+      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes`
     )
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      alert('팝업 차단이 설정되어 있습니다. 팝업 차단을 해제하고 다시 시도해주세요.')
+      alert('팝업 차단이 설정되어 있습니다. 브라우저 설정에서 팝업을 허용해주세요.')
     }
   } else {
     alert('결제 정보를 불러오지 못했습니다.')
