@@ -64,25 +64,29 @@ def create_ledger_from_payment(
     else:
         # 2. 카트 아이템 순회하며 카테고리별 금액 집계
         category_spending = {}
+        calculated_total = 0 # 실제 아이템 합계 계산용
         
         # 상품명 요약용
         item_names = []
 
         for item in cart_session.items:
-            # item.product.category.name (예: "정육", "유제품" 등 DB에 저장된 문자열)
-            # 관계 로딩이 안 되어 있을 수 있으므로 접근 시 쿼리 발생 가능
             prod_cat_name = "ETC"
             if item.product and item.product.category:
                 prod_cat_name = item.product.category.name
             
-            # 금액 계산
-            amount = item.quantity * item.unit_price
+            # 금액 계산 (당시 결제된 unit_price 사용)
+            item_amount = item.quantity * item.unit_price
+            calculated_total += item_amount
             
             # 집계
-            category_spending[prod_cat_name] = category_spending.get(prod_cat_name, 0) + amount
+            category_spending[prod_cat_name] = category_spending.get(prod_cat_name, 0) + item_amount
             
             if item.product:
                 item_names.append(item.product.name)
+
+        # 결제 총액과 품목 합계 비교 로그 (디버깅용)
+        if calculated_total != payment.total_amount:
+            logger.warning(f"⚠️ 금액 불일치 발견 (Payment ID: {payment_id}): 결제총액({payment.total_amount}) != 품목합계({calculated_total})")
 
         # 3. 가장 많이 쓴 카테고리 찾기
         if category_spending:
