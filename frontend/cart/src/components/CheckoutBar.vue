@@ -1,15 +1,35 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import CheckoutModal from '@/components/modals/CheckoutModal.vue'
 import PaymentQRModal from '@/components/modals/PaymentQRModal.vue'
 
+/* =========================
+ * Store
+ * ========================= */
 const cartStore = useCartStore()
+
+/* =========================
+ * State
+ * ========================= */
 const showCheckoutModal = ref(false)
 const showQRModal = ref(false)
 const qrUrl = ref('')
 
+/* =========================
+ * Computed
+ * ========================= */
+const totalQuantity = computed(() => cartStore.totalQuantity)
+const estimatedTotal = computed(() => cartStore.estimatedTotal)
+
+/* =========================
+ * Methods
+ * ========================= */
 const openCheckoutModal = () => {
+  if (totalQuantity.value === 0) {
+    alert('장바구니에 담긴 상품이 없습니다.')
+    return
+  }
   showCheckoutModal.value = true
 }
 
@@ -26,12 +46,10 @@ const handleCheckoutSuccess = (paymentData) => {
 </script>
 
 <template>
-  <!-- ✅ 결제 바 -->
+  <!-- ✅ Checkout Bar -->
   <div
     class="
-      w-full
-      max-w-[900px]
-      mx-auto
+      w-full max-w-[900px] mx-auto
       bg-slate-900
       px-6 py-4
       rounded-2xl
@@ -39,24 +57,24 @@ const handleCheckoutSuccess = (paymentData) => {
       flex items-center justify-between
     "
   >
-    <!-- LEFT : 총 금액 정보 -->
-    <div class="flex items-center gap-6">
+    <!-- LEFT : 담은 물건 / 합계 정보 -->
+    <div class="flex items-center gap-6 text-white">
+      <!-- 담은 물건 -->
       <div class="flex flex-col">
-        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Estimated Total</span>
-        <div class="flex items-baseline gap-1">
-          <span class="text-2xl font-black text-white">
-            {{ cartStore.estimatedTotal.toLocaleString() }}
-          </span>
-          <span class="text-sm font-bold text-slate-400">원</span>
-        </div>
+        <span class="text-xs text-slate-400">담은 물건</span>
+        <span class="text-lg font-bold">
+          {{ totalQuantity }} 개
+        </span>
       </div>
 
-      <div class="h-10 w-px bg-slate-700"></div>
+      <!-- 구분선 -->
+      <div class="w-px h-10 bg-slate-700" />
 
+      <!-- 합계 금액 -->
       <div class="flex flex-col">
-        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Items</span>
-        <span class="text-lg font-bold text-slate-300">
-          {{ cartStore.totalQuantity }} 개
+        <span class="text-xs text-slate-400">합계 금액</span>
+        <span class="text-xl font-bold">
+          {{ estimatedTotal.toLocaleString() }} 원
         </span>
       </div>
     </div>
@@ -64,6 +82,7 @@ const handleCheckoutSuccess = (paymentData) => {
     <!-- RIGHT : 결제 버튼 -->
     <button
       @click="openCheckoutModal"
+      :disabled="totalQuantity === 0"
       class="
         px-8 py-3
         bg-violet-500 text-white
@@ -73,6 +92,7 @@ const handleCheckoutSuccess = (paymentData) => {
         active:scale-95
         transition-all
         shadow-lg shadow-violet-500/30
+        disabled:opacity-40
       "
     >
       결제하기

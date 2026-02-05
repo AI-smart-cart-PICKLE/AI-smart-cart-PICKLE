@@ -14,9 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Ultralytics 및 필수 패키지 설치
-# (NVIDIA 이미지는 이미 torch가 깔려있으므로 ultralytics만 추가)
-RUN pip3 install --no-cache-dir ultralytics requests opencv-python-headless
+# requirements.txt 복사 및 의존성 설치
+# (NVIDIA 이미지는 이미 torch가 깔려있으므로 추가 패키지만 설치)
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # 소스 코드 및 모델 복사
 COPY cart_agent.py .
