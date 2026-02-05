@@ -197,21 +197,7 @@ class DigitalReceiptScreen extends ConsumerWidget {
                         label: '홈으로 돌아가기',
                         on_pressed: () => context.go(AppRoutes.home),
                       ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('영수증 공유 기능이 준비 중입니다.')),
-                          );
-                        },
-                        icon: const Icon(Icons.ios_share),
-                        label: const Text('영수증 공유'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 24),
                     ],
                   );
                 },

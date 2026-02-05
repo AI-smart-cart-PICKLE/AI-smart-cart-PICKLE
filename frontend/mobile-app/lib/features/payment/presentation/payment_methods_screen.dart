@@ -194,10 +194,6 @@ class PaymentMethodsScreen extends ConsumerWidget {
                                   ),
                                   if (w.wallet_key == 'kakao_pay') ...<Widget>[
                                     TextButton(
-                                      onPressed: () => context.push(AppRoutes.kakao_pay_settings),
-                                      child: const Text('관리'),
-                                    ),
-                                    TextButton(
                                       onPressed: () {
                                         showDialog<void>(
                                           context: context,

@@ -25,7 +25,6 @@ import '../../features/payment/presentation/payment_methods_screen.dart';
 import '../../features/payment/presentation/add_new_card_screen.dart';
 import '../../features/payment/presentation/card_registration_success_screen.dart';
 import '../../features/payment/presentation/kakao_pay_checkout_screen.dart';
-import '../../features/payment/presentation/kakao_pay_settings_screen.dart';
 import '../../features/payment/presentation/digital_receipt_screen.dart';
 
 class AppRouter {
@@ -79,7 +78,6 @@ class AppRouter {
       GoRoute(path: AppRoutes.add_new_card, builder: (c, s) => const AddNewCardScreen()),
       GoRoute(path: AppRoutes.card_registration_success, builder: (c, s) => const CardRegistrationSuccessScreen()),
       GoRoute(path: AppRoutes.kakao_pay_checkout, builder: (c, s) => const KakaoPayCheckoutScreen()),
-      GoRoute(path: AppRoutes.kakao_pay_settings, builder: (c, s) => const KakaoPaySettingsScreen()),
       GoRoute(
         path: AppRoutes.digital_receipt,
         builder: (c, s) {

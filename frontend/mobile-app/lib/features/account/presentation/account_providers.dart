@@ -34,12 +34,32 @@ FutureProvider<SpendingSummary>(
   },
 );
 
+// 홈 대시보드 전용: 항상 현재 달의 지출 요약 정보를 제공
+final FutureProvider<SpendingSummary> current_month_summary_provider =
+FutureProvider<SpendingSummary>(
+      (FutureProviderRef<SpendingSummary> ref) async {
+    final AccountRepository repo = ref.read(account_repository_provider);
+    final DateTime now = DateTime.now();
+    return repo.fetch_month_summary(month: DateTime(now.year, now.month, 1));
+  },
+);
+
 final FutureProvider<List<SpendingDay>> month_days_provider =
 FutureProvider<List<SpendingDay>>(
       (FutureProviderRef<List<SpendingDay>> ref) async {
     final AccountRepository repo = ref.read(account_repository_provider);
     final DateTime month = ref.watch(selected_month_provider);
     return repo.fetch_month_days(month: month);
+  },
+);
+
+// 홈 대시보드 전용: 항상 현재 달의 일별 지출 정보를 제공
+final FutureProvider<List<SpendingDay>> current_month_days_provider =
+FutureProvider<List<SpendingDay>>(
+      (FutureProviderRef<List<SpendingDay>> ref) async {
+    final AccountRepository repo = ref.read(account_repository_provider);
+    final DateTime now = DateTime.now();
+    return repo.fetch_month_days(month: DateTime(now.year, now.month, 1));
   },
 );
 

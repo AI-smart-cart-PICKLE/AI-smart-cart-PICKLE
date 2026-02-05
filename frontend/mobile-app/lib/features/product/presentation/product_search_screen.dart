@@ -90,42 +90,6 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
                   const SizedBox(height: 16),
 
                   Row(
-                    children: <Widget>[
-                      const Text('AI 추천', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                      const SizedBox(width: 8),
-                      Text('최근 구매 기반', style: TextStyle(color: AppColors.brand_primary, fontSize: 12, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SectionCard(
-                    child: Row(
-                      children: <Widget>[
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.brand_primary.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(Icons.eco_outlined, color: AppColors.brand_primary),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text('유기농 토마토(AI 추천)', style: TextStyle(fontWeight: FontWeight.w900)),
-                              SizedBox(height: 4),
-                              Text('자주 구매하시는 상품입니다.', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
                       const Text('검색 결과', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
@@ -154,7 +118,7 @@ class _ProductSearchScreenState extends ConsumerState<ProductSearchScreen> {
                           builder: (BuildContext context, BoxConstraints c) {
                             final double w = c.maxWidth;
                             final int cross_axis_count = w >= 520 ? 3 : 2;
-                            const double child_aspect_ratio = 0.85;
+                            const double child_aspect_ratio = 0.78; // 기존 0.85에서 줄여서 더 세로로 길게 (크게) 보이게 조절
 
                             return GridView.builder(
                               itemCount: items.length,

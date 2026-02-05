@@ -52,16 +52,39 @@ class HttpAccountRepository implements AccountRepository {
   @override
   Future<SpendingSummary> fetch_month_summary({required DateTime month}) async {
     try {
+      // 1. 현재 달 데이터 가져오기
       final response = await _dio.get('ledger/summary/monthly', queryParameters: {
         'year': month.year,
         'month': month.month,
       });
+      final int current_total = response.data['total_amount'] ?? 0;
 
-      final data = response.data;
-      // 백엔드에서 diff_percent를 주지 않으면 0으로 처리 (API 보완 필요 가능성 있음)
+      // 2. 지난 달 데이터 가져오기 (비교용)
+      final DateTime prev_month = DateTime(month.year, month.month - 1, 1);
+      int prev_total = 0;
+      try {
+        final prev_response = await _dio.get('ledger/summary/monthly', queryParameters: {
+          'year': prev_month.year,
+          'month': prev_month.month,
+        });
+        prev_total = prev_response.data['total_amount'] ?? 0;
+      } catch (e) {
+        print('fetch prev_month_summary error: $e');
+        // 지난달 데이터가 없으면 0으로 유지
+      }
+
+      // 3. 증감률 계산
+      int diff_percent = 0;
+      if (prev_total > 0) {
+        diff_percent = (((current_total - prev_total) / prev_total) * 100).round();
+      } else if (current_total > 0) {
+        // 지난달이 0이고 이번달이 있으면 100% 증가로 표시하거나 다른 처리 가능
+        diff_percent = 100;
+      }
+
       return SpendingSummary(
-        total_amount: data['total_amount'] ?? 0,
-        diff_percent: 0, 
+        total_amount: current_total,
+        diff_percent: diff_percent,
         month_label: '${month.month}월',
       );
     } catch (e) {

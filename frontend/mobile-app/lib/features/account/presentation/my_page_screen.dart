@@ -8,7 +8,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/widgets/bottom_nav.dart';
-import '../../payment/presentation/kakao_pay_settings_screen.dart';
 import '../../cart/presentation/cart_providers.dart';
 import 'account_providers.dart';
 
@@ -125,29 +124,12 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                               title: '비밀번호 변경',
                               on_tap: () => context.push(AppRoutes.change_password),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      SectionCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text('결제 관리', style: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 10),
-                            _MenuTile(
-                              icon: Icons.chat_bubble_outline,
-                              title: '카카오페이 설정',
-                              status_label: ref.watch(kakao_pay_connected_provider) ? '연결됨' : '미연결',
-                              on_tap: () => context.push(AppRoutes.kakao_pay_settings),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Center(
-                        child: TextButton(
-                          onPressed: () async {
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 14),
+                                                  Center(
+                                                    child: TextButton(                          onPressed: () async {
                             await ref.read(account_repository_provider).logout();
                             
                             ref.invalidate(my_profile_provider);

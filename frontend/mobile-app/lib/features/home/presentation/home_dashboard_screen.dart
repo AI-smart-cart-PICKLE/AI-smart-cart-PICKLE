@@ -25,8 +25,12 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // 화면 진입 시 즉시 장바구니 연동 상태를 강제로 새로고침합니다.
-    Future.microtask(() => ref.invalidate(cart_summary_provider));
+    // 화면 진입 시 즉시 장바구니 연동 상태 및 이번 달 지출 데이터를 강제로 새로고침합니다.
+    Future.microtask(() {
+      ref.invalidate(cart_summary_provider);
+      ref.invalidate(current_month_summary_provider);
+      ref.invalidate(current_month_days_provider);
+    });
 
     // 2초마다 카트 상태를 체크하여 결제 요청이 있는지 확인합니다.
     _polling_timer = Timer.periodic(const Duration(seconds: 2), (timer) {
@@ -72,8 +76,8 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   Widget build(BuildContext context) {
     final double max_w = Responsive.max_width(context);
     
-    final summary_async = ref.watch(month_summary_provider);
-    final days_async = ref.watch(month_days_provider);
+    final summary_async = ref.watch(current_month_summary_provider);
+    final days_async = ref.watch(current_month_days_provider);
     final cart_async = ref.watch(cart_summary_provider);
 
     return Scaffold(
@@ -173,31 +177,6 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Recommended Recipes
-                  const Text('AI 추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: <Widget>[
-                        _RecipeImageCard(
-                          title: '연어 스테이크',
-                          imageUrl: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400',
-                          on_tap: () => context.push(AppRoutes.recipe_detail, extra: {'recipe_id': 'r1'}),
-                        ),
-                        _RecipeImageCard(
-                          title: '아보카도 샐러드',
-                          imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400',
-                          on_tap: () => context.push(AppRoutes.recipe_detail, extra: {'recipe_id': 'r2'}),
-                        ),
-                        _RecipeImageCard(
-                          title: '토마토 파스타',
-                          imageUrl: 'https://images.unsplash.com/photo-1546548970-71785318a17b?w=400',
-                          on_tap: () => context.push(AppRoutes.recipe_detail, extra: {'recipe_id': 'r3'}),
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -335,47 +314,6 @@ class _SpendingBar extends StatelessWidget {
         const SizedBox(height: 8),
         Text(label, style: TextStyle(fontSize: 12, fontWeight: is_today ? FontWeight.w900 : FontWeight.w700)),
       ],
-    );
-  }
-}
-
-class _RecipeImageCard extends StatelessWidget {
-  final String title;
-  final String imageUrl;
-  final VoidCallback on_tap;
-
-  const _RecipeImageCard({required this.title, required this.imageUrl, required this.on_tap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: on_tap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Image.network(
-                imageUrl,
-                height: 120,
-                width: 160,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 120,
-                  color: AppColors.border,
-                  child: const Icon(Icons.restaurant, color: Colors.grey),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
-          ],
-        ),
-      ),
     );
   }
 }

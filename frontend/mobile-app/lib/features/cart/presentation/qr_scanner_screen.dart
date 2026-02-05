@@ -154,21 +154,32 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   }
 
   Future<void> _handleScannedCode(String code) async {
-    // 1. 만약 스캔된 코드가 URL이라면 (결제 요청)
-    if (code.startsWith('http://') || code.startsWith('https://')) {
-      final Uri url = Uri.parse(code);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-        if (mounted) context.pop(); // 스캐너 닫기
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('유효하지 않은 결제 URL입니다.')),
-          );
-          setState(() => is_scanned = false);
+    // 1. 만약 스캔된 코드가 URL이거나 커스텀 스킴을 포함한다면 (결제 요청 등)
+    final Uri? url = Uri.tryParse(code);
+    if (url != null && (url.hasScheme && url.scheme != 'package')) {
+      try {
+        // 카카오톡 결제 스킴(kakaotalk://) 등을 포함한 모든 외부 앱 연동 시도
+        final bool launched = await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication,
+        );
+        
+        if (launched) {
+          if (mounted) context.pop(); // 스캐너 닫기
+          return;
         }
+      } catch (e) {
+        debugPrint('URL Launch error: $e');
       }
-      return;
+      
+      // 만약 URL 형식인데 실행에 실패했다면, 사용자에게 알림
+      if (mounted && (code.startsWith('http') || code.contains('://'))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('해당 링크를 열 수 없습니다. 외부 앱이 설치되어 있는지 확인해주세요.')),
+        );
+        setState(() => is_scanned = false);
+        return;
+      }
     }
 
     // 2. 일반 텍스트 코드라면 (카트 연동)
