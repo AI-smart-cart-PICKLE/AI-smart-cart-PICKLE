@@ -32,7 +32,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final theme_mode = ref.watch(theme_mode_provider);
-    final scan_window_size = 250.0;
+    final scan_window_size = 300.0;
     final scan_window = Rect.fromCenter(
       center: MediaQuery.of(context).size.center(Offset.zero),
       width: scan_window_size,
@@ -73,7 +73,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         children: [
           MobileScanner(
             controller: controller,
-            // scanWindow: scan_window, // 인식 문제 해결을 위해 일시적으로 영역 제한 해제
+            // scanWindow: scan_window, // 인식률 확보를 위해 전체 영역 스캔 유지
             onDetect: (capture) {
               if (is_scanned) return;
               
@@ -91,44 +91,6 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
               }
             },
           ),
-          // Background Dimming with hole
-          ColorFiltered(
-            colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.5),
-              BlendMode.srcOut,
-            ),
-            child: Stack(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    backgroundBlendMode: BlendMode.dstOut,
-                  ),
-                ),
-                Center(
-                  child: Container(
-                    width: scan_window_size,
-                    height: scan_window_size,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Scanner Overlay Border
-          Center(
-            child: Container(
-              width: scan_window_size,
-              height: scan_window_size,
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.gemini_purple, width: 4),
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
           // Instructions
           Positioned(
             bottom: 100,
@@ -137,7 +99,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             child: Column(
               children: [
                 const Text(
-                  'QR 코드를 사각형 안에 맞춰주세요',
+                  'QR 코드를 스캔해 주세요',
                   style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
