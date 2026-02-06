@@ -88,7 +88,7 @@
 - 마이페이지
 
 <p align="center">
-  <img src="assets/mobile_ui.png" width="900"/>
+  <img src="assets/mobile_ui.png" width="450"/>
 </p>
 
 ---
@@ -100,7 +100,7 @@
 - 상세 정보 확인
 
 <p align="center">
-  <img src="assets/product_search.png" width="900"/>
+  <img src="assets/product_search.png" width="450"/>
 </p>
 
 ---
@@ -113,7 +113,7 @@
 - Top Items 분석
 
 <p align="center">
-  <img src="assets/recent_spend.png" width="900"/>
+  <img src="assets/recent_spend.png" width="450"/>
 </p>
 
 ---
@@ -228,27 +228,38 @@
 
 ## 👥 역할 분담
 
-### Hardware
-- 하우징 / 클램프 설계
-- 3D 프린팅 및 실물 조립
-- 배선 구조 설계
+| <img src="assets/team/junseo.png" width="180"/>
+<br/>
+<h3>준서</h3><b>Hardware · Mobile</b>
+<br/>
+<br/>• 카트 하우징 / 클램프 설계<br/>• 3D 프린팅 및 실물 조립<br/>• 디바이스 배선 구조 설계<br/>• Flutter 앱 UI / 상태관리 구현 | 
 
-### AI / Edge
-- YOLO 객체 탐지
-- Jetson inference 구성
+<img src="assets/team/sumyeong.png" width="180"/>
+<br/>
+<h3>수명</h3>
+<b>Mobile</b>
+<br/>
+<br/>• Flutter 화면 구성<br/>• 가계부 / 소비 분석 UI<br/>• 사용자 UX 개선 | 
 
-### Web Front
-- Vue 키오스크 UI
-- 실시간 리스트 표시
 
-### Backend
-- FastAPI 서버
-- DB 스키마
-- 결제 / 가계부 / 추천 API
+<img src="assets/team/jooyeon.png" width="180"/>
+br/>
+<h3>주연</h3><b>Web Front</b><br/><br/>• Vue 키오스크 UI 구현<br/>• 실시간 상품 리스트 표시<br/>• 관리자 페이지 |
+|:--:|:--:|:--:|
 
-### Mobile
-- Flutter 앱 전체 구현
-- Riverpod 상태관리
-- GoRouter 라우팅
 
+| <img src="assets/team/jeonghui.png" width="180"/><br/><h3>정희</h3>
+<b>Backend</b>
+<br/>
+<br/>• FastAPI 서버 설계<br/>• DB 스키마 관리<br/>• 결제 / 가계부 API | <img src="assets/team/member5.png" width="180"/>
+<br/>
+
+
+<h3>한결</h3>
+<b>AI · Infra</b>
+<br/>
+<br/>• YOLO 객체 탐지 파이프라인<br/>• Jetson inference 최적화
+<br/>• Docker / 배포 환경 | <img src="assets/team/hangyeol.png" width="180"/><br/><h3>OOO</h3><b>Backend</b>
+<br/>
+<br/>• 추천 시스템 API<br/>• 레시피 데이터 처리<br/>• 서버 연동 |
 ---
