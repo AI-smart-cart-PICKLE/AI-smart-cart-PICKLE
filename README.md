@@ -235,7 +235,9 @@
 
 ## 👥 역할 분담
 
-| <img src="assets/team/junseo.png" style="width:180px;height:180px;object-fit:cover;"/><br/><h3>팀장 · 준서</h3><b>Hardware · Mobile</b> | <img src="assets/team/hangyeol.png" style="width:180px;height:180px;object-fit:cover;"/><br/><h3>한결</h3><b>MLOps/DevOps · CI/CD</b> | <img src="assets/team/junsoo.png" style="width:180px;height:180px;object-fit:cover;"/><br/><h3>준수</h3><b>AI</b> |
+## 👥 역할 분담
+
+| <img src="assets/team/junseo.png" style="max-width:180px;width:180px;height:180px;object-fit:cover;"/><br/><h3>팀장 · 준서</h3><b>Hardware · Mobile</b> | <img src="assets/team/hangyeol.png" style="max-width:180px;width:180px;height:180px;object-fit:cover;"/><br/><h3>한결</h3><b>MLOps/DevOps · CI/CD</b> | <img src="assets/team/junsoo.png" style="max-width:180px;width:180px;height:180px;object-fit:cover;"/><br/><h3>준수</h3><b>AI</b> |
 |:--:|:--:|:--:|
-| <img src="assets/team/sumyeong.png" style="width:180px;height:180px;object-fit:cover;"/><br/><h3>수명</h3><b>Mobile · Backend</b> | <img src="assets/team/jooyeon.png" style="width:180px;height:180px;object-fit:cover;"/><br/><h3>주연</h3><b>Backend · Web Front</b> | <img src="assets/team/jeonghui.png" style="width:180px;height:180px;object-fit:cover;"/><br/><h3>정희</h3><b>Backend · AI</b> |
+| <img src="assets/team/sumyeong.png" style="max-width:180px;width:180px;height:180px;object-fit:cover;"/><br/><h3>수명</h3><b>Mobile · Backend</b> | <img src="assets/team/jooyeon.png" style="max-width:180px;width:180px;height:180px;object-fit:cover;"/><br/><h3>주연</h3><b>Backend · Web Front</b> | <img src="assets/team/jeonghui.png" style="max-width:180px;width:180px;height:180px;object-fit:cover;"/><br/><h3>정희</h3><b>Backend · AI</b> |
 
