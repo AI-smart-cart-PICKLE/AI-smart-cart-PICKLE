@@ -200,6 +200,9 @@
 <p align="center">
   <img src="assets/hardware_3d.png" width="950"/>
 </p>
+<p align="center">
+  <img src="assets/hardware_3d_2.png" width="950"/>
+</p>
 
 ---
 
@@ -214,6 +217,13 @@
   <img src="assets/hardware_real.png" width="950"/>
 </p>
 
+<p align="center">
+  <img src="assets/hardware_real_2.png" width="950"/>
+</p>
+
+<p align="center">
+  <img src="assets/hardware_real_3.png" width="950"/>
+</p>
 ---
 
 ## 👥 역할 분담
