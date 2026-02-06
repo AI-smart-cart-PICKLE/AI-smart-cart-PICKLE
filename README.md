@@ -88,7 +88,7 @@
 - 마이페이지
 
 <p align="center">
-  <img src="assets/mobile_ui.png" width="900"/>
+  <img src="assets/mobile_ui.png" width="450"/>
 </p>
 
 ---
@@ -100,7 +100,7 @@
 - 상세 정보 확인
 
 <p align="center">
-  <img src="assets/product_search.png" width="900"/>
+  <img src="assets/product_search.png" width="450"/>
 </p>
 
 ---
@@ -113,7 +113,7 @@
 - Top Items 분석
 
 <p align="center">
-  <img src="assets/recent_spend.png" width="900"/>
+  <img src="assets/recent_spend.png" width="450"/>
 </p>
 
 ---
@@ -154,35 +154,6 @@
   <img src="assets/architecture.png" width="950"/>
 </p>
 
----
-
-## 🔧 기술 스택
-
-### Mobile
-- Flutter
-- Riverpod
-- GoRouter
-
-### Web
-- Vue 3
-- JavaScript
-- SCSS
-
-### Backend
-- FastAPI
-- PostgreSQL
-- pgvector
-- SQLAlchemy
-- Alembic
-
-### AI / Edge
-- Jetson Orin Nano
-- YOLOv8
-- OpenCV
-
-### Infra
-- Docker
-- Nginx
 
 ---
 
@@ -226,29 +197,40 @@
 </p>
 ---
 
-## 👥 역할 분담
-
-### Hardware
-- 하우징 / 클램프 설계
-- 3D 프린팅 및 실물 조립
-- 배선 구조 설계
-
-### AI / Edge
-- YOLO 객체 탐지
-- Jetson inference 구성
-
-### Web Front
-- Vue 키오스크 UI
-- 실시간 리스트 표시
-
-### Backend
-- FastAPI 서버
-- DB 스키마
-- 결제 / 가계부 / 추천 API
+## 🔧 기술 스택
 
 ### Mobile
-- Flutter 앱 전체 구현
-- Riverpod 상태관리
-- GoRouter 라우팅
+- Flutter
+- Riverpod
+- GoRouter
+
+### Web
+- Vue 3
+- JavaScript
+- SCSS
+
+### Backend
+- FastAPI
+- PostgreSQL
+- pgvector
+- SQLAlchemy
+- Alembic
+
+### AI / Edge
+- Jetson Orin Nano
+- YOLOv8
+- OpenCV
+
+### Infra
+- Docker
+- Nginx
 
 ---
+
+## 👥 역할 분담
+
+| <img src="assets/team/junseo.png" width="180" height="180"/><br/><h3>팀장 · 준서</h3><b>Hardware · Mobile</b> | <img src="assets/team/hangyeol.png" width="180" height="180"/><br/><h3>한결</h3><b>MLOps/DevOps · CI/CD</b> | <img src="assets/team/junsoo.png" width="180" height="180"/><br/><h3>준수</h3><b>AI</b> |
+|:--:|:--:|:--:|
+| <img src="assets/team/sumyeong.png" width="180" height="180"/><br/><h3>수명</h3><b>Mobile · Backend</b> | <img src="assets/team/jooyeon.png" width="180" height="180"/><br/><h3>주연</h3><b>Backend · Web Front</b> | <img src="assets/team/jeonghui.png" width="180" height="180"/><br/><h3>정희</h3><b>Backend · AI</b> |
+
+
