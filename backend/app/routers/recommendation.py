@@ -48,41 +48,47 @@ def recommend_recipes_by_cart(
         # 벡터 평균 계산 (Centroid)
         avg_vector = np.mean(vectors, axis=0).tolist()
         
-        # Centroid와 유사한 레시피 검색
-        recommendations = (
-            db.query(models.Recipe)
-            .order_by(models.Recipe.embedding.cosine_distance(avg_vector))
+        # Centroid와 유사한 레시피 검색 및 거리(Distance) 가져오기
+        # pgvector의 <=> 연산자는 코사인 거리를 반환 (0에 가까울수록 유사)
+        recommendations_query = (
+            db.query(
+                models.Recipe,
+                models.Recipe.embedding.cosine_distance(avg_vector).label("distance")
+            )
+            .order_by("distance")
             .limit(5)
             .all()
         )
+        
+        logger.info(f"--- [AI 추천] 장바구니 품목 {len(vectors)}개 기반 분석 완료 ---")
     else:
-        # 벡터 정보가 부족한 경우: 보유 재료가 가장 많이 포함된 순서로 추천 (Fallback)
-        # 쿼리가 조금 복잡해질 수 있어, 여기서는 단순하게 첫 번째 아이템 연관 레시피로 대체하거나
-        # 가장 비싼 상품 기준으로 추천하는 등의 대체 로직 사용
-        # 여기서는 '가장 비싼 상품' 하나를 골라 추천
+        # 벡터 정보가 부족한 경우 Fallback
         sorted_items = sorted(cart_items, key=lambda x: x.unit_price, reverse=True)
         target_product_id = sorted_items[0].product_id
         
-        recommendations = (
-            db.query(models.Recipe)
+        recommendations_query = [
+            (r, 0.2) for r in db.query(models.Recipe)
             .join(models.RecipeIngredient)
             .filter(models.RecipeIngredient.product_id == target_product_id)
             .limit(5)
             .all()
-        )
+        ]
+        logger.warning("⚠️ 임베딩 벡터가 없어 가격 기반 단순 추천을 실행합니다.")
 
     # 4. 응답 데이터 조립 (부족한 재료 계산)
     results = []
-    for recipe in recommendations:
+    for recipe, distance in recommendations_query:
+        # 유사도 점수 계산: 1 - 거리 (거리가 0이면 100%, 1이면 0%)
+        # text-embedding-3-small 모델의 경우 거리가 보통 0.3~0.7 사이에 분포함
+        # UI에서 보기 좋게 0.5~1.0 사이로 스케일링하거나 보정 가능
+        similarity = max(0, 1 - float(distance or 0.5))
+        
         recipe_ingredients = db.query(models.RecipeIngredient).filter(
             models.RecipeIngredient.recipe_id == recipe.recipe_id
         ).all()
         
         all_ingredients = []
         missing_list = []
-        
-        # 임베딩 거리 계산은 DB 레벨에서 order_by로만 썼으므로, 정확한 수치는 다시 계산하거나 생략
-        # 여기서는 생략하고 기본값 처리
         
         for ri in recipe_ingredients:
             ing_product = ri.product 
@@ -106,7 +112,7 @@ def recommend_recipes_by_cart(
             "title": recipe.title,
             "description": recipe.description,
             "image_url": recipe.image_url,
-            "similarity_score": 0.0, # 계산 복잡도 문제로 생략
+            "similarity_score": similarity, 
             "ingredients": all_ingredients,  
             "missing_ingredients": missing_list
         })
