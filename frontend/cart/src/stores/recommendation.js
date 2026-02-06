@@ -27,8 +27,6 @@ export const useRecommendationStore = defineStore('recommendation', {
       }
     },
 
-    async fetchByProduct(productId, cartSessionId) {
-
     async selectRecipe(recipeId, sessionId) {
       if (!sessionId) return
       try {
