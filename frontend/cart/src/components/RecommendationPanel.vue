@@ -9,19 +9,18 @@ import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue'
 const recStore = useRecommendationStore()
 const cartStore = useCartStore()
 
-/* 장바구니 아이템 변화 감지 */
-const cartItemsCount = computed(() => cartStore.cartItems.length)
-
+/* 세션 ID와 아이템 개수를 함께 감시 */
 watch(
-  () => cartItemsCount.value,
-  (count) => {
-    const sessionId = cartStore.cartSession?.cart_session_id
-    if (!count || !sessionId) {
+  [() => cartStore.cartSession?.cart_session_id, () => cartStore.cartItems.length],
+  ([sessionId, itemCount]) => {
+    console.log(`🔍 [DEBUG] 추천 트리거 확인 - Session: ${sessionId}, Items: ${itemCount}`)
+    
+    if (!sessionId || itemCount === 0) {
       recStore.clear()
       return
     }
 
-    // 개별 상품 기준이 아닌 장바구니 전체 세션 ID 기준으로 추천 요청
+    // 조건 충족 시 추천 요청
     recStore.fetchByCart(sessionId)
   },
   { immediate: true }

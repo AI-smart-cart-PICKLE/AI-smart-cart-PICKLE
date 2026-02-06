@@ -14,7 +14,7 @@ INSERT INTO product_category (category_id, name, zone_code) VALUES
 (12, '소스류', 'A-20'),
 (13, '면류', 'A-30'),
 (14, '즉석식품', 'B-10'),
-(15, '잼/스프레드', 'B-20'),
+(15, '잼/스프레드', 'B-20'),\
 (16, '음료', 'C-10')
 ON CONFLICT (category_id) DO UPDATE SET name = EXCLUDED.name, zone_code = EXCLUDED.zone_code;
 
