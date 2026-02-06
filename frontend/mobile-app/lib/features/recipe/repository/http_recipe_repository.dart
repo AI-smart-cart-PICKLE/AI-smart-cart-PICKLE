@@ -50,6 +50,32 @@ class HttpRecipeRepository implements RecipeRepository {
   }
 
   @override
+  Future<List<RecipeCardModel>> fetch_recipes_by_cart({required int cart_session_id}) async {
+    try {
+      final response = await _dio.get('recommendations/by-cart/$cart_session_id');
+      final List<dynamic> data = response.data;
+      
+      return data.map((item) {
+        return RecipeCardModel(
+          recipe_id: item['recipe_id'].toString(),
+          title: item['title'],
+          subtitle: item['description'] ?? '설명 없음',
+          time_min: item['cooking_time_min'] ?? 30,
+          difficulty_label: item['difficulty'] ?? '보통',
+          match_percent: item['similarity_score'] != null 
+              ? (item['similarity_score'] * 100).round() 
+              : 80, 
+          is_in_progress: false,
+          is_smart_choice: false,
+        );
+      }).toList();
+    } catch (e) {
+      print('fetch_recipes_by_cart error: $e');
+      return [];
+    }
+  }
+
+  @override
   Future<RecipeDetailModel> fetch_recipe_detail({required String recipe_id}) async {
     try {
       final response = await _dio.get('recipes/$recipe_id');
