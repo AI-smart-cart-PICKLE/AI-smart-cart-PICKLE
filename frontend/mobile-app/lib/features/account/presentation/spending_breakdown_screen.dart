@@ -26,6 +26,9 @@ class SpendingBreakdownScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final double max_w = Responsive.max_width(context);
+    final bool is_dark = Theme.of(context).brightness == Brightness.dark;
+    final Color text_secondary = is_dark ? AppColors.text_secondary_dark : AppColors.text_secondary;
+    final Color border_color = is_dark ? AppColors.border_dark : AppColors.border;
 
     final DateTime month = ref.watch(selected_month_provider);
     final summary_async = ref.watch(month_summary_provider);
@@ -79,7 +82,7 @@ class SpendingBreakdownScreen extends ConsumerWidget {
                           error: (e, _) => Text('요약 오류: $e'),
                           data: (s) => Column(
                             children: <Widget>[
-                              Text('총 지출', style: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w900)),
+                              Text('총 지출', style: TextStyle(color: text_secondary, fontWeight: FontWeight.w900)),
                               const SizedBox(height: 6),
                               Text(_format_currency(s.total_amount), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
                             ],
@@ -91,7 +94,7 @@ class SpendingBreakdownScreen extends ConsumerWidget {
                           error: (e, _) => Text('카테고리 오류: $e'),
                           data: (categories) {
                             if (categories.isEmpty) {
-                              return Text('표시할 데이터가 없어요.', style: TextStyle(color: AppColors.text_secondary));
+                              return Text('표시할 데이터가 없어요.', style: TextStyle(color: text_secondary));
                             }
 
                             final CategorySpend top = categories.reduce((a, b) => a.amount >= b.amount ? a : b);
@@ -101,12 +104,13 @@ class SpendingBreakdownScreen extends ConsumerWidget {
                               children: <Widget>[
                                 _DonutPlaceholder(
                                   center_label: '$top_percent%\n${top.category_label}',
+                                  border_color: border_color,
                                 ),
                                 const SizedBox(height: 10),
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.border.withOpacity(0.25),
+                                    color: border_color.withOpacity(0.25),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Row(
@@ -116,7 +120,7 @@ class SpendingBreakdownScreen extends ConsumerWidget {
                                       Expanded(
                                         child: Text(
                                           '이번 달 지출의 대부분은 "${top.category_label}" 항목이에요.',
-                                          style: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w800),
+                                          style: TextStyle(color: text_secondary, fontWeight: FontWeight.w800),
                                         ),
                                       ),
                                     ],
@@ -164,7 +168,7 @@ class SpendingBreakdownScreen extends ConsumerWidget {
                                       Expanded(child: Text(c.category_label, style: const TextStyle(fontWeight: FontWeight.w900))),
                                       Text(_format_currency(c.amount), style: const TextStyle(fontWeight: FontWeight.w900)),
                                       const SizedBox(width: 10),
-                                      Text('$percent%', style: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w900)),
+                                      Text('$percent%', style: TextStyle(color: text_secondary, fontWeight: FontWeight.w900)),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
@@ -173,7 +177,7 @@ class SpendingBreakdownScreen extends ConsumerWidget {
                                       Container(
                                         height: 10,
                                         decoration: BoxDecoration(
-                                          color: AppColors.border.withOpacity(0.35),
+                                          color: border_color.withOpacity(0.35),
                                           borderRadius: BorderRadius.circular(999),
                                         ),
                                       ),
@@ -209,8 +213,12 @@ class SpendingBreakdownScreen extends ConsumerWidget {
 
 class _DonutPlaceholder extends StatelessWidget {
   final String center_label;
+  final Color border_color;
 
-  const _DonutPlaceholder({required this.center_label});
+  const _DonutPlaceholder({
+    required this.center_label,
+    required this.border_color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +228,7 @@ class _DonutPlaceholder extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.brand_primary.withOpacity(0.10),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border_color),
       ),
       alignment: Alignment.center,
       child: Text(

@@ -29,6 +29,8 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
     final is_dark = theme_mode == ThemeMode.dark || 
                    (theme_mode == ThemeMode.system && MediaQuery.of(context).platformBrightness == Brightness.dark);
     final notifications_enabled = ref.watch(notification_enabled_provider);
+    final Color text_secondary = is_dark ? AppColors.text_secondary_dark : AppColors.text_secondary;
+    final Color border_color = is_dark ? AppColors.border_dark : AppColors.border;
 
     return Scaffold(
       appBar: AppBar(
@@ -100,7 +102,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                                       ),
                                     ],
                                   ),
-                                  Text(profile.email, style: TextStyle(color: AppColors.text_secondary)),
+                                  Text(profile.email, style: TextStyle(color: text_secondary)),
                                   const SizedBox(height: 6),
                                 ],
                               ),
@@ -112,16 +114,20 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text('계정 설정', style: TextStyle(color: AppColors.text_secondary, fontWeight: FontWeight.w900)),
+                            Text('계정 설정', style: TextStyle(color: text_secondary, fontWeight: FontWeight.w900)),
                             const SizedBox(height: 10),
                             _MenuTile(
                               icon: Icons.person_outline,
                               title: '닉네임 변경',
+                              text_secondary: text_secondary,
+                              border_color: border_color,
                               on_tap: () => context.push(AppRoutes.change_nickname),
                             ),
                             _MenuTile(
                               icon: Icons.lock_outline,
                               title: '비밀번호 변경',
+                              text_secondary: text_secondary,
+                              border_color: border_color,
                               on_tap: () => context.push(AppRoutes.change_password),
                             ),
                                                       ],
@@ -173,12 +179,16 @@ class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? status_label;
+  final Color text_secondary;
+  final Color border_color;
   final VoidCallback on_tap;
 
   const _MenuTile({
     required this.icon,
     required this.title,
     this.status_label,
+    required this.text_secondary,
+    required this.border_color,
     required this.on_tap,
   });
 
@@ -195,7 +205,7 @@ class _MenuTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.border.withOpacity(0.35),
+                color: border_color.withOpacity(0.35),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: AppColors.brand_primary),
@@ -208,7 +218,7 @@ class _MenuTile extends StatelessWidget {
                 child: Text(
                   status_label!,
                   style: TextStyle(
-                    color: status_label == '연결됨' ? AppColors.brand_primary : AppColors.text_secondary,
+                    color: status_label == '연결됨' ? AppColors.brand_primary : text_secondary,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),

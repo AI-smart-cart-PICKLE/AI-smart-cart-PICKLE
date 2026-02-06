@@ -38,6 +38,9 @@ class _SpendingOverviewScreenState extends State<SpendingOverviewScreen> {
     return Consumer(
       builder: (context, ref, child) {
         final double max_w = Responsive.max_width(context);
+        final bool is_dark = Theme.of(context).brightness == Brightness.dark;
+        final Color text_primary = is_dark ? AppColors.text_primary_dark : AppColors.text_primary;
+        final Color text_secondary = is_dark ? AppColors.text_secondary_dark : AppColors.text_secondary;
 
         final DateTime month = ref.watch(selected_month_provider);
         final summary_async = ref.watch(month_summary_provider);
@@ -92,7 +95,7 @@ class _SpendingOverviewScreenState extends State<SpendingOverviewScreen> {
                                   children: <Widget>[
                                     Text('총 지출',
                                         style: TextStyle(
-                                            color: AppColors.text_secondary,
+                                            color: text_secondary,
                                             fontWeight: FontWeight.w900)),
                                     const SizedBox(height: 6),
                                     Row(
@@ -164,7 +167,7 @@ class _SpendingOverviewScreenState extends State<SpendingOverviewScreen> {
                                             if (list.isEmpty) {
                                               return SectionCard(
                                                 child: Text('표시할 내역이 없어요.',
-                                                    style: TextStyle(color: AppColors.text_secondary)),
+                                                    style: TextStyle(color: text_secondary)),
                                               );
                                             }
                                             return SectionCard(
@@ -207,7 +210,7 @@ class _SpendingOverviewScreenState extends State<SpendingOverviewScreen> {
                                                                 const SizedBox(height: 4),
                                                                 Text('$date_label · ${tx.category_label}',
                                                                     style: TextStyle(
-                                                                        color: AppColors.text_secondary,
+                                                                        color: text_secondary,
                                                                         fontSize: 12)),
                                                               ],
                                                             ),
@@ -311,6 +314,10 @@ class _SpendingCalendar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool is_dark = Theme.of(context).brightness == Brightness.dark;
+    final Color text_primary = is_dark ? AppColors.text_primary_dark : AppColors.text_primary;
+    final Color text_secondary = is_dark ? AppColors.text_secondary_dark : AppColors.text_secondary;
+
     final int total_days = _days_in_month(month);
     final int offset = _weekday_offset(month);
 
@@ -326,7 +333,7 @@ class _SpendingCalendar extends StatelessWidget {
       return Center(
         child: Text(w,
             style: TextStyle(
-                color: AppColors.text_secondary, fontWeight: FontWeight.w900)),
+                color: text_secondary, fontWeight: FontWeight.w900)),
       );
     }));
 
@@ -354,14 +361,14 @@ class _SpendingCalendar extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       color: has_spend
                           ? AppColors.brand_primary
-                          : AppColors.text_primary)),
+                          : text_primary)),
               if (has_spend) ...[
                 const SizedBox(height: 2),
                 Text(
                   '-${_short_k(amount)}',
                   style: TextStyle(
                       fontSize: 10,
-                      color: AppColors.text_secondary,
+                      color: text_secondary,
                       fontWeight: FontWeight.w800),
                 ),
               ],
