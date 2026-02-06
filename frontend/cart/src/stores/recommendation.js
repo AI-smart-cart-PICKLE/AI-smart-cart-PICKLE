@@ -9,27 +9,25 @@ export const useRecommendationStore = defineStore('recommendation', {
   }),
 
   actions: {
-    async fetchByProduct(productId, cartSessionId) {
+    async fetchByCart(cartSessionId) {
+      if (!cartSessionId) return
+      
       this.loading = true
       this.error = null
 
       try {
-        const res = await api.get(
-          `recommendations/by-product/${productId}`,
-          {
-            params: cartSessionId
-              ? { cart_session_id: cartSessionId }
-              : {}
-          }
-        )
+        // 기존 by-product 대신 새로 만든 by-cart API 호출
+        const res = await api.get(`recommendations/by-cart/${cartSessionId}`)
         this.recipes = res.data
       } catch (e) {
-        this.error = '추천 레시피를 불러오지 못했습니다.'
+        this.error = '장바구니 기반 추천을 불러오지 못했습니다.'
         console.error(e)
       } finally {
         this.loading = false
       }
     },
+
+    async fetchByProduct(productId, cartSessionId) {
 
     async selectRecipe(recipeId, sessionId) {
       if (!sessionId) return
