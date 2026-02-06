@@ -28,28 +28,32 @@ def recommend_recipes_by_cart(
     # 1. 카트 아이템 조회
     cart_items = db.query(models.CartItem).filter(models.CartItem.cart_session_id == cart_session_id).all()
     if not cart_items:
+        logger.info(f"🛒 장바구니(Session {cart_session_id})가 비어있습니다.")
         return []
+
+    logger.info(f"🔎 [추천 분석 시작] Session {cart_session_id} | 상품 {len(cart_items)}개 감지")
 
     # 2. 임베딩 벡터 수집 및 보유 상품 ID set 생성
     vectors = []
     my_owned_product_ids = {item.product_id for item in cart_items}
     
     for item in cart_items:
-        if item.product.embedding is not None:
-            # 수량 고려 가중치? (지금은 단순 1개당 1가중치, 즉 여러개 사면 더 반영됨)
-            # item.quantity 만큼 반복해서 넣거나, 가중 평균 로직 사용 가능.
-            # 여기선 단순하게 품목별 1회만 반영 (다양성 존중)
+        has_embedding = item.product.embedding is not None
+        emb_status = "✅O" if has_embedding else "❌X"
+        logger.info(f"   - 상품: {item.product.name} (ID: {item.product_id}) | 임베딩: {emb_status}")
+        
+        if has_embedding:
             vectors.append(item.product.embedding)
             
     recommendations = []
     
     # 3. 추천 로직 실행
     if vectors:
+        logger.info(f"🚀 [AI 모드] 유효 벡터 {len(vectors)}개로 Centroid 계산 및 추천 실행")
         # 벡터 평균 계산 (Centroid)
         avg_vector = np.mean(vectors, axis=0).tolist()
         
         # Centroid와 유사한 레시피 검색 및 거리(Distance) 가져오기
-        # pgvector의 <=> 연산자는 코사인 거리를 반환 (0에 가까울수록 유사)
         recommendations_query = (
             db.query(
                 models.Recipe,
@@ -59,12 +63,12 @@ def recommend_recipes_by_cart(
             .limit(5)
             .all()
         )
-        
-        logger.info(f"--- [AI 추천] 장바구니 품목 {len(vectors)}개 기반 분석 완료 ---")
     else:
+        logger.warning("⚠️ [Fallback 모드] 유효한 임베딩 벡터가 하나도 없습니다! 단순 가격순 추천을 실행합니다.")
         # 벡터 정보가 부족한 경우 Fallback
         sorted_items = sorted(cart_items, key=lambda x: x.unit_price, reverse=True)
         target_product_id = sorted_items[0].product_id
+        logger.warning(f"   -> 기준 상품: {sorted_items[0].product.name} (가장 비쌈)")
         
         recommendations_query = [
             (r, 0.2) for r in db.query(models.Recipe)
@@ -73,7 +77,6 @@ def recommend_recipes_by_cart(
             .limit(5)
             .all()
         ]
-        logger.warning("⚠️ 임베딩 벡터가 없어 가격 기반 단순 추천을 실행합니다.")
 
     # 4. 응답 데이터 조립 (부족한 재료 계산)
     results = []

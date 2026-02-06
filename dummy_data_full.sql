@@ -1,5 +1,5 @@
 -- [1. 초기화] 기존 데이터 삭제
-TRUNCATE TABLE recipe_ingredient, recipe, cart_item, product, product_category CASCADE;
+TRUNCATE TABLE recipe_ingredient, recipe, cart_item, product, product_category, cart_device CASCADE;
 
 -- ========================================================
 -- 🏷️ 1. 카테고리
@@ -101,3 +101,19 @@ INSERT INTO recipe_ingredient (recipe_id, product_id, quantity_info, importance_
 (21, 500, '2장', 5), (21, 10, '1알', 5), (21, 9, '50ml', 4), (21, 112, '1조각', 3),
 (22, 4, '1캔', 5), (22, 6, '1큰술', 5), (22, 500, '2장', 5), (22, 114, '1장', 3)
 ON CONFLICT (recipe_id, product_id) DO NOTHING;
+
+-- ========================================================
+-- 🛒 5. 카트 디바이스
+-- ========================================================
+INSERT INTO cart_device (cart_device_id, device_code) VALUES 
+(1, 'CART-DEVICE-001'),
+(2, 'CART-DEVICE-002')
+ON CONFLICT (cart_device_id) DO NOTHING;
+
+-- ========================================================
+-- 🔄 6. 시퀀스 재설정 (중요: ID 충돌 방지)
+-- ========================================================
+SELECT setval('product_category_category_id_seq', (SELECT MAX(category_id) FROM product_category));
+SELECT setval('product_product_id_seq', (SELECT MAX(product_id) FROM product));
+SELECT setval('recipe_recipe_id_seq', (SELECT MAX(recipe_id) FROM recipe));
+SELECT setval('cart_device_cart_device_id_seq', (SELECT MAX(cart_device_id) FROM cart_device));
