@@ -229,8 +229,6 @@
 
 ## 👥 역할 분담
 
-| <img src="assets/team/junseo.png" width="180" height="180"/><br/><h3>팀장 · 준서</h3><b>Hardware · Mobile</b> | <img src="assets/team/hangyeol.png" width="180" height="180"/><br/><h3>한결</h3><b>MLOps/DevOps · CI/CD</b> | <img src="assets/team/junsoo.png" width="180" height="180"/><br/><h3>준수</h3><b>AI</b> |
+| <img src="assets/team/junseo.png" width="180" height="180"/><br/><h3>팀장: 준서</h3><b>Hardware · Mobile</b> | <img src="assets/team/hangyeol.png" width="180" height="180"/><br/><h3>팀원: 한결</h3><b>MLOps/DevOps · CI/CD</b> | <img src="assets/team/junsoo.png" width="180" height="180"/><br/><h3>팀원: 준수</h3><b>AI</b> |
 |:--:|:--:|:--:|
-| <img src="assets/team/sumyeong.png" width="180" height="180"/><br/><h3>수명</h3><b>Mobile · Backend</b> | <img src="assets/team/jooyeon.png" width="180" height="180"/><br/><h3>주연</h3><b>Backend · Web Front</b> | <img src="assets/team/jeonghui.png" width="180" height="180"/><br/><h3>정희</h3><b>Backend · AI</b> |
-
-
+| <img src="assets/team/sumyeong.png" width="180" height="180"/><br/><h3>팀원: 수명</h3><b>Backend · Mobile</b> | <img src="assets/team/jooyeon.png" width="180" height="180"/><br/><h3>팀원: 주연</h3><b>Backend · Web Front</b> | <img src="assets/team/jeonghui.png" width="180" height="180"/><br/><h3>팀원: 정희</h3><b>Backend · AI</b> |
