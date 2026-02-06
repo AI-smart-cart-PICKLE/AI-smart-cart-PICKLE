@@ -28,12 +28,11 @@ final recipes_you_can_cook_now_provider = FutureProvider<List<RecipeCardModel>>(
   return cartAsync.maybeWhen(
     data: (cart) {
       if (cart.items.isNotEmpty) {
-        // 가장 최근에 담은(또는 첫번째) 상품 ID 사용
-        // cart.items 순서가 중요하다면 정렬 필요. 여기서는 첫번째 아이템 사용
+        // 기존: 첫 번째 상품 기준 -> 변경: 장바구니 전체(세션ID) 기준 AI 추천
         try {
-          final int productId = int.parse(cart.items.first.product_id);
-          return repo.fetch_recipes_you_can_cook_now(basedOnProductId: productId);
+          return repo.fetch_recipes_by_cart(cart_session_id: cart.cart_session_id);
         } catch (e) {
+          print('Recipe recommendation error: $e');
           return [];
         }
       }
