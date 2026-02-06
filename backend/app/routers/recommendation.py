@@ -5,6 +5,10 @@ from typing import List
 
 from .. import models, schemas, database
 from ..dependencies import get_current_user
+import logging
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/recommendations",
@@ -43,15 +47,18 @@ def recommend_recipes_by_cart(
         logger.info(f"   - 상품: {item.product.name} (ID: {item.product_id}) | 임베딩: {emb_status}")
         
         if has_embedding:
+            # pgvector 데이터는 이미 리스트 형태이므로 그대로 추가
             vectors.append(item.product.embedding)
             
-    recommendations = []
+    recommendations_query = []
     
     # 3. 추천 로직 실행
     if vectors:
         logger.info(f"🚀 [AI 모드] 유효 벡터 {len(vectors)}개로 Centroid 계산 및 추천 실행")
         # 벡터 평균 계산 (Centroid)
-        avg_vector = np.mean(vectors, axis=0).tolist()
+        avg_vector_np = np.mean(vectors, axis=0)
+        # numpy float64를 일반 float 리스트로 변환 (DB 드라이버 호환성)
+        avg_vector = [float(x) for x in avg_vector_np.tolist()]
         
         # Centroid와 유사한 레시피 검색 및 거리(Distance) 가져오기
         recommendations_query = (
