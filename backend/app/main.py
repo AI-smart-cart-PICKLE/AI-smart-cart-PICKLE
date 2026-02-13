@@ -1,65 +1,114 @@
 import logging
 import os
+from dotenv import load_dotenv
 
-# 전역 로깅 설정 (로거 선언 전 최상단)
+# 1. 환경 변수 로드 (가장 먼저 실행)
+load_dotenv()
+
+# 2. FastAPI 및 관련 라이브러리 임포트
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
+# 3. 내부 모듈 임포트 (Database, Models, Handlers)
+from app.database import engine, Base
+from app import models
+from app.core.exception_handlers import (
+    global_exception_handler,
+    http_exception_handler,
+    validation_exception_handler
+)
+
+# 4. 라우터 임포트
+from app.routers import (
+    cart,
+    payment,
+    user,
+    auth,
+    product,
+    ledger,
+    recommendation,
+    recipe,
+    admin
+)
+
+# =========================================================
+# ⚙️ 설정 및 초기화
+# =========================================================
+
+# 전역 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-from dotenv import load_dotenv
-load_dotenv() # .env 파일을 찾아서 환경변수로 로드함
-# 앱 실행 진입점
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from .database import engine, Base
-from . import models  # 우리가 만든 models.py를 가져와야 테이블을 인식합니다!
-from .routers import cart, payment, user, auth, product, ledger, recommendation, recipe, admin # 라우터 파일들 임포트
-
-# ★ 핵심: 서버 시작할 때 DB에 없는 테이블을 자동으로 생성함
+# DB 테이블 자동 생성 (필요 시 주석 해제)
 # models.py에 정의된 클래스들을 보고 매핑합니다.
 # Base.metadata.create_all(bind=engine)
 
+# FastAPI 앱 초기화
 app = FastAPI(
     title="Pickle Project API",
-    description="스마트 카트 및 추천/결제 서비스 API",
-    version="1.0.0"
+    description="스마트 카트 및 추천/결제 서비스 API (SSAFY 14th Project)",
+    version="1.0.0",
+    docs_url="/docs",  # Swagger UI 주소
+    redoc_url="/redoc" # ReDoc 주소
 )
 
-import os
+# =========================================================
+# 🛡️ 미들웨어 & 예외 핸들러 (Middleware & Handlers)
+# =========================================================
 
-# CORS 
-# 개발 환경에서는 모든 출처 허용 ("*")
+# CORS 설정 (개발 환경: 모든 출처 허용)
 origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 모든 곳에서 접속 허용 (보안상 개발때만 사용)
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # 모든 HTTP Method 허용 (GET, POST 등)
+    allow_methods=["*"],  # GET, POST, PUT, DELETE 등 모든 메소드 허용
     allow_headers=["*"],  # 모든 헤더 허용
 )
 
-# 라우터 등록 (만들어둔 API 연결)
-# user.py의 2개 라우터
-app.include_router(user.auth_router, prefix="/api")  # /api/auth/signup, etc.
-app.include_router(user.user_router, prefix="/api")  # /api/users/me, etc.
+# 전역 예외 핸들러 등록 (순서 중요)
+app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
-# 나머지 라우터
-app.include_router(auth.router, prefix="/api")       # /api/auth/refresh, etc.
+
+# =========================================================
+# 🌐 라우터 등록 (Router Inclusion)
+# =========================================================
+
+# 1. 인증 및 사용자 관련
+app.include_router(user.auth_router, prefix="/api")  # 회원가입, 로그인 등
+app.include_router(user.user_router, prefix="/api")  # 내 정보 조회 등
+app.include_router(auth.router, prefix="/api")       # 토큰 갱신, QR 로그인 등
+
+# 2. 핵심 도메인 (상품, 카트, 결제, 추천)
 app.include_router(product.router, prefix="/api")
 app.include_router(cart.router, prefix="/api")
 app.include_router(payment.router, prefix="/api")
-app.include_router(admin.router, prefix="/api")
-app.include_router(ledger.router, prefix="/api")
 app.include_router(recommendation.router, prefix="/api")
 app.include_router(recipe.router, prefix="/api")
 
+# 3. 기타 (가계부, 관리자)
+app.include_router(ledger.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+
+
+# =========================================================
+# 🚀 헬스 체크 (Health Check)
+# =========================================================
+
 @app.get("/")
 def read_root():
-    return {"message": "Hello, Pickle! 서버가 정상 작동 중입니다."}
+    return {
+        "project": "Pickle",
+        "status": "Running",
+        "message": "서버가 정상 작동 중입니다. /docs로 이동하여 API를 테스트하세요."
+    }
 
 @app.get("/health")
 def health():
