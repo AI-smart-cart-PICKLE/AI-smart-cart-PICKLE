@@ -124,17 +124,9 @@
 - pgvector 임베딩 유사도 검색
 - 재료 ↔ 음식 양방향 추천
 
-<p align="center">
-  <img src="assets/recipe_reco.png" width="900"/>
-</p>
-
 ---
 
 ## 🧭 전체 서비스 흐름
-
-<p align="center">
-  <img src="assets/service_flow.png" width="950"/>
-</p>
 
 1. 모바일 로그인  
 2. QR 스캔 → 카트 세션 연결  
