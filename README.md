@@ -62,7 +62,7 @@
 - 모바일 · 웹과 세션 동기화
 
 <p align="center">
-  <img src="assets/cart_display.png" width="900"/>
+  <img src="assets/cart_display.jpg" width="900"/>
 </p>
 
 ---
