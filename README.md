@@ -210,7 +210,7 @@
 
 ### AI / Edge
 - Jetson Orin Nano
-- YOLOv8
+- YOLO11
 - OpenCV
 
 ### Infra
